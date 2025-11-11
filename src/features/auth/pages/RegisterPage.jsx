@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate, Link, useLocation } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -21,12 +21,14 @@ import { authService } from "../services/authService";
 // Schema com validação customizada para confirmar senha
 const registerSchema = z.object({
   nome: z.string().min(3, "Nome deve ter pelo menos 3 caracteres"),
+  sobrenome: z.string().min(3, "Sobrenome deve ter pelo menos 3 caracteres"),
   email: z.string().email("Email inválido"),
+  telefone: z.string().min(10, "Telefone inválido (ex: 11999999999)"),
   senha: z.string().min(6, "Senha deve ter pelo menos 6 caracteres"),
   confirmarSenha: z.string(),
-  role: z.enum(["PASSAGEIRO", "MOTORISTA"], {
-    errorMap: () => ({ message: "Selecione um tipo" }),
-  }),
+  userTypeId: z.string().min(1, "Selecione um tipo"),
+  genderId: z.string().min(1, "Selecione um gênero"),
+  courseId: z.string().min(1, "Selecione um curso"),
 }).refine((data) => data.senha === data.confirmarSenha, {
   // refine valida campos interdependentes
   message: "As senhas não coincidem",
@@ -35,8 +37,30 @@ const registerSchema = z.object({
 
 export function RegisterPage() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const userTypeId = location.state?.userTypeId || "1"; // Default: Passageiro
+  
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [genders, setGenders] = useState([]);
+  const [courses, setCourses] = useState([]);
+
+  // Buscar gêneros e cursos ao montar
+  useState(() => {
+    const fetchData = async () => {
+      try {
+        const [gendersRes, coursesRes] = await Promise.all([
+          fetch('http://localhost:8080/genders').then(r => r.json()),
+          fetch('http://localhost:8080/courses').then(r => r.json())
+        ]);
+        setGenders(gendersRes);
+        setCourses(coursesRes);
+      } catch (error) {
+        console.error('Erro ao carregar dados:', error);
+      }
+    };
+    fetchData();
+  }, []);
 
   const {
     register,
@@ -44,18 +68,31 @@ export function RegisterPage() {
     formState: { errors },
   } = useForm({
     resolver: zodResolver(registerSchema),
+    defaultValues: {
+      userTypeId,
+    }
   });
 
   const onSubmit = async (data) => {
     try {
       setLoading(true);
       setError("");
-      await authService.register({
+      
+      const payload = {
         nome: data.nome,
+        sobrenome: data.sobrenome,
         email: data.email,
         senha: data.senha,
-        role: data.role,
-      });
+        telefone: data.telefone,
+        foto: "",
+        userTypeId: Number(data.userTypeId),
+        genderId: Number(data.genderId),
+        courseId: Number(data.courseId),
+        userAddressesDTO: null
+      };
+      
+      await authService.register(payload);
+      
       // Redireciona para login com mensagem via state
       navigate("/login", {
         state: { message: "Cadastro realizado! Faça login para continuar." },
@@ -82,12 +119,21 @@ export function RegisterPage() {
         )}
 
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-          <Input
-            label="Nome completo"
-            placeholder="Seu nome"
-            error={errors.nome?.message}
-            {...register("nome")}
-          />
+          <div className="grid grid-cols-2 gap-4">
+            <Input
+              label="Nome"
+              placeholder="Seu nome"
+              error={errors.nome?.message}
+              {...register("nome")}
+            />
+
+            <Input
+              label="Sobrenome"
+              placeholder="Seu sobrenome"
+              error={errors.sobrenome?.message}
+              {...register("sobrenome")}
+            />
+          </div>
 
           <Input
             label="Email"
@@ -97,15 +143,35 @@ export function RegisterPage() {
             {...register("email")}
           />
 
-          <Select
-            label="Tipo de usuário"
-            error={errors.role?.message}
-            {...register("role")}
-            options={[
-              { value: "PASSAGEIRO", label: "Passageiro" },
-              { value: "MOTORISTA", label: "Motorista" },
-            ]}
+          <Input
+            label="Telefone"
+            type="tel"
+            placeholder="11999999999"
+            error={errors.telefone?.message}
+            {...register("telefone")}
           />
+
+          <div className="grid grid-cols-2 gap-4">
+            <Select
+              label="Gênero"
+              error={errors.genderId?.message}
+              {...register("genderId")}
+              options={genders.map(g => ({
+                value: g.id.toString(),
+                label: g.name
+              }))}
+            />
+
+            <Select
+              label="Curso"
+              error={errors.courseId?.message}
+              {...register("courseId")}
+              options={courses.map(c => ({
+                value: c.id.toString(),
+                label: c.nome
+              }))}
+            />
+          </div>
 
           <Input
             label="Senha"

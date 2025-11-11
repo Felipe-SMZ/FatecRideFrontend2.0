@@ -13,8 +13,10 @@ import { Input } from '@shared/components/ui/Input';
  */
 
 // Schema com validações específicas para veículos
+// Mapeia para VehicleDTO do backend
 const vehicleSchema = z.object({
   modelo: z.string().min(2, "Modelo deve ter pelo menos 2 caracteres"),
+  marca: z.string().min(2, "Marca deve ter pelo menos 2 caracteres"),
   placa: z.string()
     .regex(/^[A-Z]{3}[0-9][A-Z0-9][0-9]{2}$/, "Placa inválida (formato: ABC1D23 ou ABC1234)")
     .transform(val => val.toUpperCase()),
@@ -23,7 +25,7 @@ const vehicleSchema = z.object({
     .int("Ano deve ser inteiro")
     .min(1990, "Ano deve ser 1990 ou posterior")
     .max(new Date().getFullYear() + 1, "Ano inválido"),
-  capacidade: z.coerce.number()
+  vagas_disponiveis: z.coerce.number()
     .int("Capacidade deve ser inteira")
     .min(1, "Mínimo 1 passageiro")
     .max(8, "Máximo 8 passageiros"),
@@ -38,21 +40,31 @@ export function VehicleForm({ onSubmit, initialData, isLoading, onCancel }) {
         resolver: zodResolver(vehicleSchema),
         defaultValues: initialData || {
             modelo: '',
+            marca: '',
             placa: '',
             cor: '',
             ano: new Date().getFullYear(),
-            capacidade: 4
+            vagas_disponiveis: 4
         }
     });
 
     return (
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-            <Input
-                label="Modelo"
-                {...register('modelo')}
-                error={errors.modelo?.message}
-                placeholder="Ex: Fiat Uno, Honda Civic"
-            />
+            <div className="grid grid-cols-2 gap-4">
+                <Input
+                    label="Marca"
+                    {...register('marca')}
+                    error={errors.marca?.message}
+                    placeholder="Ex: Fiat, Honda, Chevrolet"
+                />
+
+                <Input
+                    label="Modelo"
+                    {...register('modelo')}
+                    error={errors.modelo?.message}
+                    placeholder="Ex: Uno, Civic, Onix"
+                />
+            </div>
 
             <Input
                 label="Placa"
@@ -80,10 +92,10 @@ export function VehicleForm({ onSubmit, initialData, isLoading, onCancel }) {
             </div>
 
             <Input
-                label="Capacidade de passageiros"
+                label="Vagas disponíveis"
                 type="number"
-                {...register('capacidade')}
-                error={errors.capacidade?.message}
+                {...register('vagas_disponiveis')}
+                error={errors.vagas_disponiveis?.message}
                 placeholder="4"
                 min={1}
                 max={8}
