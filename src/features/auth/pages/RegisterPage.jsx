@@ -10,6 +10,15 @@ import { Alert } from "@shared/components/ui/Alert";
 import { Card } from "@shared/components/ui/Card";
 import { authService } from "../services/authService";
 
+/**
+ * RegisterPage - Página de criação de nova conta
+ * 
+ * Formulário com validação de confirmação de senha usando refine do Zod.
+ * Permite escolher entre PASSAGEIRO e MOTORISTA no momento do cadastro.
+ * Redireciona para login após sucesso com mensagem informativa.
+ */
+
+// Schema com validação customizada para confirmar senha
 const registerSchema = z.object({
   nome: z.string().min(3, "Nome deve ter pelo menos 3 caracteres"),
   email: z.string().email("Email inválido"),
@@ -19,8 +28,9 @@ const registerSchema = z.object({
     errorMap: () => ({ message: "Selecione um tipo" }),
   }),
 }).refine((data) => data.senha === data.confirmarSenha, {
+  // refine valida campos interdependentes
   message: "As senhas não coincidem",
-  path: ["confirmarSenha"],
+  path: ["confirmarSenha"], // Erro aparece no campo confirmarSenha
 });
 
 export function RegisterPage() {
@@ -46,6 +56,7 @@ export function RegisterPage() {
         senha: data.senha,
         role: data.role,
       });
+      // Redireciona para login com mensagem via state
       navigate("/login", {
         state: { message: "Cadastro realizado! Faça login para continuar." },
       });
@@ -117,6 +128,7 @@ export function RegisterPage() {
           </Button>
         </form>
 
+        {/* Link de retorno para login */}
         <div className="mt-6 text-center text-sm text-gray-600">
           Já tem conta?{" "}
           <Link to="/login" className="text-red-600 hover:text-red-700 font-medium">

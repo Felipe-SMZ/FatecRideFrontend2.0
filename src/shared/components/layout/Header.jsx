@@ -4,8 +4,11 @@ import { useAuthStore } from "@features/auth/stores/authStore";
 import { HeaderMenu } from "./HeaderMenu";
 
 /**
- * HEADER - Barra superior da aplicação
- * Logo FATEC, menu de navegação, user info, logout
+ * Header - Barra de navegação superior global
+ * 
+ * Componente presente em todas as páginas autenticadas.
+ * Exibe logo, menu de navegação, informações do usuário e logout.
+ * sticky top-0 mantém o header visível durante o scroll.
  */
 
 export function Header() {
@@ -15,28 +18,31 @@ export function Header() {
     <header className="bg-white border-b shadow-sm sticky top-0 z-40">
       <div className="container mx-auto px-4">
         <div className="flex items-center justify-between h-16">
-          {/* Logo */}
+          {/* Logo com gradiente vermelho da FATEC */}
           <Link to="/" className="flex items-center gap-2">
             <div className="w-10 h-10 bg-gradient-to-br from-red-600 to-red-700 rounded-lg flex items-center justify-center">
               <span className="text-white font-bold text-xl">F</span>
             </div>
+            {/* Texto do logo oculto em mobile (hidden sm:block) */}
             <div className="hidden sm:block">
               <span className="font-bold text-xl text-gray-900">FATEC</span>
               <span className="font-normal text-xl text-red-600">Ride</span>
             </div>
           </Link>
 
-          {/* Menu de navegação */}
+          {/* Menu principal - apenas para usuários autenticados */}
           {user && <HeaderMenu />}
 
-          {/* User info e logout */}
+          {/* Área do usuário: info + logout ou botão de login */}
           <div className="flex items-center gap-4">
             {user ? (
               <>
+                {/* Nome do usuário - oculto em telas pequenas */}
                 <div className="hidden md:flex items-center gap-2 text-sm">
                   <FiUser className="text-gray-500" />
                   <span className="text-gray-700">{user.nome || user.email}</span>
                 </div>
+                {/* Botão de logout com confirmação visual em hover */}
                 <button
                   onClick={logout}
                   className="flex items-center gap-2 px-3 py-2 text-sm text-red-600 hover:bg-red-50 rounded-lg transition-colors"

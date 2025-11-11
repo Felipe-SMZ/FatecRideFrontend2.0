@@ -4,10 +4,22 @@ import { PageContainer } from "@shared/components/layout/PageContainer";
 import { Card } from "@shared/components/ui/Card";
 import { useAuthStore } from "@features/auth/stores/authStore";
 
+/**
+ * HomePage - Dashboard principal pós-login
+ * 
+ * Exibe menu de navegação rápida adaptado ao role do usuário.
+ * Motoristas veem opções de veículos, passageiros não.
+ * Cards clicáveis com ícones coloridos para melhor UX.
+ */
+
 export function HomePage() {
   const { user } = useAuthStore();
   const isMotorista = user?.role === "MOTORISTA";
 
+  /**
+   * Configuração dos cards do menu principal
+   * roles array define quem pode ver cada opção
+   */
   const menuItems = [
     {
       to: "/caronas",
@@ -43,6 +55,7 @@ export function HomePage() {
     },
   ];
 
+  // Filtra apenas cards permitidos para o role atual
   const visibleItems = menuItems.filter((item) =>
     item.roles.includes(user?.role || "PASSAGEIRO")
   );
@@ -63,13 +76,16 @@ export function HomePage() {
           : "Encontre caronas disponíveis"
       }
     >
+      {/* Grid responsivo: 1 col mobile, 2 tablet, 3 desktop */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {visibleItems.map((item) => {
           const Icon = item.icon;
           return (
             <Link key={item.to} to={item.to}>
+              {/* Card interativo com animação de shadow no hover */}
               <Card className="hover:shadow-lg transition-shadow cursor-pointer h-full">
                 <div className="flex items-start gap-4">
+                  {/* Ícone com fundo colorido */}
                   <div
                     className={`p-3 rounded-lg ${colorClasses[item.color]}`}
                   >

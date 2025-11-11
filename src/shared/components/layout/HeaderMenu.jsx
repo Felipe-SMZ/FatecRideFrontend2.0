@@ -4,13 +4,20 @@ import { cn } from "../ui/cn";
 import { useAuthStore } from "@features/auth/stores/authStore";
 
 /**
- * HEADER MENU - Navegação principal
- * Links com estado ativo, ícones, role-based visibility
+ * HeaderMenu - Menu de navegação principal
+ * 
+ * Renderiza links baseados no role do usuário (PASSAGEIRO ou MOTORISTA).
+ * NavLink adiciona classe 'active' automaticamente, permitindo destaque visual.
+ * Ícones aparecem sempre, labels de texto apenas em telas grandes (lg:inline).
  */
 
 export function HeaderMenu() {
   const { user } = useAuthStore();
 
+  /**
+   * Definição de itens do menu com permissões por role
+   * Motoristas veem opção de Veículos, passageiros não
+   */
   const menuItems = [
     { to: "/", label: "Início", icon: FiHome, roles: ["PASSAGEIRO", "MOTORISTA"] },
     { to: "/caronas", label: "Caronas", icon: FiMapPin, roles: ["PASSAGEIRO", "MOTORISTA"] },
@@ -18,7 +25,7 @@ export function HeaderMenu() {
     { to: "/perfil", label: "Perfil", icon: FiUser, roles: ["PASSAGEIRO", "MOTORISTA"] },
   ];
 
-  // Filtra itens baseado no role do usuário
+  // Filtra apenas itens que o usuário tem permissão de ver
   const visibleItems = menuItems.filter((item) =>
     item.roles.includes(user?.role || "PASSAGEIRO")
   );
@@ -31,9 +38,11 @@ export function HeaderMenu() {
           <NavLink
             key={item.to}
             to={item.to}
+            // className como função recebe { isActive } do React Router
             className={({ isActive }) =>
               cn(
                 "flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg transition-colors",
+                // Destaque vermelho para rota ativa, cinza para inativas
                 isActive
                   ? "text-red-600 bg-red-50"
                   : "text-gray-600 hover:text-gray-900 hover:bg-gray-50"
@@ -41,6 +50,7 @@ export function HeaderMenu() {
             }
           >
             <Icon className="w-4 h-4" />
+            {/* Label oculto em mobile/tablet, visível em desktop */}
             <span className="hidden lg:inline">{item.label}</span>
           </NavLink>
         );
