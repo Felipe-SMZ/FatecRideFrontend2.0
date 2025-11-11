@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { FiPlus, FiEdit2, FiTrash2, FiCar } from "react-icons/fi";
+import { FiPlus, FiEdit2, FiTrash2, FiTruck } from "react-icons/fi";
 import { PageContainer } from "@shared/components/layout/PageContainer";
 import { Card } from "@shared/components/ui/Card";
 import { Button } from "@shared/components/ui/Button";
@@ -111,7 +111,7 @@ export function VehiclesPage() {
       {/* Lista de veículos ou empty state */}
       {vehicles.length === 0 ? (
         <EmptyState
-          icon={FiCar}
+          icon={FiTruck}
           title="Nenhum veículo cadastrado"
           description="Adicione um veículo para começar a oferecer caronas"
           action={
@@ -128,7 +128,7 @@ export function VehiclesPage() {
               <div className="flex items-start justify-between mb-4">
                 <div className="flex items-center gap-3">
                   <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
-                    <FiCar className="w-6 h-6 text-blue-600" />
+                    <FiTruck className="w-6 h-6 text-blue-600" />
                   </div>
                   <div>
                     <h3 className="font-semibold text-lg">{vehicle.modelo}</h3>

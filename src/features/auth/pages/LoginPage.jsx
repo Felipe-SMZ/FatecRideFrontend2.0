@@ -92,6 +92,16 @@ export function LoginPage() {
             {...register("senha")}
           />
 
+          {/* Link esqueci senha */}
+          <div className="text-right">
+            <Link
+              to="/forgot-password"
+              className="text-sm text-blue-600 hover:text-blue-800 font-medium"
+            >
+              Esqueceu sua senha?
+            </Link>
+          </div>
+
           {/* Botão desabilitado durante loading previne duplo submit */}
           <Button type="submit" fullWidth disabled={loading}>
             {loading ? "Entrando..." : "Entrar"}
@@ -101,7 +111,7 @@ export function LoginPage() {
         {/* Link para cadastro */}
         <div className="mt-6 text-center text-sm text-gray-600">
           Não tem conta?{" "}
-          <Link to="/cadastro" className="text-red-600 hover:text-red-700 font-medium">
+          <Link to="/select-user-type" className="text-red-600 hover:text-red-700 font-medium">
             Cadastre-se
           </Link>
         </div>

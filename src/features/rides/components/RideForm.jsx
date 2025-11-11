@@ -4,7 +4,7 @@ import { useForm } from 'react-hook-form';
 import { Card } from '@shared/components/ui/Card';
 import { Input } from '@shared/components/ui/Input';
 import { Button } from '@shared/components/ui/Button';
-import { MapPin, Car } from 'lucide-react';
+import { FiMapPin, FiTruck } from 'react-icons/fi';
 import { useVehicles } from '@features/vehicles/hooks/useVehicles';
 
 export function RideForm({ onGenerateRoute, onSubmit, isLoading }) {
@@ -47,7 +47,7 @@ export function RideForm({ onGenerateRoute, onSubmit, isLoading }) {
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
                 <Input
                     label="Ponto de Partida"
-                    leftIcon={MapPin}
+                    leftIcon={FiMapPin}
                     placeholder="Ex: Fatec Cotia"
                     {...register('origin')}
                     error={errors.origin?.message}
@@ -55,7 +55,7 @@ export function RideForm({ onGenerateRoute, onSubmit, isLoading }) {
 
                 <Input
                     label="Ponto Final"
-                    leftIcon={MapPin}
+                    leftIcon={FiMapPin}
                     placeholder="Ex: Avenida Paulista"
                     {...register('destination')}
                     error={errors.destination?.message}

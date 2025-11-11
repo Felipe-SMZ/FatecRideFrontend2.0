@@ -12,7 +12,7 @@
 
 import { forwardRef } from 'react';
 import { cn } from '@shared/utils/cn';
-import { ChevronDown } from 'react-icons/fi';
+import { FiChevronDown } from 'react-icons/fi';
 
 /**
  * Normaliza opções para formato padrão { value, label }
@@ -170,7 +170,7 @@ export const Select = forwardRef(({
           )}
           aria-hidden="true"  // Esconde do leitor de tela (apenas decorativo)
         >
-          <ChevronDown className="w-5 h-5" />
+          <FiChevronDown className="w-5 h-5" />
         </div>
         
       </div>

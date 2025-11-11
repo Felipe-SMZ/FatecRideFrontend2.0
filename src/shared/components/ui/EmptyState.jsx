@@ -1,8 +1,8 @@
 // shared/components/ui/EmptyState.jsx
-import { FileQuestion } from 'lucide-react';
+import { FiFileText } from 'react-icons/fi';
 
 export function EmptyState({
-    icon: Icon = FileQuestion,
+    icon: Icon = FiFileText,
     title = 'Nenhum item encontrado',
     description,
     action

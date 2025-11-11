@@ -1,5 +1,5 @@
 import { NavLink } from "react-router-dom";
-import { FiHome, FiMapPin, FiCar, FiUser } from "react-icons/fi";
+import { FiHome, FiMapPin, FiTruck, FiUser } from "react-icons/fi";
 import { cn } from "../ui/cn";
 import { useAuthStore } from "@features/auth/stores/authStore";
 
@@ -21,7 +21,7 @@ export function HeaderMenu() {
   const menuItems = [
     { to: "/", label: "Início", icon: FiHome, roles: ["PASSAGEIRO", "MOTORISTA"] },
     { to: "/caronas", label: "Caronas", icon: FiMapPin, roles: ["PASSAGEIRO", "MOTORISTA"] },
-    { to: "/meus-veiculos", label: "Veículos", icon: FiCar, roles: ["MOTORISTA"] },
+    { to: "/meus-veiculos", label: "Veículos", icon: FiTruck, roles: ["MOTORISTA"] },
     { to: "/perfil", label: "Perfil", icon: FiUser, roles: ["PASSAGEIRO", "MOTORISTA"] },
   ];
 

@@ -1,6 +1,6 @@
 // shared/components/ErrorBoundary.jsx
 import { Component } from 'react';
-import { AlertTriangle } from 'lucide-react';
+import { FiAlertTriangle } from 'react-icons/fi';
 import { Button } from './ui/Button';
 
 export class ErrorBoundary extends Component {

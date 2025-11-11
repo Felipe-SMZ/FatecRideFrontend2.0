@@ -7,8 +7,11 @@ import { ProtectedRoute } from '@features/auth/components/ProtectedRoute';
 // Eager loading (páginas críticas)
 import { LoginPage } from '@features/auth/pages/LoginPage';
 import { RegisterPage } from '@features/auth/pages/RegisterPage';
+import { SelectUserTypePage } from '@features/auth/pages/SelectUserTypePage';
+import { ForgotPasswordPage } from '@features/auth/pages/ForgotPasswordPage';
 
 // Lazy loading (páginas secundárias)
+const InicioPage = lazy(() => import('../pages/InicioPage').then(m => ({ default: m.InicioPage })));
 const HomePage = lazy(() => import('../pages/HomePage').then(m => ({ default: m.HomePage })));
 const DriverPage = lazy(() => import('@features/rides/pages/DriverPage'));
 const PassengerPage = lazy(() => import('@features/rides/pages/PassengerPage'));
@@ -21,12 +24,29 @@ export function AppRoutes() {
             <Routes>
                 {/* Rotas públicas */}
                 <Route path="/login" element={<LoginPage />} />
+                <Route path="/select-user-type" element={<SelectUserTypePage />} />
+                <Route path="/forgot-password" element={<ForgotPasswordPage />} />
                 <Route path="/cadastro" element={<RegisterPage />} />
 
                 {/* Rotas protegidas */}
                 <Route path="/" element={
                     <ProtectedRoute>
-                        <HomePage />
+                        <InicioPage />
+                    </ProtectedRoute>
+                } />
+                <Route path="/inicio" element={
+                    <ProtectedRoute>
+                        <InicioPage />
+                    </ProtectedRoute>
+                } />
+                <Route path="/motorista" element={
+                    <ProtectedRoute>
+                        <DriverPage />
+                    </ProtectedRoute>
+                } />
+                <Route path="/passageiro" element={
+                    <ProtectedRoute>
+                        <PassengerPage />
                     </ProtectedRoute>
                 } />
                 <Route path="/caronas" element={
@@ -50,8 +70,8 @@ export function AppRoutes() {
                     </ProtectedRoute>
                 } />
 
-                {/* Redirect para home */}
-                <Route path="*" element={<Navigate to="/" replace />} />
+                {/* Redirect para inicio */}
+                <Route path="*" element={<Navigate to="/inicio" replace />} />
             </Routes>
         </Suspense>
     );

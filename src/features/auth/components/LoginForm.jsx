@@ -5,7 +5,7 @@ import { loginSchema } from '@shared/utils/validators';
 import { useLogin } from '../hooks/useAuth';
 import { Button } from '@shared/components/ui/Button';
 import { Input } from '@shared/components/ui/Input';
-import { Mail, Lock } from 'lucide-react';
+import { FiMail, FiLock } from 'react-icons/fi';
 
 export function LoginForm() {
     const { mutate: login, isLoading } = useLogin();
@@ -31,7 +31,7 @@ export function LoginForm() {
             <Input
                 label="Email"
                 type="email"
-                leftIcon={Mail}
+                leftIcon={FiMail}
                 {...register('email')}
                 error={errors.email?.message}
                 placeholder="seu@email.com"
@@ -40,7 +40,7 @@ export function LoginForm() {
             <Input
                 label="Senha"
                 type="password"
-                leftIcon={Lock}
+                leftIcon={FiLock}
                 {...register('senha')}
                 error={errors.senha?.message}
                 placeholder="••••••••"
