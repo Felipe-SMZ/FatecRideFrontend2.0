@@ -2,6 +2,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
+import { Navbar } from '@shared/components/layout/Navbar';
 import { PageContainer } from '@shared/components/layout/PageContainer';
 import { Card } from '@shared/components/ui/Card';
 import { Button } from '@shared/components/ui/Button';
@@ -175,12 +176,14 @@ export function DriverPage() {
     };
 
     return (
-        <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white">
-            <PageContainer>
-                <div className="py-6">
-                    <h1 className="text-3xl font-bold text-gray-900 mb-6">
-                        Oferecer Carona 🚗
-                    </h1>
+        <>
+            <Navbar showAuthButton={true} />
+            <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white">
+                <PageContainer>
+                    <div className="py-6">
+                        <h1 className="text-3xl font-bold text-gray-900 mb-6">
+                            Oferecer Carona 🚗
+                        </h1>
 
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                         {/* Coluna do Mapa - 2/3 */}
@@ -295,5 +298,6 @@ export function DriverPage() {
                 </div>
             </PageContainer>
         </div>
+        </>
     );
 }

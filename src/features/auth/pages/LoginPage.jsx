@@ -6,18 +6,9 @@ import { z } from "zod";
 import { Input } from "@shared/components/ui/Input";
 import { Button } from "@shared/components/ui/Button";
 import { Alert } from "@shared/components/ui/Alert";
-import { Card } from "@shared/components/ui/Card";
-import { useAuthStore } from "../stores/authStore";
+import { Logo } from "@shared/components/ui/Logo";
+import { authService } from "@features/auth/services/authService";
 
-/**
- * LoginPage - Página de autenticação do usuário
- * 
- * Formulário validado com Zod + React Hook Form.
- * Integra com authStore para gerenciar estado de autenticação global.
- * Redireciona para home após login bem-sucedido.
- */
-
-// Schema de validação - define regras antes do submit
 const loginSchema = z.object({
   email: z.string().email("Email inválido"),
   senha: z.string().min(1, "Senha obrigatória"),
@@ -25,7 +16,6 @@ const loginSchema = z.object({
 
 export function LoginPage() {
   const navigate = useNavigate();
-  const { login } = useAuthStore();
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -37,18 +27,21 @@ export function LoginPage() {
     resolver: zodResolver(loginSchema),
   });
 
-  /**
-   * Handler do formulário
-   * Try-catch gerencia erros da API de forma controlada
-   */
   const onSubmit = async (data) => {
     try {
       setLoading(true);
       setError("");
-      await login(data.email, data.senha);
-      navigate("/"); // Redireciona para home após sucesso
+      
+      const response = await authService.login({
+        email: data.email,
+        senha: data.senha
+      });
+      
+      if (response.token) {
+        localStorage.setItem('token', response.token);
+        navigate("/inicio");
+      }
     } catch (err) {
-      // Extrai mensagem de erro da resposta ou usa fallback
       setError(err.response?.data?.message || "Erro ao fazer login");
     } finally {
       setLoading(false);
@@ -56,66 +49,108 @@ export function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-red-50 to-blue-50 p-4">
-      <Card className="w-full max-w-md">
-        {/* Cabeçalho com logo e título */}
-        <div className="text-center mb-6">
-          <div className="w-16 h-16 bg-gradient-to-br from-red-600 to-red-700 rounded-lg flex items-center justify-center mx-auto mb-4">
-            <span className="text-white font-bold text-3xl">F</span>
-          </div>
-          <h1 className="text-2xl font-bold text-gray-900">FATECRide</h1>
-          <p className="text-gray-600 mt-2">Entre com sua conta</p>
+    <div className="min-h-screen flex">
+      {/* Lado Esquerdo - Azul com Logo e Mensagem */}
+      <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-fatecride-blue via-fatecride-blue-dark to-fatecride-blue-darker relative overflow-hidden">
+        {/* Background Pattern */}
+        <div className="absolute inset-0 opacity-10">
+          <div className="absolute inset-0" style={{
+            backgroundImage: 'radial-gradient(circle, white 1px, transparent 1px)',
+            backgroundSize: '50px 50px'
+          }}></div>
         </div>
+        
+        <div className="relative z-10 flex flex-col items-center justify-center w-full p-12 text-white text-center">
+          <Logo size="2xl" className="mb-8 drop-shadow-2xl" />
+          <h1 className="text-5xl xl:text-6xl font-bold mb-4 drop-shadow-lg">
+            Bem-vindo
+          </h1>
+          <p className="text-xl xl:text-2xl text-white/90">
+            Pegue carona de um jeito mais fácil
+          </p>
+        </div>
+      </div>
 
-        {/* Alert de erro - dismissible permite fechar manualmente */}
-        {error && (
-          <Alert variant="danger" dismissible onClose={() => setError("")} className="mb-4">
-            {error}
-          </Alert>
-        )}
+      {/* Lado Direito - Branco com Formulário */}
+      <div className="flex-1 flex items-center justify-center p-8 bg-gray-50">
+        <div className="w-full max-w-md">
+          {/* Logo mobile */}
+          <div className="lg:hidden flex justify-center mb-8">
+            <Logo size="xl" />
+          </div>
 
-        {/* Formulário controlado pelo React Hook Form */}
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-          <Input
-            label="Email"
-            type="email"
-            placeholder="seu@email.com"
-            error={errors.email?.message}
-            {...register("email")} // Conecta input ao form
-          />
+          <div className="bg-white rounded-2xl shadow-xl p-8 border border-gray-100">
+            <h2 className="text-3xl font-bold text-fatecride-blue mb-2">Login</h2>
+            <p className="text-text-secondary mb-6">Acesse sua conta</p>
 
-          <Input
-            label="Senha"
-            type="password"
-            placeholder="••••••••"
-            error={errors.senha?.message}
-            {...register("senha")}
-          />
+            {/* Alert de erro */}
+            {error && (
+              <Alert variant="danger" dismissible onClose={() => setError("")} className="mb-6">
+                {error}
+              </Alert>
+            )}
 
-          {/* Link esqueci senha */}
-          <div className="text-right">
-            <Link
-              to="/forgot-password"
-              className="text-sm text-blue-600 hover:text-blue-800 font-medium"
-            >
-              Esqueceu sua senha?
+            {/* Formulário */}
+            <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
+              <Input
+                label="Email"
+                type="email"
+                placeholder="seu@email.com"
+                error={errors.email?.message}
+                {...register("email")}
+              />
+
+              <Input
+                label="Senha"
+                type="password"
+                placeholder="••••••••"
+                error={errors.senha?.message}
+                {...register("senha")}
+              />
+
+              <div className="text-right">
+                <Link
+                  to="/forgot-password"
+                  className="text-sm text-fatecride-blue hover:text-fatecride-blue-dark font-semibold transition-colors"
+                >
+                  Esqueceu a senha?
+                </Link>
+              </div>
+
+              <Button 
+                type="submit" 
+                fullWidth 
+                disabled={loading} 
+                size="lg" 
+                className="bg-fatecride-blue hover:bg-fatecride-blue-dark transition-colors shadow-md"
+              >
+                {loading ? "Entrando..." : "Entrar"}
+              </Button>
+            </form>
+
+            {/* Divider */}
+            <div className="relative my-6">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-gray-200"></div>
+              </div>
+              <div className="relative flex justify-center text-sm">
+                <span className="px-4 bg-white text-text-secondary">ou</span>
+              </div>
+            </div>
+
+            {/* Botão criar conta */}
+            <Link to="/select-user-type" className="block">
+              <Button 
+                type="button" 
+                fullWidth 
+                className="bg-fatecride-blue hover:bg-fatecride-blue-dark transition-colors"
+              >
+                Criar conta
+              </Button>
             </Link>
           </div>
-
-          {/* Botão desabilitado durante loading previne duplo submit */}
-          <Button type="submit" fullWidth disabled={loading}>
-            {loading ? "Entrando..." : "Entrar"}
-          </Button>
-        </form>
-
-        {/* Link para cadastro */}
-        <div className="mt-6 text-center text-sm text-gray-600">
-          Não tem conta?{" "}
-          <Link to="/select-user-type" className="text-red-600 hover:text-red-700 font-medium">
-            Cadastre-se
-          </Link>
         </div>
-      </Card>
+      </div>
     </div>
   );
 }

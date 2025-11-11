@@ -1,6 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import { Card } from '@shared/components/ui/Card';
 import { Button } from '@shared/components/ui/Button';
+import { Logo } from '@shared/components/ui/Logo';
 import { FiUser, FiTruck, FiUsers } from 'react-icons/fi';
 
 /**
@@ -23,24 +24,24 @@ const USER_TYPES = [
     name: 'Passageiro',
     description: 'Busco caronas para minhas viagens',
     icon: FiUser,
-    color: 'from-blue-500 to-blue-600',
-    hoverColor: 'hover:from-blue-600 hover:to-blue-700'
+    color: 'from-fatecride-blue to-fatecride-blue-dark',
+    hoverColor: 'hover:from-fatecride-blue-dark hover:to-fatecride-blue-darker'
   },
   {
     id: 2,
     name: 'Motorista',
     description: 'Ofereço caronas aos colegas',
     icon: FiTruck,
-    color: 'from-green-500 to-green-600',
-    hoverColor: 'hover:from-green-600 hover:to-green-700'
+    color: 'from-fatecride-blue to-fatecride-blue-dark',
+    hoverColor: 'hover:from-fatecride-blue-dark hover:to-fatecride-blue-darker'
   },
   {
     id: 3,
     name: 'Ambos',
     description: 'Ofereço e busco caronas',
     icon: FiUsers,
-    color: 'from-purple-500 to-purple-600',
-    hoverColor: 'hover:from-purple-600 hover:to-purple-700'
+    color: 'from-fatecride-blue to-fatecride-blue-dark',
+    hoverColor: 'hover:from-fatecride-blue-dark hover:to-fatecride-blue-darker'
   }
 ];
 
@@ -55,18 +56,25 @@ export function SelectUserTypePage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-blue-50 via-white to-blue-50 flex items-center justify-center p-4">
-      <div className="w-full max-w-4xl">
+    <div className="min-h-screen bg-gradient-to-br from-fatecride-blue via-fatecride-blue-dark to-fatecride-blue-darker flex items-center justify-center p-4">
+      {/* Background Pattern */}
+      <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxnIGZpbGw9IiNmZmYiIGZpbGwtb3BhY2l0eT0iMC4wNSI+PHBhdGggZD0iTTM2IDE zNGgxMHYxMEgzNnptMCAzMGgxMHYxMEgzNnoiLz48L2c+PC9nPjwvc3ZnPg==')] opacity-20"></div>
+      
+      <div className="w-full max-w-6xl relative z-10">
         <div className="text-center mb-12">
-          <h1 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4">
-            Bem-vindo ao FatecRide! 🚗
+          <Logo 
+            size="xl" 
+            className="bg-white/10 backdrop-blur-sm rounded-3xl mb-6 shadow-2xl mx-auto"
+          />
+          <h1 className="text-5xl md:text-6xl font-bold text-white mb-4 drop-shadow-lg">
+            Bem-vindo ao FatecRide!
           </h1>
-          <p className="text-xl text-gray-600">
+          <p className="text-xl md:text-2xl text-white/90 drop-shadow">
             Escolha como você deseja usar a plataforma
           </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-8">
           {USER_TYPES.map((type) => {
             const Icon = type.icon;
             
@@ -76,26 +84,25 @@ export function SelectUserTypePage() {
                 className={`
                   cursor-pointer transform transition-all duration-300
                   hover:scale-105 hover:shadow-2xl
-                  bg-gradient-to-br ${type.color} ${type.hoverColor}
-                  text-white border-0
+                  bg-white/95 backdrop-blur-sm border-2 border-transparent hover:border-white
                 `}
                 onClick={() => handleSelectUserType(type.id)}
               >
                 <div className="p-8 flex flex-col items-center text-center h-full">
-                  <div className="bg-white rounded-full p-6 mb-6 shadow-lg">
-                    <Icon className="w-16 h-16" style={{ color: 'currentColor' }} />
+                  <div className={`bg-gradient-to-br ${type.color} rounded-3xl p-8 mb-6 shadow-xl transform transition-transform hover:scale-110`}>
+                    <Icon className="w-20 h-20 text-white" />
                   </div>
                   
-                  <h3 className="text-2xl font-bold mb-3">
+                  <h3 className="text-3xl font-bold mb-4 text-fatecride-blue">
                     {type.name}
                   </h3>
                   
-                  <p className="text-blue-50 flex-grow">
+                  <p className="text-text-secondary flex-grow text-lg mb-8 leading-relaxed">
                     {type.description}
                   </p>
 
                   <Button
-                    className="mt-6 bg-white text-gray-900 hover:bg-gray-100 w-full"
+                    className={`mt-auto w-full bg-gradient-to-r ${type.color} ${type.hoverColor} text-white text-lg py-3 border-0 shadow-lg transition-all`}
                     onClick={(e) => {
                       e.stopPropagation();
                       handleSelectUserType(type.id);
@@ -109,12 +116,13 @@ export function SelectUserTypePage() {
           })}
         </div>
 
-        <div className="text-center mt-8">
+        <div className="text-center mt-12">
+          <p className="text-white/80 mb-4 text-lg">Já possui uma conta?</p>
           <button
             onClick={() => navigate('/login')}
-            className="text-blue-600 hover:text-blue-800 underline font-medium"
+            className="text-white hover:text-white/80 font-semibold text-xl underline decoration-2 underline-offset-4 transition-all"
           >
-            Já tenho uma conta
+            Fazer login
           </button>
         </div>
       </div>

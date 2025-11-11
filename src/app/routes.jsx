@@ -17,6 +17,8 @@ const DriverPage = lazy(() => import('@features/rides/pages/DriverPage'));
 const PassengerPage = lazy(() => import('@features/rides/pages/PassengerPage'));
 const ProfilePage = lazy(() => import('@features/profile/pages/ProfilePage'));
 const VehiclesPage = lazy(() => import('@features/vehicles/pages/VehiclesPage'));
+const AddressRegisterPage = lazy(() => import('@features/profile/pages/AddressRegisterPage').then(m => ({ default: m.AddressRegisterPage })));
+const VehicleRegisterPage = lazy(() => import('@features/vehicles/pages/VehicleRegisterPage').then(m => ({ default: m.VehicleRegisterPage })));
 
 export function AppRoutes() {
     return (
@@ -27,6 +29,8 @@ export function AppRoutes() {
                 <Route path="/select-user-type" element={<SelectUserTypePage />} />
                 <Route path="/forgot-password" element={<ForgotPasswordPage />} />
                 <Route path="/cadastro" element={<RegisterPage />} />
+                <Route path="/cadastro-endereco" element={<AddressRegisterPage />} />
+                <Route path="/cadastro-veiculo" element={<VehicleRegisterPage />} />
 
                 {/* Rotas protegidas */}
                 <Route path="/" element={
