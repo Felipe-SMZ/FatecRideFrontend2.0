@@ -1,11 +1,35 @@
 // features/vehicles/components/VehicleForm.jsx
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { vehicleSchema } from '@shared/utils/validators';
+import { z } from 'zod';
 import { Button } from '@shared/components/ui/Button';
 import { Input } from '@shared/components/ui/Input';
 
-export function VehicleForm({ onSubmit, initialData, isLoading }) {
+/**
+ * VehicleForm - Formulário reutilizável para criar/editar veículos
+ * 
+ * Usado tanto em modal quanto em página dedicada.
+ * defaultValues preenche campos para edição.
+ */
+
+// Schema com validações específicas para veículos
+const vehicleSchema = z.object({
+  modelo: z.string().min(2, "Modelo deve ter pelo menos 2 caracteres"),
+  placa: z.string()
+    .regex(/^[A-Z]{3}[0-9][A-Z0-9][0-9]{2}$/, "Placa inválida (formato: ABC1D23 ou ABC1234)")
+    .transform(val => val.toUpperCase()),
+  cor: z.string().min(3, "Cor inválida"),
+  ano: z.coerce.number()
+    .int("Ano deve ser inteiro")
+    .min(1990, "Ano deve ser 1990 ou posterior")
+    .max(new Date().getFullYear() + 1, "Ano inválido"),
+  capacidade: z.coerce.number()
+    .int("Capacidade deve ser inteira")
+    .min(1, "Mínimo 1 passageiro")
+    .max(8, "Máximo 8 passageiros"),
+});
+
+export function VehicleForm({ onSubmit, initialData, isLoading, onCancel }) {
     const {
         register,
         handleSubmit,
@@ -13,29 +37,21 @@ export function VehicleForm({ onSubmit, initialData, isLoading }) {
     } = useForm({
         resolver: zodResolver(vehicleSchema),
         defaultValues: initialData || {
-            marca: '',
             modelo: '',
             placa: '',
             cor: '',
             ano: new Date().getFullYear(),
-            vagas_disponiveis: 1
+            capacidade: 4
         }
     });
 
     return (
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
             <Input
-                label="Marca"
-                {...register('marca')}
-                error={errors.marca?.message}
-                placeholder="Ex: Toyota"
-            />
-
-            <Input
                 label="Modelo"
                 {...register('modelo')}
                 error={errors.modelo?.message}
-                placeholder="Ex: Corolla"
+                placeholder="Ex: Fiat Uno, Honda Civic"
             />
 
             <Input
@@ -46,38 +62,48 @@ export function VehicleForm({ onSubmit, initialData, isLoading }) {
                 maxLength={7}
             />
 
-            <Input
-                label="Cor"
-                {...register('cor')}
-                error={errors.cor?.message}
-                placeholder="Ex: Prata"
-            />
+            <div className="grid grid-cols-2 gap-4">
+                <Input
+                    label="Cor"
+                    {...register('cor')}
+                    error={errors.cor?.message}
+                    placeholder="Ex: Preto, Branco"
+                />
+
+                <Input
+                    label="Ano"
+                    type="number"
+                    {...register('ano')}
+                    error={errors.ano?.message}
+                    placeholder="2020"
+                />
+            </div>
 
             <Input
-                label="Ano"
+                label="Capacidade de passageiros"
                 type="number"
-                {...register('ano', { valueAsNumber: true })}
-                error={errors.ano?.message}
-                min={1900}
-                max={new Date().getFullYear()}
-            />
-
-            <Input
-                label="Vagas Disponíveis"
-                type="number"
-                {...register('vagas_disponiveis', { valueAsNumber: true })}
-                error={errors.vagas_disponiveis?.message}
+                {...register('capacidade')}
+                error={errors.capacidade?.message}
+                placeholder="4"
                 min={1}
-                max={10}
+                max={8}
             />
 
-            <Button
-                type="submit"
-                loading={isLoading}
-                fullWidth
-            >
-                {initialData ? 'Atualizar Veículo' : 'Cadastrar Veículo'}
-            </Button>
+            <div className="flex gap-3 justify-end">
+                {onCancel && (
+                    <Button
+                        type="button"
+                        variant="outline"
+                        onClick={onCancel}
+                        disabled={isLoading}
+                    >
+                        Cancelar
+                    </Button>
+                )}
+                <Button type="submit" disabled={isLoading}>
+                    {isLoading ? 'Salvando...' : (initialData ? 'Atualizar veículo' : 'Salvar veículo')}
+                </Button>
+            </div>
         </form>
     );
 }
