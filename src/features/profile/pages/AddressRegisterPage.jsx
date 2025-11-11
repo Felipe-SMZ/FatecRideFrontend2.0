@@ -34,9 +34,6 @@ export function AddressRegisterPage() {
   const location = useLocation();
   const userTypeId = location.state?.userTypeId || 1; // Receber userTypeId da página anterior
   
-  console.log('🏠 [AddressRegisterPage] Inicialização');
-  console.log('  📌 userTypeId recebido:', userTypeId);
-  
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [cities, setCities] = useState([]);
@@ -119,8 +116,6 @@ export function AddressRegisterPage() {
       setLoading(true);
       setError("");
       
-      console.log('\n📍 === CADASTRANDO USUÁRIO + ENDEREÇO ===');
-      
       // Buscar dados do usuário salvos temporariamente
       const tempUserDataStr = localStorage.getItem('tempUserData');
       
@@ -132,7 +127,6 @@ export function AddressRegisterPage() {
       }
       
       const tempUserData = JSON.parse(tempUserDataStr);
-      console.log('📦 Dados do usuário recuperados:', tempUserData);
       
       const addressPayload = {
         cityId: Number(data.cityId),
@@ -142,22 +136,13 @@ export function AddressRegisterPage() {
         cep: data.cep.replace(/\D/g, ''),
       };
       
-      console.log('📍 Dados do endereço:', addressPayload);
-      
       // Verificar tipo de usuário ANTES de enviar
-      console.log('🔍 Verificando tipo de usuário:', userTypeId);
-      console.log('🎯 UserTypeId do tempUserData:', tempUserData.userTypeId);
-      
       // Se for Motorista (2) ou Ambos (3), NÃO criar agora - ir para cadastro de veículo
       // Backend exige veículo para esses tipos
       if (userTypeId === 2 || userTypeId === 3) {
-        console.log('🚗 Motorista/Ambos detectado! Salvando dados e redirecionando para cadastro de veículo...');
-        
         // Salvar dados temporariamente para enviar junto com o veículo
         localStorage.setItem('tempUserData', JSON.stringify(tempUserData));
         localStorage.setItem('tempAddressData', JSON.stringify(addressPayload));
-        console.log('💾 Dados salvos temporariamente');
-        console.log('➡️  Redirecionando para /cadastro-veiculo');
         
         setLoading(false);
         
@@ -172,7 +157,6 @@ export function AddressRegisterPage() {
       }
       
       // Se chegou aqui, é Passageiro (1) - criar normalmente
-      console.log('✅ Passageiro detectado - criando conta...');
       
       // Montar payload completo: usuário + endereço
       const completePayload = {
@@ -180,14 +164,8 @@ export function AddressRegisterPage() {
         userAddressesDTO: addressPayload // Backend espera OBJETO, não array!
       };
       
-      console.log('📤 Payload completo (usuário + endereço):', completePayload);
-      console.log('🎯 UserTypeId:', tempUserData.userTypeId);
-      
       // Apenas passageiros usam este endpoint
       const endpoint = '/users/criarPassageiro';
-      
-      console.log('🔀 Endpoint:', endpoint);
-      console.log('🚀 Enviando requisição...');
       
       // Criar usuário com endereço
       const response = await fetch(`http://localhost:8080${endpoint}`, {
@@ -198,8 +176,6 @@ export function AddressRegisterPage() {
         body: JSON.stringify(completePayload)
       });
       
-      console.log('📨 Status da resposta:', response.status);
-      
       if (!response.ok) {
         const errorData = await response.json();
         console.error('❌ Erro na resposta:', errorData);
@@ -207,20 +183,14 @@ export function AddressRegisterPage() {
       }
       
       const responseData = await response.json();
-      console.log('✅ Resposta do servidor:', responseData);
       
       // Salvar token
       if (responseData.token) {
         localStorage.setItem('token', responseData.token);
-        console.log('🔑 Token salvo no localStorage');
       }
       
       // Limpar dados temporários
       localStorage.removeItem('tempUserData');
-      console.log('🗑️  Dados temporários removidos');
-      
-      console.log('✅ Passageiro cadastrado com sucesso!');
-      console.log('➡️  Redirecionando para início...');
       
       navigate("/inicio", {
         state: { message: "Cadastro concluído com sucesso!" },

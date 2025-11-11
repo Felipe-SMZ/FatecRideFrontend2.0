@@ -62,11 +62,7 @@ const formatPhone = (value) => {
 export function RegisterPage() {
   const navigate = useNavigate();
   const location = useLocation();
-  const userTypeId = location.state?.userTypeId || 1; // Manter original
-  
-  console.log('🔍 [RegisterPage] Inicialização');
-  console.log('  📌 userTypeId recebido:', userTypeId, typeof userTypeId);
-  console.log('  📌 location.state:', location.state);
+  const userTypeId = location.state?.userTypeId || 1;
   
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -76,8 +72,6 @@ export function RegisterPage() {
 
   // Buscar gêneros e cursos ao montar
   useEffect(() => {
-    console.log('🔄 [useEffect] Carregando gêneros e cursos...');
-    
     const fetchData = async () => {
       try {
         const [gendersRes, coursesRes] = await Promise.all([
@@ -85,13 +79,10 @@ export function RegisterPage() {
           fetch('http://localhost:8080/courses').then(r => r.json())
         ]);
         
-        console.log('✅ Gêneros carregados:', gendersRes);
-        console.log('✅ Cursos carregados:', coursesRes);
-        
         setGenders(gendersRes);
         setCourses(coursesRes);
       } catch (error) {
-        console.error('❌ Erro ao carregar dados:', error);
+        console.error('Erro ao carregar dados:', error);
       }
     };
     fetchData();
@@ -110,35 +101,19 @@ export function RegisterPage() {
       telefone: "",
       senha: "",
       confirmarSenha: "",
-      userTypeId: String(userTypeId), // Converter para string para o Zod
+      userTypeId: String(userTypeId),
       genderId: "",
       courseId: "",
     }
   });
-  
-  console.log('📋 [RegisterPage] Valores padrão do formulário:', {
-    userTypeId: String(userTypeId),
-    tipo: typeof String(userTypeId)
-  });
 
   const onSubmit = async (data) => {
-    console.log('\n🚀 === FORMULÁRIO SUBMETIDO ===');
-    console.log('📦 Dados recebidos do form:', data);
-    console.log('  └─ Tipos:', Object.keys(data).reduce((acc, key) => {
-      acc[key] = typeof data[key];
-      return acc;
-    }, {}));
-    
     try {
       setLoading(true);
       setError("");
       
       // Remove formatação do telefone antes de salvar
       const cleanPhone = data.telefone.replace(/\D/g, '');
-      
-      console.log('🔧 Processando dados:');
-      console.log('  📞 Telefone original:', data.telefone);
-      console.log('  📞 Telefone limpo:', cleanPhone);
       
       // NÃO enviar para o backend ainda - apenas salvar no localStorage
       // O backend exige endereço junto com o cadastro
@@ -154,14 +129,8 @@ export function RegisterPage() {
         courseId: Number(data.courseId),
       };
       
-      console.log('� Salvando dados temporários no localStorage...');
-      console.log('� userData:', userData);
-      
       // Salvar temporariamente no localStorage
       localStorage.setItem('tempUserData', JSON.stringify(userData));
-      
-      console.log('✅ Dados salvos! Redirecionando para cadastro de endereço...');
-      console.log('➡️  /cadastro-endereco');
       
       // Redireciona para cadastro de endereço
       // Passa o userTypeId para saber se precisa cadastrar veículo depois
@@ -172,30 +141,14 @@ export function RegisterPage() {
         },
       });
     } catch (err) {
-      console.error('\n❌ === ERRO ===');
-      console.error('🔴 Erro:', err);
+      console.error('❌ Erro ao processar dados:', err);
       setError("Erro ao processar dados. Tente novamente.");
     } finally {
       setLoading(false);
-      console.log('🏁 Finalizou processamento (loading = false)\n');
     }
   };
   
-  // Log para detectar erros de validação
   const onError = (errors) => {
-    console.log('\n⚠️  === ERROS DE VALIDAÇÃO ===');
-    console.log('📝 Erros do formulário:', errors);
-    console.log('📊 Campos com erro:', Object.keys(errors));
-    
-    // Detalhar cada erro
-    Object.keys(errors).forEach(field => {
-      console.log(`  ❌ ${field}:`, {
-        mensagem: errors[field].message,
-        tipo: errors[field].type,
-        valor_esperado: errors[field].ref?.value
-      });
-    });
-    
     setError("Por favor, corrija os erros no formulário antes de continuar.");
   };
 

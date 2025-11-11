@@ -40,9 +40,6 @@ export function VehicleRegisterPage() {
   const location = useLocation();
   const isRequired = location.state?.isRequired || false;
   
-  console.log('🚗 [VehicleRegisterPage] Inicialização');
-  console.log('  📌 isRequired:', isRequired);
-  
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -67,9 +64,6 @@ export function VehicleRegisterPage() {
       setLoading(true);
       setError("");
       
-      console.log('🚀 [VehicleRegisterPage] Submetendo veículo...');
-      console.log('📦 Dados recebidos:', data);
-      
       // Buscar dados do usuário temporários
       const tempUserDataStr = localStorage.getItem('tempUserData');
       if (!tempUserDataStr) {
@@ -80,7 +74,6 @@ export function VehicleRegisterPage() {
       }
       
       const tempUserData = JSON.parse(tempUserDataStr);
-      console.log('� Dados do usuário:', tempUserData);
       
       // Buscar dados do endereço
       const addressDataStr = localStorage.getItem('tempAddressData');
@@ -92,7 +85,6 @@ export function VehicleRegisterPage() {
       }
       
       const addressData = JSON.parse(addressDataStr);
-      console.log('🏠 Dados do endereço:', addressData);
       
       const vehiclePayload = {
         modelo: data.modelo,
@@ -103,17 +95,12 @@ export function VehicleRegisterPage() {
         vagas_disponiveis: data.vagas_disponiveis,
       };
       
-      console.log('🚗 Payload do veículo:', vehiclePayload);
-      
       // Montar payload completo: UserDriverDTO
       const completePayload = {
         ...tempUserData,
         userAddressesDTO: addressData,
         vehicleDTO: vehiclePayload
       };
-      
-      console.log('� Payload completo (UserDriverDTO):', completePayload);
-      console.log('🔀 Endpoint: /users/criarMotorista');
       
       // Criar motorista com veículo
       const response = await fetch('http://localhost:8080/users/criarMotorista', {
@@ -124,8 +111,6 @@ export function VehicleRegisterPage() {
         body: JSON.stringify(completePayload)
       });
       
-      console.log('📨 Status da resposta:', response.status);
-      
       if (!response.ok) {
         const errorData = await response.json();
         console.error('❌ Erro na resposta:', errorData);
@@ -133,21 +118,15 @@ export function VehicleRegisterPage() {
       }
       
       const responseData = await response.json();
-      console.log('✅ Resposta do servidor:', responseData);
-      console.log('✅ Resposta do servidor:', responseData);
       
       // Salvar token
       if (responseData.token) {
         localStorage.setItem('token', responseData.token);
-        console.log('🔑 Token salvo no localStorage');
       }
       
       // Limpar dados temporários
       localStorage.removeItem('tempUserData');
       localStorage.removeItem('tempAddressData');
-      console.log('🗑️  Dados temporários removidos');
-      
-      console.log('➡️  Redirecionando para início...');
       
       // Redireciona para início
       navigate("/inicio", {
@@ -155,7 +134,6 @@ export function VehicleRegisterPage() {
       });
     } catch (err) {
       console.error('❌ Erro no cadastro de motorista:', err);
-      console.error('📋 Detalhes:', err);
       setError(err.message || "Erro ao cadastrar motorista");
     } finally {
       setLoading(false);
@@ -164,7 +142,6 @@ export function VehicleRegisterPage() {
 
   const handleSkip = () => {
     if (!isRequired) {
-      console.log('⏭️  Pulando cadastro de veículo...');
       navigate("/inicio");
     }
   };
