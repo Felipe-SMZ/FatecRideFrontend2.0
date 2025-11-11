@@ -1,0 +1,129 @@
+import { useState } from "react";
+import { useNavigate, Link } from "react-router-dom";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import { Input } from "@shared/components/ui/Input";
+import { Button } from "@shared/components/ui/Button";
+import { Select } from "@shared/components/ui/Select";
+import { Alert } from "@shared/components/ui/Alert";
+import { Card } from "@shared/components/ui/Card";
+import { authService } from "../services/authService";
+
+const registerSchema = z.object({
+  nome: z.string().min(3, "Nome deve ter pelo menos 3 caracteres"),
+  email: z.string().email("Email inválido"),
+  senha: z.string().min(6, "Senha deve ter pelo menos 6 caracteres"),
+  confirmarSenha: z.string(),
+  role: z.enum(["PASSAGEIRO", "MOTORISTA"], {
+    errorMap: () => ({ message: "Selecione um tipo" }),
+  }),
+}).refine((data) => data.senha === data.confirmarSenha, {
+  message: "As senhas não coincidem",
+  path: ["confirmarSenha"],
+});
+
+export function RegisterPage() {
+  const navigate = useNavigate();
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+  } = useForm({
+    resolver: zodResolver(registerSchema),
+  });
+
+  const onSubmit = async (data) => {
+    try {
+      setLoading(true);
+      setError("");
+      await authService.register({
+        nome: data.nome,
+        email: data.email,
+        senha: data.senha,
+        role: data.role,
+      });
+      navigate("/login", {
+        state: { message: "Cadastro realizado! Faça login para continuar." },
+      });
+    } catch (err) {
+      setError(err.response?.data?.message || "Erro ao criar conta");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-red-50 to-blue-50 p-4">
+      <Card className="w-full max-w-md">
+        <div className="text-center mb-6">
+          <h1 className="text-2xl font-bold text-gray-900">Criar conta</h1>
+          <p className="text-gray-600 mt-2">Preencha seus dados para começar</p>
+        </div>
+
+        {error && (
+          <Alert variant="danger" dismissible onClose={() => setError("")} className="mb-4">
+            {error}
+          </Alert>
+        )}
+
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+          <Input
+            label="Nome completo"
+            placeholder="Seu nome"
+            error={errors.nome?.message}
+            {...register("nome")}
+          />
+
+          <Input
+            label="Email"
+            type="email"
+            placeholder="seu@email.com"
+            error={errors.email?.message}
+            {...register("email")}
+          />
+
+          <Select
+            label="Tipo de usuário"
+            error={errors.role?.message}
+            {...register("role")}
+            options={[
+              { value: "PASSAGEIRO", label: "Passageiro" },
+              { value: "MOTORISTA", label: "Motorista" },
+            ]}
+          />
+
+          <Input
+            label="Senha"
+            type="password"
+            placeholder="Mínimo 6 caracteres"
+            error={errors.senha?.message}
+            {...register("senha")}
+          />
+
+          <Input
+            label="Confirmar senha"
+            type="password"
+            placeholder="Digite a senha novamente"
+            error={errors.confirmarSenha?.message}
+            {...register("confirmarSenha")}
+          />
+
+          <Button type="submit" fullWidth disabled={loading}>
+            {loading ? "Criando conta..." : "Criar conta"}
+          </Button>
+        </form>
+
+        <div className="mt-6 text-center text-sm text-gray-600">
+          Já tem conta?{" "}
+          <Link to="/login" className="text-red-600 hover:text-red-700 font-medium">
+            Fazer login
+          </Link>
+        </div>
+      </Card>
+    </div>
+  );
+}
