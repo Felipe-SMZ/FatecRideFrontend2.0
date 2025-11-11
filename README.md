@@ -155,6 +155,7 @@ Cada sprint tem objetivos pedagógicos claros e recursos de estudo.
 
 - Felipe SMZ
 - Marcos Santos
+- Guilherme Rufino
 
 ---
 
