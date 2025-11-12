@@ -30,3 +30,6 @@ docs-learning/
 *.njsproj
 *.sln
 *.sw?
+
+# Backend documentation (not needed in repo)
+BACKEND_*.md
