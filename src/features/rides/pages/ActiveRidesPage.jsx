@@ -8,6 +8,7 @@ import { Button } from '@shared/components/ui/Button';
 import { EmptyState } from '@shared/components/ui/EmptyState';
 import { Spinner } from '@shared/components/ui/Spinner';
 import { useAuthStore } from '@features/auth/stores/authStore';
+import { metrics } from '@shared/lib/usabilityMetrics';
 
 /**
  * ActiveRidesPage - Página de gerenciamento de caronas ativas
@@ -45,6 +46,7 @@ export function ActiveRidesPage() {
   useEffect(() => {
     if (isDriver || isBoth || !user?.tipo) {
       console.log('✅ Buscando caronas ativas...');
+      metrics.startTask('fetchActiveRides');
       fetchActiveRides();
     } else if (isPassenger) {
       console.log('ℹ️ Usuário é passageiro, não busca caronas');
@@ -120,6 +122,7 @@ export function ActiveRidesPage() {
       console.error('❌ Exceção ao buscar caronas ativas:', error);
     } finally {
       setLoading(false);
+      metrics.endTask('fetchActiveRides', { ridesCount: Array.isArray(rides) ? rides.length : 0 });
     }
   };
 

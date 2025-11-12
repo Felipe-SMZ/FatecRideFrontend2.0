@@ -2,6 +2,10 @@
 import { forwardRef } from 'react';
 import { cn } from '@shared/utils/cn';
 
+// Accessibility & affordance improvements:
+// - add aria-invalid when there's an error
+// - connect helper/error with aria-describedby
+
 export const Input = forwardRef(({
     label,
     error,
@@ -31,6 +35,8 @@ export const Input = forwardRef(({
 
                 <input
                     ref={ref}
+                    aria-invalid={error ? 'true' : 'false'}
+                    aria-describedby={error ? `${props.id || props.name}-error` : helperText ? `${props.id || props.name}-help` : undefined}
                     className={cn(
                         'w-full px-4 py-2.5 rounded-lg border-2',
                         'transition-all duration-200',
@@ -54,11 +60,11 @@ export const Input = forwardRef(({
             </div>
 
             {error && (
-                <p className="mt-1.5 text-sm text-danger">{error}</p>
+                <p id={`${props.id || props.name}-error`} className="mt-1.5 text-sm text-danger">{error}</p>
             )}
 
             {helperText && !error && (
-                <p className="mt-1.5 text-sm text-gray-500">{helperText}</p>
+                <p id={`${props.id || props.name}-help`} className="mt-1.5 text-sm text-gray-500">{helperText}</p>
             )}
         </div>
     );
