@@ -188,10 +188,45 @@ export function ActiveRidesPage() {
     }
   };
 
+  const handleCompleteRide = async (rideId) => {
+    if (!confirm('Tem certeza que deseja concluir esta carona? Esta ação não pode ser desfeita.')) return;
+
+    try {
+      setProcessingId(`complete-${rideId}`);
+      const token = localStorage.getItem('token');
+      
+      console.log('📤 Concluindo carona:', rideId);
+      const response = await fetch(`http://localhost:8080/rides/concluir/${rideId}`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      console.log('📥 Resposta concluir carona:', response.status);
+
+      if (response.ok) {
+        toast.success('Carona concluída com sucesso! 🎉');
+        await fetchActiveRides(); // Recarregar lista
+      } else {
+        const error = await response.json();
+        console.error('❌ Erro ao concluir carona:', error);
+        toast.error(error.message || 'Erro ao concluir carona');
+      }
+    } catch (error) {
+      console.error('❌ Exceção ao concluir carona:', error);
+      toast.error('Erro ao concluir carona');
+    } finally {
+      setProcessingId(null);
+    }
+  };
+
   const handleCancelRide = async (rideId) => {
     if (!confirm('Tem certeza que deseja cancelar esta carona? Todos os passageiros serão notificados.')) return;
 
     try {
+      setProcessingId(`cancel-${rideId}`);
       const token = localStorage.getItem('token');
       
       const response = await fetch(`http://localhost:8080/rides/cancelar/${rideId}`, {
@@ -212,6 +247,8 @@ export function ActiveRidesPage() {
     } catch (error) {
       console.error('Erro ao cancelar carona:', error);
       toast.error('Erro ao cancelar carona');
+    } finally {
+      setProcessingId(null);
     }
   };
 
@@ -367,11 +404,20 @@ export function ActiveRidesPage() {
                     {/* Ações */}
                     <div className="flex flex-col gap-2">
                       <Button
+                        onClick={() => handleCompleteRide(ride.id)}
+                        disabled={processingId === `complete-${ride.id}`}
+                        className="bg-green-600 hover:bg-green-700"
+                        size="sm"
+                      >
+                        {processingId === `complete-${ride.id}` ? 'Concluindo...' : '✓ Concluir Carona'}
+                      </Button>
+                      <Button
                         onClick={() => handleCancelRide(ride.id)}
+                        disabled={processingId === `cancel-${ride.id}`}
                         variant="danger"
                         size="sm"
                       >
-                        Cancelar Carona
+                        {processingId === `cancel-${ride.id}` ? 'Cancelando...' : 'Cancelar Carona'}
                       </Button>
                     </div>
                   </div>
