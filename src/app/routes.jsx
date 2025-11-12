@@ -13,10 +13,10 @@ import { ForgotPasswordPage } from '@features/auth/pages/ForgotPasswordPage';
 // Lazy loading (páginas secundárias)
 const InicioPage = lazy(() => import('../pages/InicioPage').then(m => ({ default: m.InicioPage })));
 const HomePage = lazy(() => import('../pages/HomePage').then(m => ({ default: m.HomePage })));
-const DriverPage = lazy(() => import('@features/rides/pages/DriverPage'));
-const PassengerPage = lazy(() => import('@features/rides/pages/PassengerPage'));
-const ProfilePage = lazy(() => import('@features/profile/pages/ProfilePage'));
-const VehiclesPage = lazy(() => import('@features/vehicles/pages/VehiclesPage'));
+const DriverPage = lazy(() => import('@features/rides/pages/DriverPage').then(m => ({ default: m.DriverPage })));
+const PassengerPage = lazy(() => import('@features/rides/pages/PassengerPage').then(m => ({ default: m.PassengerPage })));
+const ProfilePage = lazy(() => import('@features/profile/pages/ProfilePage').then(m => ({ default: m.ProfilePage })));
+const VehiclesPage = lazy(() => import('@features/vehicles/pages/VehiclesPage').then(m => ({ default: m.VehiclesPage })));
 const AddressRegisterPage = lazy(() => import('@features/profile/pages/AddressRegisterPage').then(m => ({ default: m.AddressRegisterPage })));
 const VehicleRegisterPage = lazy(() => import('@features/vehicles/pages/VehicleRegisterPage').then(m => ({ default: m.VehicleRegisterPage })));
 

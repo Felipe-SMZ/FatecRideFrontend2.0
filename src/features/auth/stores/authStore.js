@@ -17,7 +17,13 @@ export const useAuthStore = create(
                 set({ isLoading: true });
                 try {
                     const response = await authService.login(email, senha);
-                    const { user, token } = response;
+                    // Backend retorna { name: string, token: string }
+                    const user = {
+                        name: response.name,
+                        email: email, // Guardar email usado no login
+                    };
+                    const token = response.token;
+                    
                     set({
                         user,
                         token,
