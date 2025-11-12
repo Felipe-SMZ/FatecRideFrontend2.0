@@ -82,6 +82,7 @@ export function PassengerPage() {
             setDestinationAddress(destData.address);
 
             // Busca caronas próximas
+            // PassengerSearchRequest: latitudeOrigem, longitudeOrigem, latitudeDestino, longitudeDestino
             const token = localStorage.getItem('token');
             const payload = {
                 latitudeOrigem: originData.coords.lat,
@@ -89,6 +90,8 @@ export function PassengerPage() {
                 latitudeDestino: destData.coords.lat,
                 longitudeDestino: destData.coords.lng
             };
+
+            console.log('🔍 Buscando caronas com payload:', payload);
 
             const response = await fetch('http://localhost:8080/solicitacao/proximos', {
                 method: 'POST',
@@ -100,10 +103,28 @@ export function PassengerPage() {
             });
 
             if (!response.ok) {
-                throw new Error('Erro ao buscar caronas');
+                const errorText = await response.text();
+                console.error('❌ Erro do backend:', errorText);
+                
+                // Backend retorna 500 quando não há motoristas próximos
+                // Idealmente deveria retornar 200 com array vazio
+                try {
+                    const errorData = JSON.parse(errorText);
+                    if (errorData.message?.includes('Nenhum motorista')) {
+                        setAvailableRides([]);
+                        toast.info('Nenhuma carona encontrada para esta rota');
+                        setSearching(false);
+                        return;
+                    }
+                } catch (e) {
+                    // Se não for JSON, continua com erro normal
+                }
+                
+                throw new Error(errorText || 'Erro ao buscar caronas');
             }
 
             const rides = await response.json();
+            console.log('✅ Caronas encontradas:', rides);
             setAvailableRides(rides);
 
             if (rides.length === 0) {
@@ -112,8 +133,8 @@ export function PassengerPage() {
                 toast.success(`${rides.length} carona(s) encontrada(s)!`);
             }
         } catch (error) {
-            console.error('Erro ao buscar caronas:', error);
-            toast.error('Erro ao buscar caronas disponíveis');
+            console.error('❌ Erro ao buscar caronas:', error);
+            toast.error(error.message || 'Erro ao buscar caronas disponíveis');
         } finally {
             setSearching(false);
         }
