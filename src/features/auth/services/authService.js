@@ -18,6 +18,7 @@ export const authService = {
     },
 
     getCurrentUser: async () => {
+        // Backend usa GET /users (não /users/getCurrentUser)
         const { data } = await api.get('/users');
         return data;
     },

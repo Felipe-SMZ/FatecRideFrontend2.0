@@ -2,6 +2,7 @@
 import axios from 'axios';
 import { useAuthStore } from '@features/auth/stores/authStore';
 import { toast } from 'react-hot-toast';
+import { checkTokenExpiration, clearExpiredToken } from '@shared/utils/tokenUtils';
 
 const api = axios.create({
     baseURL: import.meta.env.VITE_API_URL || 'http://localhost:8080',
@@ -11,13 +12,32 @@ const api = axios.create({
     }
 });
 
-// Request interceptor - adiciona token automaticamente
+// Request interceptor - verifica expiração antes de enviar
 api.interceptors.request.use(
     (config) => {
         const token = useAuthStore.getState().token;
+        
         if (token) {
+            // Verificar se token está expirado ANTES de fazer requisição
+            const tokenInfo = checkTokenExpiration(token);
+            
+            if (tokenInfo.isExpired) {
+                console.error('❌ Token expirado detectado no interceptor');
+                clearExpiredToken();
+                useAuthStore.getState().logout();
+                
+                // Prevenir requisição
+                return Promise.reject({
+                    response: {
+                        status: 401,
+                        data: { message: 'Token expirado' }
+                    }
+                });
+            }
+            
             config.headers.Authorization = `Bearer ${token}`;
         }
+        
         return config;
     },
     (error) => {

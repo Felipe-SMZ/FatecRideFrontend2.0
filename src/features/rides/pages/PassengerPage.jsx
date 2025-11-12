@@ -7,15 +7,17 @@ import { PageContainer } from '@shared/components/layout/PageContainer';
 import { Card } from '@shared/components/ui/Card';
 import { MapView } from '@shared/components/map/MapView';
 import { RideCard } from '@shared/components/cards/RideCard';
-import { RouteSearchForm } from '@shared/components/forms/RouteSearchForm';
 import { EmptyState } from '@shared/components/ui/EmptyState';
 import { Spinner } from '@shared/components/ui/Spinner';
+import { AddressAutocomplete } from '@shared/components/ui/AddressAutocomplete';
+import { Button } from '@shared/components/ui/Button';
+import { FiSearch } from 'react-icons/fi';
 
 /**
  * PassengerPage - Página de busca de caronas (Passageiro)
  * 
  * Fluxo:
- * 1. Passageiro informa origem e destino
+ * 1. Passageiro seleciona origem e destino do autocomplete
  * 2. Sistema busca caronas disponíveis próximas
  * 3. Exibe lista de caronas com mapa
  * 4. Passageiro solicita carona
@@ -30,65 +32,60 @@ export function PassengerPage() {
     const [originAddress, setOriginAddress] = useState(null);
     const [destinationAddress, setDestinationAddress] = useState(null);
     
+    // Estados de seleção do autocomplete
+    const [originSelected, setOriginSelected] = useState(false);
+    const [destinationSelected, setDestinationSelected] = useState(false);
+    
+    // Campos de texto (controlados)
+    const [originInput, setOriginInput] = useState('');
+    const [destinationInput, setDestinationInput] = useState('');
+    
     // Estados de caronas
     const [availableRides, setAvailableRides] = useState([]);
     const [searching, setSearching] = useState(false);
     const [requesting, setRequesting] = useState(false);
 
     /**
-     * Busca coordenadas no backend
-     * Mapeia OpenstreetmapDTO para OriginDTO/DestinationDTO
+     * Handler quando origem é selecionada
      */
-    const searchCoordinates = async (address) => {
-        const token = localStorage.getItem('token');
-        const response = await fetch(
-            `http://localhost:8080/local?local=${encodeURIComponent(address)}`,
-            { headers: { Authorization: `Bearer ${token}` } }
-        );
+    const handleOriginSelect = (data) => {
+        console.log('✅ Origem selecionada:', data);
+        setOriginCoords(data.coords);
+        setOriginAddress(data.address);
+        setOriginSelected(true);
+    };
 
-        if (!response.ok) throw new Error('Localização não encontrada');
-
-        const data = await response.json();
-        
-        return {
-            coords: { lat: parseFloat(data.lat), lng: parseFloat(data.lon) },
-            address: {
-                cidade: data.address?.city || data.address?.town || data.address?.village || '',
-                logradouro: data.address?.road || '',
-                numero: data.address?.house_number || 'S/N',
-                bairro: data.address?.suburb || data.address?.neighbourhood || '',
-                cep: data.address?.postcode || ''
-            }
-        };
+    /**
+     * Handler quando destino é selecionado
+     */
+    const handleDestinationSelect = (data) => {
+        console.log('✅ Destino selecionado:', data);
+        setDestinationCoords(data.coords);
+        setDestinationAddress(data.address);
+        setDestinationSelected(true);
     };
 
     /**
      * Busca caronas disponíveis
      */
-    const handleSearch = async ({ origin, destination }) => {
+    const handleSearch = async () => {
+        if (!originSelected || !destinationSelected) {
+            toast.error('Selecione origem e destino nas sugestões antes de buscar');
+            return;
+        }
+
         try {
             setSearching(true);
             setAvailableRides([]);
-
-            // Busca coordenadas
-            const [originData, destData] = await Promise.all([
-                searchCoordinates(origin),
-                searchCoordinates(destination)
-            ]);
-
-            setOriginCoords(originData.coords);
-            setDestinationCoords(destData.coords);
-            setOriginAddress(originData.address);
-            setDestinationAddress(destData.address);
 
             // Busca caronas próximas
             // PassengerSearchRequest: latitudeOrigem, longitudeOrigem, latitudeDestino, longitudeDestino
             const token = localStorage.getItem('token');
             const payload = {
-                latitudeOrigem: originData.coords.lat,
-                longitudeOrigem: originData.coords.lng,
-                latitudeDestino: destData.coords.lat,
-                longitudeDestino: destData.coords.lng
+                latitudeOrigem: originCoords.lat,
+                longitudeOrigem: originCoords.lng,
+                latitudeDestino: destinationCoords.lat,
+                longitudeDestino: destinationCoords.lng
             };
 
             console.log('🔍 Buscando caronas com payload:', payload);
@@ -220,11 +217,65 @@ export function PassengerPage() {
                                         Informe sua rota
                                     </h2>
                                     
-                                    <RouteSearchForm
-                                        onSearch={handleSearch}
-                                        loading={searching}
-                                        submitLabel="Buscar Caronas"
-                                    />
+                                    <div className="space-y-4">
+                                        {/* Origem */}
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                                                Origem
+                                            </label>
+                                            <AddressAutocomplete
+                                                value={originInput}
+                                                onChange={(e) => {
+                                                    setOriginInput(e.target.value);
+                                                    setOriginSelected(false); // Reset quando digita
+                                                }}
+                                                onSelect={handleOriginSelect}
+                                                placeholder="Digite o endereço de origem..."
+                                            />
+                                        </div>
+
+                                        {/* Destino */}
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                                                Destino
+                                            </label>
+                                            <AddressAutocomplete
+                                                value={destinationInput}
+                                                onChange={(e) => {
+                                                    setDestinationInput(e.target.value);
+                                                    setDestinationSelected(false); // Reset quando digita
+                                                }}
+                                                onSelect={handleDestinationSelect}
+                                                placeholder="Digite o endereço de destino..."
+                                            />
+                                        </div>
+
+                                        {/* Botão de Buscar */}
+                                        <Button
+                                            onClick={handleSearch}
+                                            disabled={!originSelected || !destinationSelected || searching}
+                                            className="w-full"
+                                        >
+                                            {searching ? (
+                                                <>
+                                                    <Spinner size="sm" className="mr-2" />
+                                                    Buscando...
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <FiSearch className="mr-2" />
+                                                    Buscar Caronas
+                                                </>
+                                            )}
+                                        </Button>
+
+                                        {/* Aviso se não selecionou */}
+                                        {(!originSelected || !destinationSelected) && (
+                                            <p className="text-sm text-amber-600 text-center">
+                                                ⚠️ Selecione origem e destino nas sugestões para buscar
+                                            </p>
+                                        )}
+                                    </div>
                                 </div>
                             </Card>
 
@@ -252,7 +303,7 @@ export function PassengerPage() {
                                         </div>
                                     ) : (
                                         <EmptyState
-                                            icon="🔍"
+                                            icon={FiSearch}
                                             title="Nenhuma carona encontrada"
                                             description="Tente buscar com endereços principais da região (ex: Terminal Cotia, Fatec Cotia) ou aguarde novas caronas serem cadastradas."
                                         />

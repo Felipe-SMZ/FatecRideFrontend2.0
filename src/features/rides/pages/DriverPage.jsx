@@ -1,5 +1,5 @@
 // features/rides/pages/DriverPage.jsx
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { Navbar } from '@shared/components/layout/Navbar';
@@ -8,6 +8,7 @@ import { Card } from '@shared/components/ui/Card';
 import { Button } from '@shared/components/ui/Button';
 import { Input } from '@shared/components/ui/Input';
 import { Select } from '@shared/components/ui/Select';
+import { AddressAutocomplete } from '@shared/components/ui/AddressAutocomplete';
 import { MapView } from '@shared/components/map/MapView';
 import { AddressCard } from '@shared/components/cards/AddressCard';
 import { FiMapPin } from 'react-icons/fi';
@@ -37,13 +38,15 @@ export function DriverPage() {
     const [destinationCoords, setDestinationCoords] = useState(null);
     const [originAddress, setOriginAddress] = useState(null);
     const [destinationAddress, setDestinationAddress] = useState(null);
+    const [originSelected, setOriginSelected] = useState(false);
+    const [destinationSelected, setDestinationSelected] = useState(false);
     
     // Estados de loading
     const [searchingRoute, setSearchingRoute] = useState(false);
     const [creatingRide, setCreatingRide] = useState(false);
 
     // Buscar veículos ao montar
-    useState(() => {
+    useEffect(() => {
         const fetchVehicles = async () => {
             try {
                 const token = localStorage.getItem('token');
@@ -51,79 +54,61 @@ export function DriverPage() {
                     headers: { Authorization: `Bearer ${token}` }
                 });
                 
-                if (!response.ok) throw new Error('Erro ao buscar veículos');
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    console.error('❌ Erro ao buscar veículos:', response.status, errorText);
+                    
+                    // Se não tem veículo, redireciona para cadastro
+                    if (response.status === 404 || response.status === 500) {
+                        toast.error('Você precisa cadastrar um veículo primeiro', { duration: 5000 });
+                        setTimeout(() => navigate('/cadastrar-veiculo'), 2000);
+                        return;
+                    }
+                    throw new Error('Erro ao buscar veículos');
+                }
                 
                 const data = await response.json();
+                console.log('🚗 Veículos carregados:', data);
+                
+                // Se array está vazio
+                if (!data || data.length === 0) {
+                    toast.error('Você precisa cadastrar um veículo primeiro', { duration: 5000 });
+                    setTimeout(() => navigate('/cadastrar-veiculo'), 2000);
+                    return;
+                }
+                
                 setVehicles(data);
                 
                 if (data.length > 0) {
                     setVehicleId(data[0].id || data[0].id_veiculo || data[0].idVeiculo);
                 }
             } catch (error) {
-                console.error('Erro ao buscar veículos:', error);
+                console.error('❌ Exceção ao buscar veículos:', error);
                 toast.error('Erro ao carregar veículos');
             }
         };
         
         fetchVehicles();
-    }, []);
+    }, [navigate]);
 
     /**
-     * Busca coordenadas no backend
-     * Mapeia OpenstreetmapDTO para OriginDTO/DestinationDTO
+     * Quando usuário seleciona endereço de origem no autocomplete
      */
-    const searchCoordinates = async (address) => {
-        const token = localStorage.getItem('token');
-        const response = await fetch(
-            `http://localhost:8080/local?local=${encodeURIComponent(address)}`,
-            { headers: { Authorization: `Bearer ${token}` } }
-        );
-
-        if (!response.ok) throw new Error('Localização não encontrada');
-
-        const data = await response.json();
-        
-        return {
-            coords: { lat: parseFloat(data.lat), lng: parseFloat(data.lon) },
-            address: {
-                cidade: data.address?.city || data.address?.town || data.address?.village || '',
-                logradouro: data.address?.road || '',
-                numero: data.address?.house_number || 'S/N',
-                bairro: data.address?.suburb || data.address?.neighbourhood || '',
-                cep: data.address?.postcode || ''
-            }
-        };
+    const handleOriginSelect = (data) => {
+        setOriginCoords(data.coords);
+        setOriginAddress(data.address);
+        setOriginSelected(true);
+        console.log('✅ Origem selecionada:', data);
     };
 
     /**
-     * Gera rota e busca coordenadas
+     * Quando usuário seleciona endereço de destino no autocomplete
      */
-    const handleGenerateRoute = async () => {
-        if (!origin.trim() || !destination.trim()) {
-            toast.error('Preencha origem e destino');
-            return;
-        }
-
-        try {
-            setSearchingRoute(true);
-
-            const [originData, destData] = await Promise.all([
-                searchCoordinates(origin),
-                searchCoordinates(destination)
-            ]);
-
-            setOriginCoords(originData.coords);
-            setDestinationCoords(destData.coords);
-            setOriginAddress(originData.address);
-            setDestinationAddress(destData.address);
-
-            toast.success('Rota gerada com sucesso!');
-        } catch (error) {
-            console.error('Erro ao gerar rota:', error);
-            toast.error('Erro ao buscar localizações');
-        } finally {
-            setSearchingRoute(false);
-        }
+    const handleDestinationSelect = (data) => {
+        setDestinationCoords(data.coords);
+        setDestinationAddress(data.address);
+        setDestinationSelected(true);
+        console.log('✅ Destino selecionado:', data);
     };
 
     /**
@@ -131,7 +116,7 @@ export function DriverPage() {
      */
     const handleCreateRide = async () => {
         if (!originAddress || !destinationAddress) {
-            toast.error('Gere a rota antes de criar a carona');
+            toast.error('Selecione a origem e o destino nas sugestões');
             return;
         }
 
@@ -227,24 +212,30 @@ export function DriverPage() {
                                     </h2>
 
                                     <div className="space-y-4">
-                                        {/* Origem */}
-                                        <Input
+                                        {/* Origem com Autocomplete */}
+                                        <AddressAutocomplete
                                             label="Ponto de Partida"
-                                            placeholder="Ex: Fatec Cotia"
+                                            placeholder="Digite o endereço de origem..."
                                             value={origin}
-                                            onChange={(e) => setOrigin(e.target.value)}
-                                            leftIcon={FiMapPin}
-                                            disabled={searchingRoute || creatingRide}
+                                            onChange={(e) => {
+                                                setOrigin(e.target.value);
+                                                setOriginSelected(false);
+                                            }}
+                                            onSelect={handleOriginSelect}
+                                            disabled={creatingRide}
                                         />
 
-                                        {/* Destino */}
-                                        <Input
+                                        {/* Destino com Autocomplete */}
+                                        <AddressAutocomplete
                                             label="Destino"
-                                            placeholder="Ex: Avenida Paulista"
+                                            placeholder="Digite o endereço de destino..."
                                             value={destination}
-                                            onChange={(e) => setDestination(e.target.value)}
-                                            leftIcon={FiMapPin}
-                                            disabled={searchingRoute || creatingRide}
+                                            onChange={(e) => {
+                                                setDestination(e.target.value);
+                                                setDestinationSelected(false);
+                                            }}
+                                            onSelect={handleDestinationSelect}
+                                            disabled={creatingRide}
                                         />
 
                                         {/* Veículo */}
@@ -267,29 +258,25 @@ export function DriverPage() {
                                             max="10"
                                             value={availableSeats}
                                             onChange={(e) => setAvailableSeats(e.target.value)}
-                                            disabled={searchingRoute || creatingRide}
-                                        />
-
-                                        {/* Botão Gerar Rota */}
-                                        <Button
-                                            onClick={handleGenerateRoute}
-                                            fullWidth
-                                            loading={searchingRoute}
                                             disabled={creatingRide}
-                                            variant="secondary"
-                                        >
-                                            {searchingRoute ? 'Gerando...' : 'Gerar Rota'}
-                                        </Button>
+                                        />
 
                                         {/* Botão Criar Carona */}
                                         <Button
                                             onClick={handleCreateRide}
                                             fullWidth
                                             loading={creatingRide}
-                                            disabled={searchingRoute || !originAddress || !destinationAddress}
+                                            disabled={!originSelected || !destinationSelected}
                                         >
                                             {creatingRide ? 'Criando...' : 'Criar Carona'}
                                         </Button>
+
+                                        {/* Aviso */}
+                                        {(!originSelected || !destinationSelected) && (
+                                            <p className="text-xs text-amber-600 text-center">
+                                                ⚠️ Selecione origem e destino nas sugestões para criar a carona
+                                            </p>
+                                        )}
                                     </div>
                                 </div>
                             </Card>

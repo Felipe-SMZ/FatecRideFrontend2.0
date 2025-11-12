@@ -1,5 +1,6 @@
 // shared/components/ui/EmptyState.jsx
 import { FiFileText } from 'react-icons/fi';
+import { Button } from './Button';
 
 export function EmptyState({
     icon: Icon = FiFileText,
@@ -16,7 +17,14 @@ export function EmptyState({
             {description && (
                 <p className="text-gray-500 mb-4">{description}</p>
             )}
-            {action}
+            {action && (
+                <Button
+                    onClick={action.onClick}
+                    className={action.className || "bg-primary hover:bg-primary-dark"}
+                >
+                    {action.label}
+                </Button>
+            )}
         </div>
     );
 }
