@@ -33,3 +33,13 @@ docs-learning/
 
 # Backend documentation (not needed in repo)
 BACKEND_*.md
+
+# Documentation files (except README)
+*.md
+!README.md
+docs/
+USABILITY_PLAN.md
+ENDPOINT_*.md
+SPRINTS.md
+RECOMENDACOES-*.md
+QUICK-START.md
