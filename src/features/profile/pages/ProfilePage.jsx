@@ -49,28 +49,46 @@ export function ProfilePage() {
     try {
       setLoading(true);
       const userData = await authService.getCurrentUser();
+      console.log('📦 Dados completos do usuário:', JSON.stringify(userData, null, 2));
+      
+      // Formatar telefone para exibição
+      const formattedPhone = userData.telefone 
+        ? formatPhone(userData.telefone) 
+        : "";
       
       setPersonalData({
         nome: userData.nome || "",
         sobrenome: userData.sobrenome || "",
-        telefone: userData.telefone || "",
+        telefone: formattedPhone,
         email: userData.email || ""
       });
       
-      // Carregar endereço se existir
-      if (userData.userAddresses && userData.userAddresses.length > 0) {
-        const address = userData.userAddresses[0];
+      // Carregar endereço - verificar estrutura do backend
+      console.log('🏠 Campos disponíveis:', Object.keys(userData));
+      console.log('🏠 userAddresses:', userData.userAddresses);
+      
+      // Tentar diferentes campos possíveis
+      const addressField = userData.userAddresses || userData.useraddresses || userData.addresses;
+      
+      if (addressField && Array.isArray(addressField) && addressField.length > 0) {
+        const address = addressField[0];
+        console.log('📍 Endereço encontrado:', address);
+        
         setAddressData({
           logradouro: address.logradouro || "",
           numero: address.numero || "",
           bairro: address.bairro || "",
           cep: address.cep || "",
-          cidade: address.city?.nome || "",
-          estado: address.city?.state?.uf || ""
+          // Verificar diferentes estruturas de cidade/estado
+          cidade: address.city || address.cidade || "",
+          estado: address.state || address.estado || ""
         });
+      } else {
+        console.log('⚠️ Nenhum endereço encontrado');
       }
     } catch (error) {
-      console.error('Erro ao carregar dados:', error);
+      console.error('❌ Erro ao carregar dados:', error);
+      console.error('❌ Detalhes:', error.response?.data);
       toast.error('Erro ao carregar dados do perfil');
     } finally {
       setLoading(false);
@@ -100,18 +118,34 @@ export function ProfilePage() {
       // Validação básica
       if (!personalData.nome || !personalData.sobrenome) {
         toast.error('Nome e sobrenome são obrigatórios');
+        setLoading(false);
         return;
       }
 
       const cleanPhone = personalData.telefone.replace(/\D/g, '');
       
+      // Buscar dados completos do usuário para não perder informações
+      const currentUserData = await authService.getCurrentUser();
+      console.log('📋 Dados atuais completos:', currentUserData);
+      
+      // Backend exige TODOS os campos do UserBaseDTO:
+      // nome, sobrenome, email, senha, telefone, foto, userTypeId, genderId, courseId
       const updateData = {
         nome: personalData.nome,
         sobrenome: personalData.sobrenome,
-        telefone: cleanPhone
+        email: currentUserData.email, // Não pode ser alterado
+        senha: currentUserData.senha || "senhaTemporaria123", // Backend exige senha
+        telefone: cleanPhone,
+        foto: currentUserData.foto || "",
+        userTypeId: currentUserData.userTypeId,
+        genderId: currentUserData.genderId,
+        courseId: currentUserData.courseId
       };
 
-      await authService.updateUser(updateData);
+      console.log('📤 Enviando para PUT /users:', updateData);
+      
+      const response = await authService.updateUser(updateData);
+      console.log('✅ Resposta do backend:', response);
       
       // Atualizar authStore
       updateAuthUser({
@@ -123,8 +157,15 @@ export function ProfilePage() {
       setIsEditingPersonal(false);
       await loadUserData();
     } catch (error) {
-      console.error('Erro ao atualizar dados:', error);
-      toast.error(error.response?.data?.message || 'Erro ao atualizar dados pessoais');
+      console.error('❌ Erro ao atualizar dados:', error);
+      console.error('❌ Response:', error.response?.data);
+      console.error('❌ Status:', error.response?.status);
+      
+      const errorMsg = error.response?.data?.message 
+        || error.response?.data?.error
+        || 'Erro ao atualizar dados pessoais';
+      
+      toast.error(errorMsg);
     } finally {
       setLoading(false);
     }
