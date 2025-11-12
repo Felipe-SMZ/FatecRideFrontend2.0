@@ -196,7 +196,9 @@ export function ActiveRidesPage() {
       const token = localStorage.getItem('token');
       
       console.log('📤 Concluindo carona:', rideId);
-      const response = await fetch(`http://localhost:8080/rides/concluir/${rideId}`, {
+      
+      // Tentar endpoint finalizar (mais comum no backend)
+      const response = await fetch(`http://localhost:8080/rides/finalizar/${rideId}`, {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -204,11 +206,15 @@ export function ActiveRidesPage() {
         }
       });
 
-      console.log('📥 Resposta concluir carona:', response.status);
+      console.log('📥 Resposta finalizar carona:', response.status);
 
       if (response.ok) {
         toast.success('Carona concluída com sucesso! 🎉');
         await fetchActiveRides(); // Recarregar lista
+      } else if (response.status === 404) {
+        // Endpoint não existe - avisar que backend precisa implementar
+        console.warn('⚠️ Endpoint /rides/finalizar/{id} não existe no backend');
+        toast.error('Funcionalidade não disponível. Entre em contato com o suporte.');
       } else {
         const error = await response.json();
         console.error('❌ Erro ao concluir carona:', error);
@@ -216,7 +222,7 @@ export function ActiveRidesPage() {
       }
     } catch (error) {
       console.error('❌ Exceção ao concluir carona:', error);
-      toast.error('Erro ao concluir carona');
+      toast.error('Erro ao concluir carona. Verifique sua conexão.');
     } finally {
       setProcessingId(null);
     }
