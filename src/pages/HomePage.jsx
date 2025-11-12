@@ -14,7 +14,7 @@ import { useAuthStore } from "@features/auth/stores/authStore";
 
 export function HomePage() {
   const { user } = useAuthStore();
-  const isMotorista = user?.role === "MOTORISTA";
+  const isMotorista = user?.tipo === "MOTORISTA" || user?.tipo === "AMBOS";
 
   /**
    * Configuração dos cards do menu principal
@@ -27,7 +27,7 @@ export function HomePage() {
       title: "Buscar caronas",
       description: "Encontre caronas disponíveis",
       color: "blue",
-      roles: ["PASSAGEIRO", "MOTORISTA"],
+      roles: ["PASSAGEIRO", "MOTORISTA", "AMBOS"],
     },
     {
       to: "/oferecer-carona",
@@ -35,7 +35,7 @@ export function HomePage() {
       title: "Oferecer carona",
       description: "Cadastre uma nova carona",
       color: "green",
-      roles: ["MOTORISTA"],
+      roles: ["MOTORISTA", "AMBOS"],
     },
     {
       to: "/meus-veiculos",
@@ -43,7 +43,7 @@ export function HomePage() {
       title: "Meus veículos",
       description: "Gerencie seus veículos",
       color: "purple",
-      roles: ["MOTORISTA"],
+      roles: ["MOTORISTA", "AMBOS"],
     },
     {
       to: "/perfil",
@@ -51,13 +51,13 @@ export function HomePage() {
       title: "Meu perfil",
       description: "Edite suas informações",
       color: "gray",
-      roles: ["PASSAGEIRO", "MOTORISTA"],
+      roles: ["PASSAGEIRO", "MOTORISTA", "AMBOS"],
     },
   ];
 
   // Filtra apenas cards permitidos para o role atual
   const visibleItems = menuItems.filter((item) =>
-    item.roles.includes(user?.role || "PASSAGEIRO")
+    item.roles.includes(user?.tipo || "PASSAGEIRO")
   );
 
   const colorClasses = {

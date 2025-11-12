@@ -106,15 +106,18 @@ export const Navbar = ({ showAuthButton = false }) => {
                           <span className="font-medium">Meu Perfil</span>
                         </button>
 
-                        <button
-                          onClick={() => navigateTo('/veiculos')}
-                          className="w-full px-4 py-3 text-left hover:bg-fatecride-blue-light hover:text-fatecride-blue transition-colors flex items-center gap-3"
-                        >
-                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2M8 7H6a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2v-2" />
-                          </svg>
-                          <span className="font-medium">Meus Veículos</span>
-                        </button>
+                        {/* Mostrar Veículos apenas para MOTORISTA ou AMBOS */}
+                        {(user?.tipo === 'MOTORISTA' || user?.tipo === 'AMBOS') && (
+                          <button
+                            onClick={() => navigateTo('/veiculos')}
+                            className="w-full px-4 py-3 text-left hover:bg-fatecride-blue-light hover:text-fatecride-blue transition-colors flex items-center gap-3"
+                          >
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2M8 7H6a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2v-2" />
+                            </svg>
+                            <span className="font-medium">Meus Veículos</span>
+                          </button>
+                        )}
 
                         <button
                           onClick={() => navigateTo('/caronas-ativas')}

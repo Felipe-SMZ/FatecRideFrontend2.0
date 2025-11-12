@@ -91,7 +91,7 @@ export function AppRoutes() {
                     </ProtectedRoute>
                 } />
                 <Route path="/veiculos" element={
-                    <ProtectedRoute>
+                    <ProtectedRoute requiredRole="MOTORISTA">
                         <VehiclesPage />
                     </ProtectedRoute>
                 } />

@@ -34,8 +34,19 @@ export function ProtectedRoute({ children, requiredRole }) {
 
   // Segunda verificação: usuário tem o role necessário?
   // Se requiredRole não foi passado, permite qualquer role
-  if (requiredRole && user?.role !== requiredRole) {
-    return <Navigate to="/" replace />;
+  // Nota: user.tipo pode ser 'MOTORISTA', 'PASSAGEIRO' ou 'AMBOS'
+  if (requiredRole) {
+    const userType = user?.tipo;
+    
+    // Se o tipo é AMBOS, permite acesso a qualquer rota
+    if (userType === 'AMBOS') {
+      return children;
+    }
+    
+    // Caso contrário, verifica se o tipo corresponde ao requerido
+    if (userType !== requiredRole) {
+      return <Navigate to="/inicio" replace />;
+    }
   }
 
   // Tudo certo, renderiza o conteúdo protegido

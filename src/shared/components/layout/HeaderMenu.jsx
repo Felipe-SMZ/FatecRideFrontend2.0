@@ -19,15 +19,15 @@ export function HeaderMenu() {
    * Motoristas veem opção de Veículos, passageiros não
    */
   const menuItems = [
-    { to: "/", label: "Início", icon: FiHome, roles: ["PASSAGEIRO", "MOTORISTA"] },
-    { to: "/caronas", label: "Caronas", icon: FiMapPin, roles: ["PASSAGEIRO", "MOTORISTA"] },
-    { to: "/meus-veiculos", label: "Veículos", icon: FiTruck, roles: ["MOTORISTA"] },
-    { to: "/perfil", label: "Perfil", icon: FiUser, roles: ["PASSAGEIRO", "MOTORISTA"] },
+    { to: "/", label: "Início", icon: FiHome, roles: ["PASSAGEIRO", "MOTORISTA", "AMBOS"] },
+    { to: "/caronas", label: "Caronas", icon: FiMapPin, roles: ["PASSAGEIRO", "MOTORISTA", "AMBOS"] },
+    { to: "/meus-veiculos", label: "Veículos", icon: FiTruck, roles: ["MOTORISTA", "AMBOS"] },
+    { to: "/perfil", label: "Perfil", icon: FiUser, roles: ["PASSAGEIRO", "MOTORISTA", "AMBOS"] },
   ];
 
   // Filtra apenas itens que o usuário tem permissão de ver
   const visibleItems = menuItems.filter((item) =>
-    item.roles.includes(user?.role || "PASSAGEIRO")
+    item.roles.includes(user?.tipo || "PASSAGEIRO")
   );
 
   return (
