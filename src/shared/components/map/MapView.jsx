@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -33,7 +33,7 @@ L.Icon.Default.mergeOptions({
 /**
  * RoutingMachine - Componente interno para desenhar rota
  */
-function RoutingMachine({ origin, destination }) {
+function RoutingMachine({ origin, destination, onRoutingChange }) {
   const map = useMap();
   const routingControlRef = useRef(null);
 
@@ -43,7 +43,11 @@ function RoutingMachine({ origin, destination }) {
     // Remove rota anterior se existir
     if (routingControlRef.current) {
       map.removeControl(routingControlRef.current);
+      routingControlRef.current = null;
     }
+
+    // sinaliza início de cálculo
+    onRoutingChange?.(true);
 
     // Cria nova rota
     routingControlRef.current = L.Routing.control({
@@ -60,13 +64,24 @@ function RoutingMachine({ origin, destination }) {
       createMarker: () => null // Remove marcadores padrão (usamos os nossos)
     }).addTo(map);
 
+    // Quando rota encontrada
+    routingControlRef.current.on && routingControlRef.current.on('routesfound', () => {
+      onRoutingChange?.(false);
+    });
+
+    // Tratamento básico de erro
+    routingControlRef.current.on && routingControlRef.current.on('routingerror', () => {
+      onRoutingChange?.(false);
+    });
+
     // Cleanup ao desmontar
     return () => {
       if (routingControlRef.current && map) {
         map.removeControl(routingControlRef.current);
       }
+      onRoutingChange?.(false);
     };
-  }, [origin, destination, map]);
+  }, [origin, destination, map, onRoutingChange]);
 
   return null;
 }
@@ -80,6 +95,7 @@ export function MapView({
   showRoute = false
 }) {
   const defaultCenter = center;
+  const [routing, setRouting] = useState(false);
 
   return (
     <div className={`relative w-full h-full ${className}`}>
@@ -118,9 +134,20 @@ export function MapView({
 
         {/* Rota entre origem e destino */}
         {showRoute && origin && destination && (
-          <RoutingMachine origin={origin} destination={destination} />
+          <RoutingMachine origin={origin} destination={destination} onRoutingChange={setRouting} />
         )}
       </MapContainer>
+      {/* Overlay de loading para rota */}
+      {routing && (
+        <div className="absolute inset-0 flex items-center justify-center bg-white/60 z-20 rounded-lg">
+          <div className="text-center">
+            <div className="mb-2">
+              <div className="animate-spin rounded-full border-gray-200 border-t-primary w-12 h-12"></div>
+            </div>
+            <div className="text-sm font-medium text-gray-700">Calculando rota...</div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -1,5 +1,6 @@
 // features/auth/components/LoginForm.jsx
 import { useForm } from 'react-hook-form';
+import { useState } from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { loginSchema } from '@shared/utils/validators';
 import { useLogin } from '../hooks/useAuth';
@@ -9,6 +10,7 @@ import { FiMail, FiLock } from 'react-icons/fi';
 
 export function LoginForm() {
     const { mutate: login, isLoading } = useLogin();
+    const [formError, setFormError] = useState(null);
 
     const {
         register,
@@ -23,7 +25,14 @@ export function LoginForm() {
     });
 
     const onSubmit = (data) => {
-        login(data);
+        setFormError(null);
+        login(data, {
+            onError: (err) => {
+                const msg = err?.message || 'Email ou senha inválidos';
+                setFormError(msg);
+            },
+            onSuccess: () => setFormError(null)
+        });
     };
 
     return (
@@ -53,6 +62,10 @@ export function LoginForm() {
             >
                 Entrar
             </Button>
+
+            {formError && (
+                <p role="alert" aria-live="polite" className="mt-2 text-sm text-red-600 text-center">{formError}</p>
+            )}
         </form>
     );
 }
