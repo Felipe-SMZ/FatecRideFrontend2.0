@@ -39,19 +39,39 @@ export function ActiveRidesPage() {
       setLoading(true);
       const token = localStorage.getItem('token');
       
-      // Endpoint depende se é motorista ou passageiro
-      const endpoint = '/rides/active'; // Ajustar conforme backend
-      
-      const response = await fetch(`http://localhost:8080${endpoint}`, {
+      // Buscar caronas ativas do motorista
+      const ridesResponse = await fetch('http://localhost:8080/rides/corridasAtivas', {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         }
       });
 
-      if (response.ok) {
-        const data = await response.json();
-        setRides(data);
+      if (ridesResponse.ok) {
+        const ridesData = await ridesResponse.json();
+        
+        // Buscar solicitações para minhas caronas
+        const requestsResponse = await fetch('http://localhost:8080/rides/requestsForMyRide', {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        });
+
+        if (requestsResponse.ok) {
+          const requestsData = await requestsResponse.json();
+          
+          // Agrupar solicitações por carona
+          // RequestsForMyRideDTO: id_solicitacao, nome_passageiro, foto, curso, originDTO, destinationDTO, id_carona, status
+          const ridesWithRequests = ridesData.map(ride => {
+            const rideRequests = requestsData.filter(req => req.id_carona === ride.id);
+            return { ...ride, requests: rideRequests };
+          });
+          
+          setRides(ridesWithRequests);
+        } else {
+          setRides(ridesData);
+        }
       }
     } catch (error) {
       console.error('Erro ao buscar caronas ativas:', error);
@@ -65,31 +85,39 @@ export function ActiveRidesPage() {
       setProcessingId(requestId);
       const token = localStorage.getItem('token');
       
-      const response = await fetch(`http://localhost:8080/rides/${rideId}/requests/${requestId}/accept`, {
-        method: 'POST',
+      const response = await fetch(`http://localhost:8080/rides/${requestId}/acept`, {
+        method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
-        }
+        },
+        body: JSON.stringify({ idCarona: rideId })
       });
 
       if (response.ok) {
         fetchActiveRides(); // Recarregar lista
+      } else {
+        const error = await response.json();
+        alert(error.message || 'Erro ao aceitar solicitação');
       }
     } catch (error) {
       console.error('Erro ao aceitar solicitação:', error);
+      alert('Erro ao aceitar solicitação');
     } finally {
       setProcessingId(null);
     }
   };
 
   const handleRejectRequest = async (rideId, requestId) => {
+    if (!confirm('Tem certeza que deseja recusar esta solicitação?')) return;
+    
     try {
       setProcessingId(requestId);
       const token = localStorage.getItem('token');
       
-      const response = await fetch(`http://localhost:8080/rides/${rideId}/requests/${requestId}/reject`, {
-        method: 'POST',
+      // Backend não tem endpoint de recusar, vamos usar cancelar
+      const response = await fetch(`http://localhost:8080/solicitacao/cancelar/${requestId}`, {
+        method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -98,22 +126,26 @@ export function ActiveRidesPage() {
 
       if (response.ok) {
         fetchActiveRides(); // Recarregar lista
+      } else {
+        const error = await response.json();
+        alert(error.message || 'Erro ao recusar solicitação');
       }
     } catch (error) {
       console.error('Erro ao recusar solicitação:', error);
+      alert('Erro ao recusar solicitação');
     } finally {
       setProcessingId(null);
     }
   };
 
   const handleCancelRide = async (rideId) => {
-    if (!confirm('Tem certeza que deseja cancelar esta carona?')) return;
+    if (!confirm('Tem certeza que deseja cancelar esta carona? Todos os passageiros serão notificados.')) return;
 
     try {
       const token = localStorage.getItem('token');
       
-      const response = await fetch(`http://localhost:8080/rides/${rideId}/cancel`, {
-        method: 'POST',
+      const response = await fetch(`http://localhost:8080/rides/cancelar/${rideId}`, {
+        method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -121,10 +153,15 @@ export function ActiveRidesPage() {
       });
 
       if (response.ok) {
+        alert('Carona cancelada com sucesso!');
         fetchActiveRides(); // Recarregar lista
+      } else {
+        const error = await response.json();
+        alert(error.message || 'Erro ao cancelar carona');
       }
     } catch (error) {
       console.error('Erro ao cancelar carona:', error);
+      alert('Erro ao cancelar carona');
     }
   };
 
@@ -229,11 +266,11 @@ export function ActiveRidesPage() {
                       <div className="flex flex-wrap gap-4 text-sm text-gray-600">
                         <div>
                           <span className="font-semibold">Data:</span>{' '}
-                          {ride.departureTime ? formatDate(ride.departureTime) : 'Não definida'}
+                          {ride.data_hora ? formatDate(ride.data_hora) : 'Não definida'}
                         </div>
                         <div>
                           <span className="font-semibold">Vagas:</span>{' '}
-                          {ride.availableSeats || 0}
+                          {ride.vagas_disponiveis || 0}
                         </div>
                         {ride.vehicle && (
                           <div>
@@ -266,23 +303,25 @@ export function ActiveRidesPage() {
                       <div className="space-y-3">
                         {ride.requests.map((request) => (
                           <div 
-                            key={request.id}
+                            key={request.id_solicitacao}
                             className="flex items-center justify-between p-4 bg-gray-50 rounded-lg"
                           >
-                            {/* Info do passageiro */}
+                            {/* Info do passageiro - RequestsForMyRideDTO */}
                             <div className="flex items-center gap-4">
                               <div className="w-12 h-12 bg-fatecride-blue text-white rounded-full flex items-center justify-center font-bold">
-                                {request.passenger?.name?.[0]?.toUpperCase() || 'U'}
+                                {request.nome_passageiro?.[0]?.toUpperCase() || 'U'}
                               </div>
                               <div>
                                 <p className="font-semibold text-gray-900">
-                                  {request.passenger?.name || 'Usuário'}
+                                  {request.nome_passageiro || 'Usuário'}
                                 </p>
-                                <p className="text-sm text-gray-600">
-                                  {request.passenger?.email || 'Email não disponível'}
-                                </p>
+                                {request.curso && (
+                                  <p className="text-sm text-gray-600">
+                                    {request.curso}
+                                  </p>
+                                )}
                                 <p className="text-xs text-gray-500 mt-1">
-                                  Solicitado em: {formatDate(request.createdAt)}
+                                  Status: {request.status || 'Pendente'}
                                 </p>
                               </div>
                             </div>
@@ -290,16 +329,16 @@ export function ActiveRidesPage() {
                             {/* Botões de ação */}
                             <div className="flex gap-2">
                               <Button
-                                onClick={() => handleAcceptRequest(ride.id, request.id)}
-                                disabled={processingId === request.id}
+                                onClick={() => handleAcceptRequest(ride.id, request.id_solicitacao)}
+                                disabled={processingId === request.id_solicitacao}
                                 className="bg-green-600 hover:bg-green-700"
                                 size="sm"
                               >
-                                {processingId === request.id ? 'Processando...' : 'Aceitar'}
+                                {processingId === request.id_solicitacao ? 'Processando...' : 'Aceitar'}
                               </Button>
                               <Button
-                                onClick={() => handleRejectRequest(ride.id, request.id)}
-                                disabled={processingId === request.id}
+                                onClick={() => handleRejectRequest(ride.id, request.id_solicitacao)}
+                                disabled={processingId === request.id_solicitacao}
                                 variant="danger"
                                 size="sm"
                               >

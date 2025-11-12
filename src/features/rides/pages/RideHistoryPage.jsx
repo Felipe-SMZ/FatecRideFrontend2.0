@@ -25,7 +25,8 @@ export function RideHistoryPage() {
       setLoading(true);
       const token = localStorage.getItem('token');
       
-      const response = await fetch('http://localhost:8080/rides/history', {
+      // Buscar caronas concluídas (motorista)
+      const response = await fetch('http://localhost:8080/rides/concluidas?pagina=0&itens=50', {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -34,7 +35,8 @@ export function RideHistoryPage() {
 
       if (response.ok) {
         const data = await response.json();
-        setRides(data);
+        // Backend retorna Page, pegar o conteúdo
+        setRides(data.content || data);
       }
     } catch (error) {
       console.error('Erro ao buscar histórico:', error);
@@ -56,9 +58,10 @@ export function RideHistoryPage() {
 
   const getStatusBadge = (status) => {
     const badges = {
-      completed: { text: 'Concluída', color: 'bg-green-100 text-green-800' },
-      cancelled: { text: 'Cancelada', color: 'bg-red-100 text-red-800' },
-      rejected: { text: 'Recusada', color: 'bg-gray-100 text-gray-800' }
+      'CONCLUIDA': { text: 'Concluída', color: 'bg-green-100 text-green-800' },
+      'CANCELADA': { text: 'Cancelada', color: 'bg-red-100 text-red-800' },
+      'ATIVA': { text: 'Ativa', color: 'bg-blue-100 text-blue-800' },
+      'PENDENTE': { text: 'Pendente', color: 'bg-yellow-100 text-yellow-800' }
     };
     
     const badge = badges[status] || { text: status, color: 'bg-gray-100 text-gray-800' };
@@ -120,13 +123,16 @@ export function RideHistoryPage() {
                         {getStatusBadge(ride.status)}
                       </div>
                       <p className="text-sm text-gray-600 mb-1">
-                        {formatDate(ride.departureTime)}
+                        {formatDate(ride.data_hora)}
                       </p>
                       {ride.vehicle && (
                         <p className="text-sm text-gray-500">
                           {ride.vehicle.marca} {ride.vehicle.modelo} - {ride.vehicle.placa}
                         </p>
                       )}
+                      <p className="text-sm text-gray-500 mt-1">
+                        Vagas disponíveis: {ride.vagas_disponiveis || 0}
+                      </p>
                     </div>
                   </div>
                 </Card>

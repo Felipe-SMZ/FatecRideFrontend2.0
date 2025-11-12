@@ -121,6 +121,7 @@ export function PassengerPage() {
 
     /**
      * Solicita carona
+     * PassageRequestsDTO: originDTO, destinationDTO, id_carona
      */
     const handleRequestRide = async (ride) => {
         if (!originAddress || !destinationAddress) {
