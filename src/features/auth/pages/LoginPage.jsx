@@ -7,7 +7,7 @@ import { Input } from "@shared/components/ui/Input";
 import { Button } from "@shared/components/ui/Button";
 import { Alert } from "@shared/components/ui/Alert";
 import { Logo } from "@shared/components/ui/Logo";
-import { authService } from "@features/auth/services/authService";
+import { useAuthStore } from "@features/auth/stores/authStore";
 
 const loginSchema = z.object({
   email: z.string().email("Email inválido"),
@@ -16,6 +16,7 @@ const loginSchema = z.object({
 
 export function LoginPage() {
   const navigate = useNavigate();
+  const login = useAuthStore(state => state.login);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -32,20 +33,18 @@ export function LoginPage() {
       setLoading(true);
       setError("");
       
-      const response = await authService.login({
-        email: data.email,
-        senha: data.senha
-      });
-      
-      if (response.token) {
-        localStorage.setItem('token', response.token);
-        navigate("/inicio");
-      }
+      await login(data.email, data.senha);
+      navigate("/inicio", { replace: true });
     } catch (err) {
+      console.error('Erro no login:', err);
       setError(err.response?.data?.message || "Erro ao fazer login");
     } finally {
       setLoading(false);
     }
+  };
+
+  const onError = (errors) => {
+    console.error('Erros de validação no login:', errors);
   };
 
   return (
@@ -91,7 +90,7 @@ export function LoginPage() {
             )}
 
             {/* Formulário */}
-            <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
+            <form onSubmit={handleSubmit(onSubmit, onError)} className="space-y-5">
               <Input
                 label="Email"
                 type="email"
