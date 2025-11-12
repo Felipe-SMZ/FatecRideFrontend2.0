@@ -112,7 +112,11 @@ export function PassengerPage() {
                     const errorData = JSON.parse(errorText);
                     if (errorData.message?.includes('Nenhum motorista')) {
                         setAvailableRides([]);
-                        toast.info('Nenhuma carona encontrada para esta rota');
+                        toast.info(
+                            'Nenhuma carona encontrada para esta rota. ' +
+                            'Tente buscar com endereços próximos ou principais da região.',
+                            { duration: 5000 }
+                        );
                         setSearching(false);
                         return;
                     }
@@ -248,8 +252,9 @@ export function PassengerPage() {
                                         </div>
                                     ) : (
                                         <EmptyState
+                                            icon="🔍"
                                             title="Nenhuma carona encontrada"
-                                            description="Tente buscar com outros endereços ou aguarde novas caronas serem cadastradas"
+                                            description="Tente buscar com endereços principais da região (ex: Terminal Cotia, Fatec Cotia) ou aguarde novas caronas serem cadastradas."
                                         />
                                     )}
                                 </div>
