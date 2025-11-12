@@ -8,7 +8,8 @@ import { authService } from "@features/auth/services/authService";
 import { addressService } from "@features/profile/services/addressService";
 import { useState, useEffect } from "react";
 import { toast } from "react-hot-toast";
-import { FiUser, FiMapPin, FiSave, FiX } from "react-icons/fi";
+import { FiUser, FiMapPin, FiSave, FiX, FiTrash2, FiAlertTriangle } from "react-icons/fi";
+import { useNavigate } from "react-router-dom";
 
 /**
  * ProfilePage - Página de perfil do usuário
@@ -16,16 +17,29 @@ import { FiUser, FiMapPin, FiSave, FiX } from "react-icons/fi";
  */
 
 export function ProfilePage() {
-  const { user, updateUser: updateAuthUser } = useAuthStore();
+  const navigate = useNavigate();
+  const { user, updateUser: updateAuthUser, logout, loadUserData: loadAuthUserData } = useAuthStore();
   const [loading, setLoading] = useState(false);
   const [loadingAddress, setLoadingAddress] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  
+  // Carregar dados do usuário ao montar
+  useEffect(() => {
+    loadUserData();
+    loadStates();
+    // Forçar reload do authStore para garantir tipo correto
+    loadAuthUserData();
+  }, []);
   
   // Estado para dados pessoais
   const [personalData, setPersonalData] = useState({
     nome: "",
     sobrenome: "",
     telefone: "",
-    email: ""
+    email: "",
+    foto: "",
+    senha: "",
+    confirmarSenha: ""
   });
   
   // Estado para endereço
@@ -41,11 +55,41 @@ export function ProfilePage() {
   
   const [isEditingPersonal, setIsEditingPersonal] = useState(false);
   const [isEditingAddress, setIsEditingAddress] = useState(false);
+  const [loadingCep, setLoadingCep] = useState(false);
+  const [states, setStates] = useState([]);
+  const [cities, setCities] = useState([]);
+  const [selectedStateId, setSelectedStateId] = useState(null);
+  const [selectedCityId, setSelectedCityId] = useState(null);
 
   // Carregar dados do usuário ao montar
   useEffect(() => {
     loadUserData();
+    loadStates();
   }, []);
+
+  const loadStates = async () => {
+    try {
+      const response = await fetch('http://localhost:8080/states');
+      const data = await response.json();
+      setStates(data);
+      console.log('📍 Estados carregados:', data);
+    } catch (error) {
+      console.error('❌ Erro ao carregar estados:', error);
+    }
+  };
+
+  const loadCitiesByState = async (stateId) => {
+    try {
+      const response = await fetch(`http://localhost:8080/cities/${stateId}`);
+      const data = await response.json();
+      setCities(data);
+      console.log('🏙️ Cidades carregadas:', data);
+      return data;
+    } catch (error) {
+      console.error('❌ Erro ao carregar cidades:', error);
+      return [];
+    }
+  };
 
   const loadUserData = async () => {
     try {
@@ -62,7 +106,10 @@ export function ProfilePage() {
         nome: userData.nome || "",
         sobrenome: userData.sobrenome || "",
         telefone: formattedPhone,
-        email: userData.email || ""
+        email: userData.email || "",
+        foto: userData.foto || "",
+        senha: "",
+        confirmarSenha: ""
       });
       
       // Buscar endereço do endpoint separado GET /address
@@ -72,16 +119,39 @@ export function ProfilePage() {
         console.log('📍 Resposta de GET /address:', addressResponse);
         
         if (addressResponse) {
+          const cidadeNome = addressResponse.city || "";
+          
           setAddressData({
             id: addressResponse.id || null,
             logradouro: addressResponse.logradouro || "",
             numero: addressResponse.numero || "",
             bairro: addressResponse.bairro || "",
             cep: addressResponse.cep || "",
-            cidade: addressResponse.city || "",
-            estado: addressResponse.state || ""
+            cidade: cidadeNome,
+            estado: "" // Será preenchido ao encontrar nos estados
           });
-          console.log('✅ Endereço carregado com sucesso!');
+          
+          // Tentar identificar estado e cidade pelos nomes
+          // Precisamos buscar em todos os estados até encontrar a cidade
+          if (cidadeNome && states.length > 0) {
+            console.log('🔍 Procurando cidade nos estados:', cidadeNome);
+            for (const state of states) {
+              const citiesData = await loadCitiesByState(state.id);
+              const cityFound = citiesData.find(c => 
+                c.nome.toLowerCase() === cidadeNome.toLowerCase()
+              );
+              
+              if (cityFound) {
+                console.log('✅ Cidade encontrada:', cityFound.nome, 'no estado:', state.uf);
+                setSelectedStateId(state.id);
+                setSelectedCityId(cityFound.id);
+                handleAddressChange('estado', state.uf);
+                break;
+              }
+            }
+          }
+          
+          console.log('✅ Endereço carregado');
         }
       } catch (addressError) {
         console.log('⚠️ Erro ao buscar endereço:', addressError.response?.status);
@@ -107,6 +177,43 @@ export function ProfilePage() {
 
   const handleAddressChange = (field, value) => {
     setAddressData(prev => ({ ...prev, [field]: value }));
+    
+    // Se for CEP e tiver 8 dígitos, buscar automaticamente
+    if (field === 'cep') {
+      const cleanCep = value.replace(/\D/g, '');
+      if (cleanCep.length === 8) {
+        handleCepSearch(cleanCep);
+      }
+    }
+  };
+
+  const handleCepSearch = async (cep) => {
+    try {
+      console.log('🔍 Buscando CEP:', cep);
+      const response = await fetch(`https://viacep.com.br/ws/${cep}/json/`);
+      const data = await response.json();
+      
+      if (data.erro) {
+        toast.error('CEP não encontrado');
+        return;
+      }
+      
+      console.log('✅ CEP encontrado:', data);
+      
+      // Autocompletar campos
+      setAddressData(prev => ({
+        ...prev,
+        logradouro: data.logradouro || prev.logradouro,
+        bairro: data.bairro || prev.bairro,
+        cidade: data.localidade || prev.cidade,
+        estado: data.uf || prev.estado
+      }));
+      
+      toast.success('CEP encontrado! Endereço preenchido automaticamente.');
+    } catch (error) {
+      console.error('❌ Erro ao buscar CEP:', error);
+      toast.error('Erro ao buscar CEP');
+    }
   };
 
   const formatPhone = (value) => {
@@ -115,6 +222,76 @@ export function ProfilePage() {
       return numbers.replace(/(\d{2})(\d{5})(\d{4})/, '($1) $2-$3');
     }
     return value;
+  };
+
+  const formatCep = (value) => {
+    const numbers = value.replace(/\D/g, '');
+    if (numbers.length <= 8) {
+      return numbers.replace(/(\d{5})(\d{3})/, '$1-$2');
+    }
+    return value;
+  };
+
+  const handleCepChange = async (cep) => {
+    const formattedCep = formatCep(cep);
+    handleAddressChange('cep', formattedCep);
+    
+    const cleanCep = cep.replace(/\D/g, '');
+    
+    // Se o CEP tiver 8 dígitos, buscar no ViaCEP
+    if (cleanCep.length === 8) {
+      setLoadingCep(true);
+      try {
+        console.log('🔍 Buscando CEP:', cleanCep);
+        const response = await fetch(`https://viacep.com.br/ws/${cleanCep}/json/`);
+        const data = await response.json();
+        
+        if (data.erro) {
+          toast.error('CEP não encontrado');
+          setLoadingCep(false);
+          return;
+        }
+        
+        console.log('📍 Dados do ViaCEP:', data);
+        
+        // Preencher campos automaticamente
+        handleAddressChange('logradouro', data.logradouro || '');
+        handleAddressChange('bairro', data.bairro || '');
+        handleAddressChange('cidade', data.localidade || '');
+        handleAddressChange('estado', data.uf || '');
+        
+        // Buscar estado no backend pelo UF
+        const stateFound = states.find(s => s.uf === data.uf);
+        if (stateFound) {
+          console.log('🗺️ Estado encontrado:', stateFound);
+          setSelectedStateId(stateFound.id);
+          
+          // Carregar cidades desse estado
+          const citiesData = await loadCitiesByState(stateFound.id);
+          
+          // Encontrar a cidade pelo nome
+          const cityFound = citiesData.find(c => 
+            c.nome.toLowerCase() === data.localidade.toLowerCase()
+          );
+          
+          if (cityFound) {
+            console.log('🏙️ Cidade encontrada:', cityFound);
+            setSelectedCityId(cityFound.id);
+            toast.success('Endereço preenchido automaticamente!');
+          } else {
+            toast.warning('Cidade não encontrada no sistema. Selecione manualmente.');
+          }
+        } else {
+          toast.warning('Estado não encontrado no sistema.');
+        }
+        
+      } catch (error) {
+        console.error('❌ Erro ao buscar CEP:', error);
+        toast.error('Erro ao buscar CEP');
+      } finally {
+        setLoadingCep(false);
+      }
+    }
   };
 
   const handleSavePersonal = async () => {
@@ -126,6 +303,20 @@ export function ProfilePage() {
         toast.error('Nome e sobrenome são obrigatórios');
         setLoading(false);
         return;
+      }
+
+      // Validar senha se foi preenchida
+      if (personalData.senha || personalData.confirmarSenha) {
+        if (personalData.senha !== personalData.confirmarSenha) {
+          toast.error('As senhas não coincidem');
+          setLoading(false);
+          return;
+        }
+        if (personalData.senha.length < 6) {
+          toast.error('A senha deve ter no mínimo 6 caracteres');
+          setLoading(false);
+          return;
+        }
       }
 
       const cleanPhone = personalData.telefone.replace(/\D/g, '');
@@ -140,27 +331,43 @@ export function ProfilePage() {
         nome: personalData.nome,
         sobrenome: personalData.sobrenome,
         email: currentUserData.email, // Não pode ser alterado
-        senha: currentUserData.senha || "senhaTemporaria123", // Backend exige senha
+        // Se nova senha foi informada, usar ela; senão manter a atual
+        senha: personalData.senha || currentUserData.senha,
         telefone: cleanPhone,
-        foto: currentUserData.foto || "",
+        foto: personalData.foto || currentUserData.foto || "",
         userTypeId: currentUserData.userTypeId,
         genderId: currentUserData.genderId,
         courseId: currentUserData.courseId
       };
 
-      console.log('📤 Enviando para PUT /users:', updateData);
+      console.log('📤 Enviando para PUT /users:', {
+        ...updateData,
+        senha: personalData.senha ? '***NOVA SENHA***' : '***SENHA ATUAL***'
+      });
       
       const response = await authService.updateUser(updateData);
       console.log('✅ Resposta do backend:', response);
       
-      // Atualizar authStore
+      // Atualizar authStore localmente
       updateAuthUser({
         name: `${personalData.nome} ${personalData.sobrenome}`,
-        email: personalData.email
+        email: personalData.email,
+        foto: personalData.foto || ""
       });
+      
+      // Recarregar dados do backend para garantir sincronização
+      await loadAuthUserData();
       
       toast.success('Dados pessoais atualizados com sucesso!');
       setIsEditingPersonal(false);
+      
+      // Limpar campos de senha
+      setPersonalData(prev => ({
+        ...prev,
+        senha: "",
+        confirmarSenha: ""
+      }));
+      
       await loadUserData();
     } catch (error) {
       console.error('❌ Erro ao atualizar dados:', error);
@@ -199,18 +406,27 @@ export function ProfilePage() {
         return;
       }
 
+      if (!selectedCityId) {
+        toast.error('Cidade não selecionada. Digite um CEP válido para preencher automaticamente.');
+        setLoadingAddress(false);
+        return;
+      }
+
       const cleanCep = addressData.cep.replace(/\D/g, '');
       
       // Preparar dados para envio (UserAddressesDTO)
       const updateData = {
-        cityId: 1, // TODO: Precisaria buscar cityId baseado na cidade selecionada
+        cityId: selectedCityId, // Usando o ID correto da cidade
         logradouro: addressData.logradouro,
         numero: addressData.numero,
         bairro: addressData.bairro,
         cep: cleanCep
       };
 
-      console.log('📤 Enviando para PUT /address/' + addressData.id + ':', updateData);
+      console.log('📤 Enviando para PUT /address/' + addressData.id);
+      console.log('📦 Payload:', JSON.stringify(updateData, null, 2));
+      console.log('🏙️ Cidade ID:', selectedCityId);
+      console.log('🗺️ Estado ID:', selectedStateId);
       
       const response = await addressService.updateAddress(addressData.id, updateData);
       console.log('✅ Resposta do backend:', response);
@@ -220,11 +436,14 @@ export function ProfilePage() {
       await loadUserData();
     } catch (error) {
       console.error('❌ Erro ao atualizar endereço:', error);
-      console.error('❌ Response:', error.response?.data);
+      console.error('❌ Response completo:', error.response);
+      console.error('❌ Response data:', error.response?.data);
       console.error('❌ Status:', error.response?.status);
+      console.error('❌ Message:', error.message);
       
       const errorMsg = error.response?.data?.message 
         || error.response?.data?.error
+        || error.message
         || 'Erro ao atualizar endereço';
       
       toast.error(errorMsg);
@@ -236,6 +455,27 @@ export function ProfilePage() {
   const handleCancelAddress = () => {
     loadUserData();
     setIsEditingAddress(false);
+  };
+
+  const handleDeleteAccount = async () => {
+    try {
+      setLoading(true);
+      
+      // Chamar endpoint de exclusão de conta (ajuste conforme seu backend)
+      await authService.deleteAccount();
+      
+      toast.success('Conta excluída com sucesso');
+      
+      // Fazer logout e redirecionar
+      logout();
+      navigate('/login');
+    } catch (error) {
+      console.error('❌ Erro ao excluir conta:', error);
+      toast.error('Erro ao excluir conta. Tente novamente.');
+    } finally {
+      setLoading(false);
+      setShowDeleteModal(false);
+    }
   };
 
   return (
@@ -250,6 +490,35 @@ export function ProfilePage() {
         {/* Card: Informações Pessoais */}
         <Card>
           <div className="space-y-6">
+            {/* Foto de Perfil */}
+            <div className="flex justify-center">
+              <div className="relative">
+                {personalData.foto ? (
+                  <img 
+                    src={personalData.foto} 
+                    alt="Foto de perfil" 
+                    className="w-32 h-32 rounded-full object-cover border-4 border-blue-100 shadow-lg"
+                    onError={(e) => {
+                      e.target.style.display = 'none';
+                      console.error('❌ Erro ao carregar imagem:', personalData.foto);
+                      console.log('💡 Use URLs diretas de imagem (termina com .jpg, .png, etc.)');
+                      console.log('💡 Exemplo: https://images.unsplash.com/photo-xxx/image.jpg');
+                      e.target.nextElementSibling.style.display = 'flex';
+                    }}
+                  />
+                ) : null}
+                <div 
+                  className="w-32 h-32 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center shadow-lg text-white text-4xl font-bold"
+                  style={{ display: personalData.foto ? 'none' : 'flex' }}
+                >
+                  {personalData.nome && personalData.sobrenome
+                    ? `${personalData.nome.charAt(0)}${personalData.sobrenome.charAt(0)}`.toUpperCase()
+                    : <FiUser className="w-16 h-16" />
+                  }
+                </div>
+              </div>
+            </div>
+            
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
@@ -354,6 +623,69 @@ export function ProfilePage() {
                   className="bg-gray-50"
                 />
               </div>
+
+              <div className="md:col-span-2">
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Foto (URL)
+                </label>
+                <Input 
+                  value={personalData.foto} 
+                  onChange={(e) => handlePersonalChange('foto', e.target.value)}
+                  disabled={!isEditingPersonal}
+                  placeholder="https://images.unsplash.com/photo-xxx/image.jpg"
+                  type="url"
+                />
+                <div className="text-xs mt-1 space-y-1">
+                  {personalData.foto ? (
+                    <p className="text-green-600">✓ URL da foto configurada</p>
+                  ) : (
+                    <p className="text-gray-500">Insira a URL direta de uma imagem</p>
+                  )}
+                  {isEditingPersonal && (
+                    <div className="bg-blue-50 border border-blue-200 rounded p-2 mt-2">
+                      <p className="text-blue-700 font-medium">💡 Como obter URL de imagem:</p>
+                      <ul className="text-blue-600 text-xs mt-1 space-y-1 ml-4 list-disc">
+                        <li>No Unsplash: clique com botão direito na imagem → "Copiar endereço da imagem"</li>
+                        <li>A URL deve terminar com .jpg, .png, .webp, etc.</li>
+                        <li>Exemplo correto: https://images.unsplash.com/photo-123/image.jpg</li>
+                        <li>❌ Não use URLs de páginas (sem .jpg no final)</li>
+                      </ul>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Campos de senha - só aparecem se estiver editando */}
+              {isEditingPersonal && (
+                <>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Nova Senha (opcional)
+                    </label>
+                    <Input 
+                      type="password"
+                      value={personalData.senha} 
+                      onChange={(e) => handlePersonalChange('senha', e.target.value)}
+                      placeholder="Deixe em branco para manter a atual"
+                      autoComplete="new-password"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">Mínimo 6 caracteres</p>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Confirmar Nova Senha
+                    </label>
+                    <Input 
+                      type="password"
+                      value={personalData.confirmarSenha} 
+                      onChange={(e) => handlePersonalChange('confirmarSenha', e.target.value)}
+                      placeholder="Repita a nova senha"
+                      autoComplete="new-password"
+                    />
+                  </div>
+                </>
+              )}
             </div>
           </div>
         </Card>
@@ -407,14 +739,18 @@ export function ProfilePage() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="md:col-span-2">
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  CEP
+                  CEP {loadingCep && <span className="text-blue-600 text-xs ml-2">🔍 Buscando...</span>}
                 </label>
                 <Input 
                   value={addressData.cep} 
-                  onChange={(e) => handleAddressChange('cep', e.target.value)}
-                  disabled={!isEditingAddress}
+                  onChange={(e) => handleCepChange(e.target.value)}
+                  disabled={!isEditingAddress || loadingCep}
                   placeholder="00000-000"
+                  maxLength={9}
                 />
+                <p className="text-xs text-gray-500 mt-1">
+                  Digite o CEP completo para autocompletar o endereço
+                </p>
               </div>
 
               <div className="md:col-span-2">
@@ -453,26 +789,83 @@ export function ProfilePage() {
                 />
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Cidade
-                </label>
-                <Input 
-                  value={addressData.cidade} 
-                  disabled
-                  className="bg-gray-50"
-                />
-              </div>
-
+              {/* Estado - Select editável */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Estado
                 </label>
-                <Input 
-                  value={addressData.estado} 
-                  disabled
-                  className="bg-gray-50"
-                />
+                {isEditingAddress ? (
+                  <select
+                    value={selectedStateId || ''}
+                    onChange={async (e) => {
+                      const stateId = Number(e.target.value);
+                      setSelectedStateId(stateId);
+                      setSelectedCityId(null);
+                      
+                      // Buscar nome do estado
+                      const state = states.find(s => s.id === stateId);
+                      if (state) {
+                        handleAddressChange('estado', state.uf);
+                        // Carregar cidades desse estado
+                        await loadCitiesByState(stateId);
+                      }
+                    }}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="">Selecione um estado</option>
+                    {states.map(state => (
+                      <option key={state.id} value={state.id}>
+                        {state.uf} - {state.nome}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <Input 
+                    value={addressData.estado} 
+                    disabled
+                    className="bg-gray-50"
+                  />
+                )}
+              </div>
+
+              {/* Cidade - Select editável */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Cidade
+                </label>
+                {isEditingAddress ? (
+                  <select
+                    value={selectedCityId || ''}
+                    onChange={(e) => {
+                      const cityId = Number(e.target.value);
+                      setSelectedCityId(cityId);
+                      
+                      // Buscar nome da cidade
+                      const city = cities.find(c => c.id === cityId);
+                      if (city) {
+                        handleAddressChange('cidade', city.nome);
+                      }
+                    }}
+                    disabled={!selectedStateId}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
+                  >
+                    <option value="">Selecione uma cidade</option>
+                    {cities.map(city => (
+                      <option key={city.id} value={city.id}>
+                        {city.nome}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <Input 
+                    value={addressData.cidade} 
+                    disabled
+                    className="bg-gray-50"
+                  />
+                )}
+                {isEditingAddress && !selectedStateId && (
+                  <p className="text-xs text-amber-600 mt-1">Selecione um estado primeiro</p>
+                )}
               </div>
             </div>
             
@@ -489,15 +882,83 @@ export function ProfilePage() {
             {isEditingAddress && addressData.id && (
               <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
                 <p className="text-sm text-yellow-800">
-                  <strong>⚠️ Atenção:</strong> Ao editar o endereço, certifique-se de que as informações estão corretas. 
-                  Cidade e Estado não podem ser alterados por aqui.
+                  <strong>💡 Dica:</strong> Você pode digitar o CEP para preencher automaticamente, 
+                  ou selecionar Estado e Cidade manualmente nos campos acima.
                 </p>
               </div>
             )}
           </div>
         </Card>
 
+        {/* Card de Zona de Perigo */}
+        <Card className="p-6 border-2 border-red-200">
+          <div className="flex items-center gap-3 mb-4">
+            <FiAlertTriangle className="w-6 h-6 text-red-600" />
+            <h2 className="text-2xl font-bold text-red-600">Zona de Perigo</h2>
+          </div>
+
+          <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
+            <p className="text-sm text-red-800 mb-2">
+              <strong>⚠️ Atenção:</strong> Esta ação é irreversível!
+            </p>
+            <p className="text-sm text-red-700">
+              Ao excluir sua conta, todos os seus dados serão permanentemente removidos, 
+              incluindo histórico de caronas, veículos cadastrados e informações pessoais.
+            </p>
+          </div>
+
+          <Button
+            onClick={() => setShowDeleteModal(true)}
+            className="bg-red-600 hover:bg-red-700 text-white"
+          >
+            <FiTrash2 className="w-4 h-4 mr-2" />
+            Excluir minha conta
+          </Button>
+        </Card>
+
       </div>
+
+      {/* Modal de Confirmação de Exclusão */}
+      {showDeleteModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <Card className="max-w-md w-full p-6 animate-in fade-in slide-in-from-top-4 duration-200">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center">
+                <FiAlertTriangle className="w-6 h-6 text-red-600" />
+              </div>
+              <div>
+                <h3 className="text-xl font-bold text-gray-900">Confirmar Exclusão</h3>
+                <p className="text-sm text-gray-600">Esta ação não pode ser desfeita</p>
+              </div>
+            </div>
+
+            <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
+              <p className="text-sm text-red-800 mb-2">
+                Você tem certeza que deseja excluir sua conta?
+              </p>
+              <p className="text-sm text-red-700 font-semibold">
+                Todos os seus dados serão permanentemente removidos.
+              </p>
+            </div>
+
+            <div className="flex gap-3">
+              <Button
+                onClick={() => setShowDeleteModal(false)}
+                className="flex-1 bg-gray-500 hover:bg-gray-600"
+              >
+                Cancelar
+              </Button>
+              <Button
+                onClick={handleDeleteAccount}
+                disabled={loading}
+                className="flex-1 bg-red-600 hover:bg-red-700"
+              >
+                {loading ? 'Excluindo...' : 'Sim, excluir conta'}
+              </Button>
+            </div>
+          </Card>
+        </div>
+      )}
     </PageContainer>
     </>
   );

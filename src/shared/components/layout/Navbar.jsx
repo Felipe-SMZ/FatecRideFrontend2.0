@@ -47,6 +47,29 @@ export const Navbar = ({ showAuthButton = false }) => {
     return user.name[0].toUpperCase();
   };
 
+  // Renderizar avatar com foto ou iniciais
+  const renderAvatar = (size = 'w-10 h-10', textSize = 'text-sm') => {
+    if (user?.foto) {
+      return (
+        <img 
+          src={user.foto} 
+          alt={user.name}
+          className={`${size} rounded-full object-cover bg-white`}
+          onError={(e) => {
+            // Se a imagem falhar, mostrar iniciais
+            e.target.style.display = 'none';
+            e.target.nextElementSibling.style.display = 'flex';
+          }}
+        />
+      );
+    }
+    return (
+      <div className={`${size} rounded-full bg-white text-fatecride-blue font-bold flex items-center justify-center ${textSize}`}>
+        {getInitials()}
+      </div>
+    );
+  };
+
   return (
     <nav className="bg-gradient-to-r from-fatecride-blue to-fatecride-blue-dark shadow-lg sticky top-0 z-50">
       <div className="container mx-auto px-4">
@@ -67,10 +90,8 @@ export const Navbar = ({ showAuthButton = false }) => {
                     onClick={() => setDropdownOpen(!dropdownOpen)}
                     className="flex items-center gap-3 bg-white/10 hover:bg-white/20 backdrop-blur-sm rounded-full py-2 px-4 transition-all duration-200 border-2 border-white/20 hover:border-white/40"
                   >
-                    {/* Avatar com iniciais */}
-                    <div className="w-10 h-10 rounded-full bg-white text-fatecride-blue font-bold flex items-center justify-center text-sm">
-                      {getInitials()}
-                    </div>
+                    {/* Avatar com foto ou iniciais */}
+                    {renderAvatar('w-10 h-10', 'text-sm')}
                     {/* Nome e seta */}
                     <div className="hidden md:block text-left">
                       <p className="text-white font-semibold text-sm">{user.name}</p>

@@ -48,7 +48,8 @@ export const useAuthStore = create(
                             email: email,
                             tipo: tipo,
                             id: userDataResponse.id,
-                            userTypeId: userDataResponse.userTypeId
+                            userTypeId: userDataResponse.userTypeId,
+                            foto: userDataResponse.foto || null
                         };
                         
                         set({
@@ -68,6 +69,8 @@ export const useAuthStore = create(
                             inferredTipo = 'MOTORISTA';
                         } else if (email.includes('passageiro') || email.startsWith('fp')) {
                             inferredTipo = 'PASSAGEIRO';
+                        } else if (email.includes('ambos') || email.startsWith('fa')) {
+                            inferredTipo = 'AMBOS';
                         }
                         
                         console.log(`🔧 Login: Tipo inferido: ${inferredTipo} (baseado no email)`);
@@ -75,8 +78,12 @@ export const useAuthStore = create(
                         const user = {
                             name: response.name,
                             email: email,
-                            tipo: inferredTipo
+                            tipo: inferredTipo,
+                            userTypeId: inferredTipo === 'MOTORISTA' ? 1 : inferredTipo === 'PASSAGEIRO' ? 2 : 3
                         };
+                        
+                        console.log('👤 User object criado:', user);
+                        
                         set({
                             user,
                             token,
@@ -131,7 +138,8 @@ export const useAuthStore = create(
                             name: userDataResponse.nome || state.user?.name,
                             tipo: tipo,
                             id: userDataResponse.id || state.user?.id,
-                            userTypeId: userDataResponse.userTypeId
+                            userTypeId: userDataResponse.userTypeId,
+                            foto: userDataResponse.foto || state.user?.foto || null
                         }
                     }));
                     console.log('✅ loadUserData: User atualizado com tipo:', get().user?.tipo);

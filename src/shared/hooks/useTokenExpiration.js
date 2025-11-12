@@ -61,9 +61,13 @@ export function useTokenExpiration() {
 
       if (minutesRemaining <= 10 && minutesRemaining > 0 && !hasShownWarningRef.current) {
         console.warn(`⚠️ Token expira em ${minutesRemaining} minutos`);
-        toast.warning(`Sua sessão expira em ${minutesRemaining} minutos`, {
+        toast(`Sua sessão expira em ${minutesRemaining} minutos`, {
           duration: 5000,
-          icon: '⏰'
+          icon: '⏰',
+          style: {
+            background: '#FFA500',
+            color: '#fff',
+          }
         });
         hasShownWarningRef.current = true;
       }
