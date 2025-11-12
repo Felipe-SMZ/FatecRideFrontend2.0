@@ -3,6 +3,7 @@ import axios from 'axios';
 import { useAuthStore } from '@features/auth/stores/authStore';
 import { toast } from 'react-hot-toast';
 import { checkTokenExpiration, clearExpiredToken } from '@shared/utils/tokenUtils';
+import { mapApiError } from './errorMapper';
 
 const api = axios.create({
     baseURL: import.meta.env.VITE_API_URL || 'http://localhost:8080',
@@ -50,27 +51,21 @@ api.interceptors.response.use(
     (response) => response,
     (error) => {
         const status = error.response?.status;
-        const message = error.response?.data?.message || 'Erro ao processar requisição';
+        const apiMapped = mapApiError(error);
+        const message = apiMapped?.message || error.response?.data?.message || 'Erro ao processar requisição';
 
         // Logout automático se token expirou
         if (status === 401) {
             useAuthStore.getState().logout();
-            toast.error('Sessão expirada. Faça login novamente.');
+            toast.error(message || 'Sessão expirada. Faça login novamente.');
             window.location.href = '/';
-        }
-
-        // Erros específicos
-        if (status === 403) {
-            toast.error('Você não tem permissão para essa ação');
-        } else if (status === 404) {
-            toast.error('Recurso não encontrado');
-        } else if (status === 500) {
-            toast.error('Erro no servidor. Tente novamente mais tarde.');
         } else {
+            // Mostra mensagem amigável mapeada
             toast.error(message);
         }
 
-        return Promise.reject({ ...error, message });
+        // Retorna erro enriquecido com mensagem amigável
+        return Promise.reject({ ...error, friendlyMessage: message });
     }
 );
 
