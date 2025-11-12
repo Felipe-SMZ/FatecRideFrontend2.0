@@ -15,6 +15,8 @@ const InicioPage = lazy(() => import('../pages/InicioPage').then(m => ({ default
 const HomePage = lazy(() => import('../pages/HomePage').then(m => ({ default: m.HomePage })));
 const DriverPage = lazy(() => import('@features/rides/pages/DriverPage').then(m => ({ default: m.DriverPage })));
 const PassengerPage = lazy(() => import('@features/rides/pages/PassengerPage').then(m => ({ default: m.PassengerPage })));
+const ActiveRidesPage = lazy(() => import('@features/rides/pages/ActiveRidesPage').then(m => ({ default: m.ActiveRidesPage })));
+const RideHistoryPage = lazy(() => import('@features/rides/pages/RideHistoryPage').then(m => ({ default: m.RideHistoryPage })));
 const ProfilePage = lazy(() => import('@features/profile/pages/ProfilePage').then(m => ({ default: m.ProfilePage })));
 const VehiclesPage = lazy(() => import('@features/vehicles/pages/VehiclesPage').then(m => ({ default: m.VehiclesPage })));
 const AddressRegisterPage = lazy(() => import('@features/profile/pages/AddressRegisterPage').then(m => ({ default: m.AddressRegisterPage })));
@@ -58,6 +60,16 @@ export function AppRoutes() {
                         <PassengerPage />
                     </ProtectedRoute>
                 } />
+                <Route path="/caronas-ativas" element={
+                    <ProtectedRoute>
+                        <ActiveRidesPage />
+                    </ProtectedRoute>
+                } />
+                <Route path="/historico" element={
+                    <ProtectedRoute>
+                        <RideHistoryPage />
+                    </ProtectedRoute>
+                } />
                 <Route path="/oferecer-carona" element={
                     <ProtectedRoute requiredRole="MOTORISTA">
                         <DriverPage />
@@ -65,6 +77,11 @@ export function AppRoutes() {
                 } />
                 <Route path="/meus-veiculos" element={
                     <ProtectedRoute requiredRole="MOTORISTA">
+                        <VehiclesPage />
+                    </ProtectedRoute>
+                } />
+                <Route path="/veiculos" element={
+                    <ProtectedRoute>
                         <VehiclesPage />
                     </ProtectedRoute>
                 } />
