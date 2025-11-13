@@ -75,18 +75,25 @@ export function SimpleChatModal({ requestId, otherUserName, receiverId, onClose 
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg shadow-xl w-full max-w-lg h-[600px] flex flex-col">
+      <div
+        className="bg-white rounded-lg shadow-xl w-full max-w-lg h-[600px] flex flex-col"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={`chat-title-${requestId}`}
+      >
         {/* Header */}
         <div className="bg-fatecride-blue text-white px-4 py-3 flex items-center justify-between rounded-t-lg">
           <div>
-            <h3 className="font-semibold">Chat com {otherUserName}</h3>
-            <p className="text-xs text-white/80">
+            <h3 id={`chat-title-${requestId}`} className="font-semibold">Chat com {otherUserName}</h3>
+            <p className="text-xs text-white/80" role="status" aria-live="polite">
               {isConnected ? '🟢 Conectado' : '🔴 Desconectado'}
             </p>
           </div>
           <button
+            type="button"
             onClick={onClose}
             className="p-1 hover:bg-white/20 rounded transition-colors"
+            aria-label="Fechar chat"
           >
             <FiX size={20} />
           </button>
@@ -143,6 +150,7 @@ export function SimpleChatModal({ requestId, otherUserName, receiverId, onClose 
               value={message}
               onChange={(e) => setMessage(e.target.value)}
               placeholder={isConnected ? "Digite sua mensagem..." : "Aguardando conexão..."}
+              aria-label="Mensagem"
               className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-fatecride-blue"
               disabled={!isConnected}
             />
@@ -150,6 +158,7 @@ export function SimpleChatModal({ requestId, otherUserName, receiverId, onClose 
               type="submit"
               disabled={!message.trim() || !isConnected}
               className="bg-fatecride-blue text-white px-4 py-2 rounded-lg hover:bg-fatecride-blue-dark disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
+              aria-label="Enviar mensagem"
             >
               <FiSend size={20} />
             </button>
