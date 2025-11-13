@@ -3,16 +3,17 @@ import { useNavigate } from 'react-router-dom';
 import { Navbar } from '@shared/components/layout/Navbar';
 import { Card } from '@shared/components/ui/Card';
 import { FiTruck, FiUser } from 'react-icons/fi';
+import { useAuthStore } from '@features/auth/stores/authStore';
 
 export function InicioPage() {
   const navigate = useNavigate();
+  const { isAuthenticated } = useAuthStore();
 
   useEffect(() => {
-    const token = localStorage.getItem('token');
-    if (!token) {
+    if (!isAuthenticated) {
       navigate('/login');
     }
-  }, [navigate]);
+  }, [isAuthenticated, navigate]);
 
   return (
     <>

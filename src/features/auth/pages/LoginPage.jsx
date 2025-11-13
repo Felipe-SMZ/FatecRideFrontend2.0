@@ -33,10 +33,20 @@ export function LoginPage() {
       setLoading(true);
       setError("");
       
+      console.log('🔐 LoginPage: Iniciando login...');
       await login(data.email, data.senha);
+      
+      console.log('✅ Login concluído!');
+      console.log('📊 Estado após login:', {
+        isAuthenticated: useAuthStore.getState().isAuthenticated,
+        user: useAuthStore.getState().user,
+        token: useAuthStore.getState().token ? 'Presente' : 'Ausente'
+      });
+      
+      console.log('🚀 Navegando para /inicio...');
       navigate("/inicio", { replace: true });
     } catch (err) {
-      console.error('Erro no login:', err);
+      console.error('❌ Erro no login:', err);
       setError(err.response?.data?.message || "Erro ao fazer login");
     } finally {
       setLoading(false);

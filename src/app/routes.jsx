@@ -17,12 +17,15 @@ const HomePage = lazy(() => import('../pages/HomePage').then(m => ({ default: m.
 const DriverPage = lazy(() => import('@features/rides/pages/DriverPage').then(m => ({ default: m.DriverPage })));
 const PassengerPage = lazy(() => import('@features/rides/pages/PassengerPage').then(m => ({ default: m.PassengerPage })));
 const ActiveRidesPage = lazy(() => import('@features/rides/pages/ActiveRidesPage').then(m => ({ default: m.ActiveRidesPage })));
+const ActiveRequestsPage = lazy(() => import('@features/rides/pages/ActiveRequestsPage').then(m => ({ default: m.ActiveRequestsPage })));
 const PassengerRidesPage = lazy(() => import('@features/rides/pages/PassengerRidesPage').then(m => ({ default: m.PassengerRidesPage })));
 const RideHistoryPage = lazy(() => import('@features/rides/pages/RideHistoryPage').then(m => ({ default: m.RideHistoryPage })));
 const ProfilePage = lazy(() => import('@features/profile/pages/ProfilePage').then(m => ({ default: m.ProfilePage })));
 const VehiclesPage = lazy(() => import('@features/vehicles/pages/VehiclesPage').then(m => ({ default: m.VehiclesPage })));
 const AddressRegisterPage = lazy(() => import('@features/profile/pages/AddressRegisterPage').then(m => ({ default: m.AddressRegisterPage })));
 const VehicleRegisterPage = lazy(() => import('@features/vehicles/pages/VehicleRegisterPage').then(m => ({ default: m.VehicleRegisterPage })));
+const ConversationsPage = lazy(() => import('@features/chat/pages/ConversationsPage').then(m => ({ default: m.ConversationsPage })));
+const ChatPage = lazy(() => import('@features/chat/pages/ChatPage').then(m => ({ default: m.ChatPage })));
 
 export function AppRoutes() {
     // Monitorar expiração do token globalmente (dentro do Router)
@@ -70,6 +73,11 @@ export function AppRoutes() {
                         <ActiveRidesPage />
                     </ProtectedRoute>
                 } />
+                <Route path="/solicitacoes-ativas" element={
+                    <ProtectedRoute>
+                        <ActiveRequestsPage />
+                    </ProtectedRoute>
+                } />
                 <Route path="/minhas-solicitacoes" element={
                     <ProtectedRoute>
                         <PassengerRidesPage />
@@ -98,6 +106,16 @@ export function AppRoutes() {
                 <Route path="/perfil" element={
                     <ProtectedRoute>
                         <ProfilePage />
+                    </ProtectedRoute>
+                } />
+                <Route path="/mensagens" element={
+                    <ProtectedRoute>
+                        <ConversationsPage />
+                    </ProtectedRoute>
+                } />
+                <Route path="/chat/:id_solicitacao" element={
+                    <ProtectedRoute>
+                        <ChatPage />
                     </ProtectedRoute>
                 } />
 

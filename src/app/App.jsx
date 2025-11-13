@@ -4,11 +4,35 @@ import { BrowserRouter } from 'react-router-dom';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { queryClient } from '@shared/lib/queryClient';
 import { useAuthStore } from '@features/auth/stores/authStore';
+import { useChat } from '@features/chat/hooks/useChat';
 import { AppProviders } from './providers';
 import { AppRoutes } from './routes';
 
 function AppContent() {
   const { isAuthenticated, loadUserData, user } = useAuthStore();
+  
+  // Log inicial ao montar o App
+  useEffect(() => {
+    console.log('🚀 APP.JSX - Montando aplicação...');
+    console.log('📊 Estado inicial do Zustand:', {
+      isAuthenticated,
+      user,
+      token: useAuthStore.getState().token ? 'Presente' : 'Ausente'
+    });
+    console.log('💾 localStorage auth:', localStorage.getItem('fatecride-auth'));
+  }, []);
+  
+  // Log para monitorar mudanças no user
+  useEffect(() => {
+    console.log('\n🔍 APP.JSX - User mudou:');
+    console.log('  👤 User:', user);
+    console.log('  🎭 Tipo:', user?.tipo);
+    console.log('  🔐 Autenticado:', isAuthenticated);
+  }, [user, isAuthenticated]);
+  
+  // SEMPRE chamar useChat (mesmo que não conecte)
+  // Hooks devem ser chamados na mesma ordem em cada render
+  useChat();
 
   // Carregar dados completos do usuário ao iniciar (somente se não tiver tipo)
   useEffect(() => {

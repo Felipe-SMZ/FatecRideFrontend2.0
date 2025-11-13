@@ -1,5 +1,6 @@
 // features/auth/services/authService.js
 import api from '@shared/lib/api';
+import { useAuthStore } from '../stores/authStore';
 
 export const authService = {
     login: async (email, senha) => {
@@ -18,7 +19,6 @@ export const authService = {
     },
 
     getCurrentUser: async () => {
-        // Backend usa GET /users (não /users/getCurrentUser)
         const { data } = await api.get('/users');
         return data;
     },
