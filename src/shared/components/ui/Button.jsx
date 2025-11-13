@@ -34,6 +34,7 @@ export const Button = forwardRef(({
             disabled={disabled || loading}
             className={cn(
                 'inline-flex items-center justify-center gap-2',
+                'min-h-[44px] min-w-[44px]',
                 'font-semibold rounded-lg',
                 'transition-all duration-200',
                 'disabled:opacity-50 disabled:cursor-not-allowed',
