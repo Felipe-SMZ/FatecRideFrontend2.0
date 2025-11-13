@@ -112,19 +112,26 @@ export function FloatingChat({ id_solicitacao, otherUserName, onClose }) {
   }
 
   return (
-    <div className="fixed bottom-4 right-4 z-50 flex flex-col bg-white rounded-lg shadow-2xl border border-gray-200"
-         style={{ width: '350px', maxHeight: '500px' }}>
+    <div
+      className="fixed bottom-4 right-4 z-50 flex flex-col bg-white rounded-lg shadow-2xl border border-gray-200"
+      style={{ width: '350px', maxHeight: '500px' }}
+      role="region"
+      aria-label={otherUserName ? `Chat com ${otherUserName}` : `Chat da solicitação ${id_solicitacao}`}
+    >
       {/* Header */}
       <div className="bg-fatecride-blue text-white px-4 py-3 rounded-t-lg flex items-center justify-between">
         <div className="flex items-center gap-2">
           <FiMessageCircle className="w-5 h-5" />
           <div>
-            <h3 className="font-semibold text-sm">
+            <h3 id={`floating-chat-title-${id_solicitacao}`} className="font-semibold text-sm">
               {otherUserName || `Solicitação #${id_solicitacao}`}
             </h3>
             <div className="flex items-center gap-1">
-              <div className={`w-2 h-2 rounded-full ${isConnected ? 'bg-green-400' : 'bg-red-400'}`} />
-              <span className="text-xs opacity-90">
+              <div
+                className={`w-2 h-2 rounded-full ${isConnected ? 'bg-green-400' : 'bg-red-400'}`}
+                aria-hidden="true"
+              />
+              <span className="text-xs opacity-90" role="status" aria-live="polite">
                 {isConnected ? 'Online' : 'Offline'}
               </span>
             </div>
@@ -132,14 +139,18 @@ export function FloatingChat({ id_solicitacao, otherUserName, onClose }) {
         </div>
         <div className="flex items-center gap-2">
           <button
+            type="button"
             onClick={() => setIsMinimized(!isMinimized)}
             className="hover:bg-white/20 rounded p-1 transition-colors"
+            aria-label={isMinimized ? 'Restaurar chat' : 'Minimizar chat'}
           >
             <FiMinus className="w-4 h-4" />
           </button>
           <button
+            type="button"
             onClick={onClose}
             className="hover:bg-white/20 rounded p-1 transition-colors"
+            aria-label="Fechar chat"
           >
             <FiX className="w-4 h-4" />
           </button>
@@ -170,7 +181,7 @@ export function FloatingChat({ id_solicitacao, otherUserName, onClose }) {
           </div>
 
           {/* Input Area */}
-          <form onSubmit={handleSend} className="p-3 border-t border-gray-200 bg-white rounded-b-lg">
+          <form onSubmit={handleSend} className="p-3 border-t border-gray-200 bg-white rounded-b-lg" aria-labelledby={`floating-chat-title-${id_solicitacao}`}>
             <div className="flex gap-2">
               <input
                 type="text"
@@ -178,6 +189,7 @@ export function FloatingChat({ id_solicitacao, otherUserName, onClose }) {
                 onChange={(e) => setMessage(e.target.value)}
                 placeholder="Digite sua mensagem..."
                 disabled={!isConnected}
+                aria-label="Mensagem"
                 className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-fatecride-blue text-sm"
               />
               <button

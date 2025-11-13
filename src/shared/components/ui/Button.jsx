@@ -24,11 +24,13 @@ export const Button = forwardRef(({
     disabled = false,
     className = '',
     fullWidth = false,
+    type = 'button',
     ...props
 }, ref) => {
     return (
         <button
             ref={ref}
+            type={type}
             disabled={disabled || loading}
             className={cn(
                 'inline-flex items-center justify-center gap-2',
