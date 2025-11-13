@@ -215,6 +215,7 @@ export function Alert({
       */}
       {dismissible && (
         <button
+          type="button"
           onClick={handleClose}
           className={cn(
             "flex-shrink-0 p-1 rounded hover:opacity-70 transition-opacity -mr-2 -mt-1",

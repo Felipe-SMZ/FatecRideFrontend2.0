@@ -87,6 +87,7 @@ export const Navbar = ({ showAuthButton = false }) => {
                 <>
                   {/* Avatar Button */}
                   <button
+                    type="button"
                     onClick={() => setDropdownOpen(!dropdownOpen)}
                     className="flex items-center gap-3 bg-white/10 hover:bg-white/20 backdrop-blur-sm rounded-full py-2 px-4 transition-all duration-200 border-2 border-white/20 hover:border-white/40"
                   >
@@ -118,6 +119,7 @@ export const Navbar = ({ showAuthButton = false }) => {
                       {/* Menu items */}
                       <div className="py-2">
                         <button
+                          type="button"
                           onClick={() => navigateTo('/perfil')}
                           className="w-full px-4 py-3 text-left hover:bg-fatecride-blue-light hover:text-fatecride-blue transition-colors flex items-center gap-3"
                         >
@@ -130,6 +132,7 @@ export const Navbar = ({ showAuthButton = false }) => {
                         {/* Mostrar Veículos apenas para MOTORISTA ou AMBOS */}
                         {(user?.tipo === 'MOTORISTA' || user?.tipo === 'AMBOS') && (
                           <button
+                            type="button"
                             onClick={() => navigateTo('/veiculos')}
                             className="w-full px-4 py-3 text-left hover:bg-fatecride-blue-light hover:text-fatecride-blue transition-colors flex items-center gap-3"
                           >
@@ -143,6 +146,7 @@ export const Navbar = ({ showAuthButton = false }) => {
                         {/* Caronas Ativas - apenas para MOTORISTA ou AMBOS */}
                         {(user?.tipo === 'MOTORISTA' || user?.tipo === 'AMBOS') && (
                           <button
+                            type="button"
                             onClick={() => navigateTo('/caronas-ativas')}
                             className="w-full px-4 py-3 text-left hover:bg-fatecride-blue-light hover:text-fatecride-blue transition-colors flex items-center gap-3"
                           >
@@ -156,6 +160,7 @@ export const Navbar = ({ showAuthButton = false }) => {
                         {/* Solicitações Ativas - apenas para PASSAGEIRO ou AMBOS */}
                         {(user?.tipo === 'PASSAGEIRO' || user?.tipo === 'AMBOS') && (
                           <button
+                            type="button"
                             onClick={() => navigateTo('/solicitacoes-ativas')}
                             className="w-full px-4 py-3 text-left hover:bg-fatecride-blue-light hover:text-fatecride-blue transition-colors flex items-center gap-3"
                           >
@@ -167,6 +172,7 @@ export const Navbar = ({ showAuthButton = false }) => {
                         )}
 
                         <button
+                          type="button"
                           onClick={() => navigateTo('/historico')}
                           className="w-full px-4 py-3 text-left hover:bg-fatecride-blue-light hover:text-fatecride-blue transition-colors flex items-center gap-3"
                         >
@@ -177,6 +183,7 @@ export const Navbar = ({ showAuthButton = false }) => {
                         </button>
 
                         <button
+                          type="button"
                           onClick={() => navigateTo('/mensagens')}
                           className="w-full px-4 py-3 text-left hover:bg-fatecride-blue-light hover:text-fatecride-blue transition-colors flex items-center gap-3"
                         >
@@ -189,6 +196,7 @@ export const Navbar = ({ showAuthButton = false }) => {
                         <hr className="my-2 border-gray-200" />
 
                         <button
+                          type="button"
                           onClick={handleLogout}
                           className="w-full px-4 py-3 text-left hover:bg-red-50 text-red-600 hover:text-red-700 transition-colors flex items-center gap-3"
                         >
@@ -203,6 +211,7 @@ export const Navbar = ({ showAuthButton = false }) => {
                 </>
               ) : (
                 <button
+                  type="button"
                   onClick={() => navigate('/login')}
                   className="bg-red-600 hover:bg-red-700 text-white font-semibold px-6 py-2 rounded-lg transition-colors"
                 >

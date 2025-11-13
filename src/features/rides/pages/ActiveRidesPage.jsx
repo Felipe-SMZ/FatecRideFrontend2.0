@@ -310,6 +310,7 @@ export function ActiveRidesPage() {
             <div className="mb-6 bg-white rounded-lg shadow p-1">
               <nav className="flex gap-2">
                 <button
+                  type="button"
                   onClick={() => setActiveTab('driver')}
                   className={`flex-1 py-3 px-4 rounded-md font-medium text-sm transition-all ${
                     activeTab === 'driver'
@@ -321,6 +322,7 @@ export function ActiveRidesPage() {
                   Minhas Caronas
                 </button>
                 <button
+                  type="button"
                   onClick={() => navigate('/passenger/rides')}
                   className="flex-1 py-3 px-4 rounded-md font-medium text-sm text-gray-600 hover:bg-gray-100 transition-all"
                 >
