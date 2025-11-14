@@ -1,37 +1,5 @@
 import React from 'react';
 import { useAnuncios } from '../hooks/useAnuncios';
-
-export function AnuncioDebug() {
-  const { ad, isLoadingAd, refetchAd } = useAnuncios();
-
-  return (
-    <div className="p-3 border rounded">
-      <h3 className="font-medium mb-2">Debug Anúncio</h3>
-      {isLoadingAd ? (
-        <div>Carregando...</div>
-      ) : (
-        <div className="space-y-2">
-          {ad ? (
-            <div>
-              <img src={ad.anuncio} className="w-48 h-32 object-cover rounded" alt="anuncio" />
-              <pre className="text-xs mt-2 bg-gray-50 p-2 rounded">{JSON.stringify(ad, null, 2)}</pre>
-            </div>
-          ) : (
-            <div>Nenhum anúncio disponível</div>
-          )}
-          <div className="flex gap-2">
-            <button className="btn" onClick={() => refetchAd()}>Refetch</button>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-export default AnuncioDebug;
-// src/features/anuncios/components/AnuncioDebug.jsx
-
-import { useAnuncios } from '../hooks/useAnuncios';
 import { Card } from '@shared/components/ui/Card';
 
 export function AnuncioDebug() {
@@ -79,3 +47,5 @@ export function AnuncioDebug() {
     </Card>
   );
 }
+
+export default AnuncioDebug;

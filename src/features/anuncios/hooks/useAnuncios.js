@@ -5,16 +5,21 @@ import { useAnunciosStore } from '../stores/anunciosStore';
 export function useAnuncios() {
   const token = useAnunciosStore((s) => s.token);
 
-  const { data: ad, isLoading: isLoadingAd, refetch: refetchAd } = useQuery(
-    ['anuncio', 'divulgar'],
-    anunciosService.divulgarAnuncio,
-    {
-      enabled: true,
-      retry: false,
-    }
-  );
+  const {
+    data: ad,
+    isLoading: isLoadingAd,
+    refetch: refetchAd,
+    isError: isErrorAd,
+    error: adError,
+  } = useQuery({
+    queryKey: ['anuncio', 'divulgar'],
+    queryFn: anunciosService.divulgarAnuncio,
+    enabled: true,
+    retry: false,
+  });
 
-  const loginMutation = useMutation(anunciosService.loginAnunciante, {
+  const loginMutation = useMutation({
+    mutationFn: anunciosService.loginAnunciante,
     onSuccess(data) {
       useAnunciosStore.getState().setToken(data);
     },
@@ -25,6 +30,8 @@ export function useAnuncios() {
   return {
     ad,
     isLoadingAd,
+    isErrorAd,
+    adError,
     refetchAd,
     login: loginMutation.mutate,
     loginAsync: loginMutation.mutateAsync,
@@ -34,7 +41,8 @@ export function useAnuncios() {
 }
 
 export function useAnunciosAuth() {
-  const loginMutation = useMutation(anunciosService.loginAnunciante, {
+  const loginMutation = useMutation({
+    mutationFn: anunciosService.loginAnunciante,
     onSuccess(data) {
       useAnunciosStore.getState().setToken(data);
     },

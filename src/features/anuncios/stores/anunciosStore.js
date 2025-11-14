@@ -1,4 +1,4 @@
-import create from 'zustand';
+import { create } from 'zustand';
 import { decodeToken } from '../services/anunciosService';
 
 export const useAnunciosStore = create((set, get) => ({

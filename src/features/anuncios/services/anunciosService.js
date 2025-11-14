@@ -14,7 +14,11 @@ export async function criarAnunciante(payload) {
 
 export async function divulgarAnuncio() {
   const res = await anunciosApi.get('/divulgar');
-  return res.data?.data?.[0] ?? null;
+  const payload = res.data;
+  // backend may return either { data: [ ... ] } or an array directly
+  if (Array.isArray(payload)) return payload[0] ?? null;
+  if (payload && Array.isArray(payload.data)) return payload.data[0] ?? null;
+  return null;
 }
 
 export async function atualizarAnunciante(payload) {
