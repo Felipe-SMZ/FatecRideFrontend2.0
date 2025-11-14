@@ -10,6 +10,10 @@ import { LoginPage } from '@features/auth/pages/LoginPage';
 import { RegisterPage } from '@features/auth/pages/RegisterPage';
 import { SelectUserTypePage } from '@features/auth/pages/SelectUserTypePage';
 import { ForgotPasswordPage } from '@features/auth/pages/ForgotPasswordPage';
+// Páginas de anunciante (renomeadas para evitar filtros)
+import { AnuncianteLogin } from '@features/anuncios/pages/AnuncianteLogin';
+import { AnuncianteDashboard } from '@features/anuncios/pages/AnuncianteDashboard';
+import { AnuncianteProtectedRoute } from '@features/anuncios/components/AnuncianteProtectedRoute';
 
 // Lazy loading (páginas secundárias)
 const InicioPage = lazy(() => import('../pages/InicioPage').then(m => ({ default: m.InicioPage })));
@@ -117,6 +121,14 @@ export function AppRoutes() {
                     <ProtectedRoute>
                         <ChatPage />
                     </ProtectedRoute>
+                } />
+
+                {/* Rotas para anunciantes (separadas do fluxo de usuário comum) */}
+                <Route path="/anunciante/login" element={<AnuncianteLogin />} />
+                <Route path="/anunciante" element={
+                    <AnuncianteProtectedRoute>
+                        <AnuncianteDashboard />
+                    </AnuncianteProtectedRoute>
                 } />
 
                 {/* Redirect para inicio */}
