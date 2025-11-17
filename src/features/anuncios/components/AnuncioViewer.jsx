@@ -3,7 +3,7 @@ import { useAnuncios } from '../hooks/useAnuncios';
 import { Spinner } from '@shared/components/ui/Spinner';
 import { Card } from '@shared/components/ui/Card';
 import { getPlaceholderDataUri } from '../utils/placeholder';
-import { FaInstagram, FaWhatsapp } from 'react-icons/fa';
+import { FaWhatsapp } from 'react-icons/fa';
 import { FiPlus } from 'react-icons/fi';
 
 function Badge({ children }) {
@@ -130,14 +130,7 @@ export function AnuncioViewer({ className = '' }) {
         <div className="flex flex-col gap-3">
           <p className="text-sm text-gray-800">{ad.descricao_anuncio}</p>
           <div className="text-xs text-gray-500">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:gap-4 gap-2">
-              {ad.nome_fantasia && (
-                <a href={`https://instagram.com/${String(ad.nome_fantasia).replace(/\s+/g,'')}`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 text-gray-700 hover:text-fatecride-blue">
-                  <FaInstagram className="w-4 h-4 text-pink-500" />
-                  <span className="text-sm font-medium">@{ad.nome_fantasia}</span>
-                </a>
-              )}
-
+            <div className="flex flex-col gap-2">
               {ad.contato && (
                 (function(){
                   const raw = String(ad.contato || '');
@@ -155,7 +148,7 @@ export function AnuncioViewer({ className = '' }) {
               {ad.email && (
                 <a href={`mailto:${ad.email}`} className="inline-flex items-center gap-2 text-gray-700 hover:text-fatecride-blue">
                   <FiPlus className="w-4 h-4 text-gray-600" />
-                  <span className="text-sm">Mais</span>
+                  <span className="text-sm">{ad.email}</span>
                 </a>
               )}
             </div>
