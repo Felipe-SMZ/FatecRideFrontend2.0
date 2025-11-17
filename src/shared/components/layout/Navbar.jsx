@@ -8,7 +8,7 @@ import { useAuthStore } from '@features/auth/stores/authStore';
  * Exibe logo, título e menu dropdown do usuário quando logado
  */
 
-export const Navbar = ({ showAuthButton = false, extraNode = null }) => {
+export const Navbar = ({ showAuthButton = false, extraNode = null, disableLogoLink = false }) => {
   const navigate = useNavigate();
   const { user, logout, isAuthenticated } = useAuthStore();
   const [dropdownOpen, setDropdownOpen] = useState(false);
@@ -75,10 +75,17 @@ export const Navbar = ({ showAuthButton = false, extraNode = null }) => {
       <div className="container mx-auto px-4">
         <div className="flex items-center justify-between h-20">
           {/* Logo e Título */}
-          <Link to="/" className="flex items-center gap-4 hover:opacity-90 transition-opacity">
-            <Logo size="md" className="bg-white/10 backdrop-blur-sm rounded-2xl p-2" />
-            <h1 className="text-3xl font-bold text-white">FatecRide</h1>
-          </Link>
+          {disableLogoLink ? (
+            <div className="flex items-center gap-4">
+              <Logo size="md" className="bg-white/10 backdrop-blur-sm rounded-2xl p-2" />
+              <h1 className="text-3xl font-bold text-white">FatecRide</h1>
+            </div>
+          ) : (
+            <Link to="/" className="flex items-center gap-4 hover:opacity-90 transition-opacity">
+              <Logo size="md" className="bg-white/10 backdrop-blur-sm rounded-2xl p-2" />
+              <h1 className="text-3xl font-bold text-white">FatecRide</h1>
+            </Link>
+          )}
 
           {/* Extra node (e.g. anúncio logout) and Menu do usuário ou botão Entrar */}
           <div className="flex items-center gap-3">

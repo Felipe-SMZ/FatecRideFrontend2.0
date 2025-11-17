@@ -173,6 +173,7 @@ export function AnuncianteDashboard() {
     <div className="min-h-screen bg-gray-50">
       <Navbar
         showAuthButton={false}
+        disableLogoLink={true}
         extraNode={(
           <div className="hidden md:block">
             <button onClick={handleAnuncianteLogout} className="bg-fatecride-blue text-white hover:opacity-90 px-3 py-2 rounded-md">Sair</button>
