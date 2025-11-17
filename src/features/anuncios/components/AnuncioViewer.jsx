@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useAnuncios } from '../hooks/useAnuncios';
 import { Spinner } from '@shared/components/ui/Spinner';
 import { Card } from '@shared/components/ui/Card';
@@ -11,6 +11,7 @@ function Badge({ children }) {
 
 export function AnuncioViewer({ className = '' }) {
   const { ad, isLoadingAd, isErrorAd, adError, refetchAd } = useAnuncios();
+  const [mediaLoaded, setMediaLoaded] = useState(false);
 
   const isVideo = ad?.anuncio ? /\.(mp4|webm|ogg)$/i.test(ad.anuncio) : false;
   const isYouTube = ad?.anuncio ? /youtube\.com|youtu\.be/i.test(ad.anuncio) : false;
@@ -65,9 +66,23 @@ export function AnuncioViewer({ className = '' }) {
         </div>
       </div>
 
-      <div className="aspect-video w-full bg-gray-100">
+      <div className="aspect-video w-full bg-gray-100 relative">
+        {!mediaLoaded && (
+          <div className="absolute inset-0 flex items-center justify-center bg-gray-200/60">
+            <div className="w-48 h-6 bg-gray-300 rounded animate-pulse" aria-hidden="true"></div>
+          </div>
+        )}
         {isVideo ? (
-          <video src={ad.anuncio} controls autoPlay muted loop className="w-full h-full object-cover" />
+          <video
+            src={ad.anuncio}
+            controls
+            autoPlay
+            muted
+            loop
+            className="w-full h-full object-cover"
+            onLoadedData={() => setMediaLoaded(true)}
+            aria-label={ad.nome_fantasia || 'Vídeo do anúncio'}
+          />
         ) : isYouTube ? (
           (function(){
             try {
@@ -86,6 +101,7 @@ export function AnuncioViewer({ className = '' }) {
                   title={ad.nome_fantasia || 'anuncio-video'}
                   src={embed}
                   frameBorder="0"
+                  onLoad={() => setMediaLoaded(true)}
                   allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                   allowFullScreen
                   className="w-full h-full"
@@ -102,12 +118,14 @@ export function AnuncioViewer({ className = '' }) {
             src={ad.anuncio}
             alt={ad.nome_fantasia || 'Anúncio'}
             className="w-full h-full object-cover"
+            onLoad={() => setMediaLoaded(true)}
             onError={(e) => {
               // previne loop se o placeholder também falhar
               try {
                 e.target.onerror = null;
               } catch (err) {}
               e.target.src = 'https://via.placeholder.com/800x400/CCCCCC/666666?text=Anuncio+Indisponivel';
+              setMediaLoaded(true);
             }}
           />
         )}
@@ -119,9 +137,9 @@ export function AnuncioViewer({ className = '' }) {
             <p className="text-sm text-gray-700 mb-2">{ad.descricao_anuncio}</p>
             <div className="text-xs text-gray-500">Contato: {ad.contato} · {ad.email}</div>
           </div>
-          <div className="flex flex-col gap-2 sm:items-end items-start w-full">
-            <button onClick={() => refetchAd()} className="px-3 py-2 bg-gray-100 rounded text-sm w-full sm:w-auto">Ver outro</button>
-            <a href={`mailto:${ad.email}`} className="px-3 py-2 bg-fatecride-blue text-white rounded text-sm text-center w-full sm:w-auto">Entrar em contato</a>
+            <div className="flex flex-col gap-2 sm:items-end items-start w-full">
+            <button onClick={() => { setMediaLoaded(false); refetchAd(); }} className="px-3 py-2 bg-gray-100 rounded text-sm w-full sm:w-auto" aria-label="Ver outro anúncio">Ver outro</button>
+            <a href={`mailto:${ad.email}`} className="px-3 py-2 bg-fatecride-blue text-white rounded text-sm text-center w-full sm:w-auto" aria-label="Entrar em contato por e-mail">Entrar em contato</a>
           </div>
         </div>
       </div>
@@ -134,14 +152,16 @@ export default AnuncioViewer;
 export function AnuncioViewerCompact({ className = '' }) {
   const { ad, isLoadingAd } = useAnuncios();
   if (isLoadingAd || !ad) return null;
+  const [loaded, setLoaded] = useState(false);
   const isVideo = /\.(mp4|webm|ogg)$/i.test(ad.anuncio);
   return (
-    <div className={`relative rounded-lg overflow-hidden shadow ${className}`}>
+    <div role="region" aria-label={`Anúncio: ${ad.nome_fantasia || ad.nome_dono || 'patrocinado'}`} tabIndex={0} className={`relative rounded-lg overflow-hidden shadow ${className}`}>
       <div className="absolute top-2 right-2 z-10 bg-black/60 text-white text-xs px-2 py-1 rounded">Anúncio</div>
+      {!loaded && <div className="absolute inset-0 flex items-center justify-center bg-gray-200/60"><div className="w-32 h-4 bg-gray-300 rounded animate-pulse" aria-hidden="true"></div></div>}
       {isVideo ? (
-        <video src={ad.anuncio} autoPlay muted loop className="w-full h-full object-cover" />
+        <video src={ad.anuncio} autoPlay muted loop className="w-full h-full object-cover" onLoadedData={() => setLoaded(true)} aria-label={ad.nome_fantasia || 'Vídeo do anúncio compacto'} />
       ) : (
-        <img src={ad.anuncio} alt="Anúncio" className="w-full h-full object-cover" />
+        <img src={ad.anuncio} alt={ad.nome_fantasia || 'Anúncio'} className="w-full h-full object-cover" onLoad={() => setLoaded(true)} onError={(e) => { try { e.target.onerror = null; } catch {} e.target.src = 'https://via.placeholder.com/400x200/CCCCCC/666666?text=Anuncio'; setLoaded(true); }} />
       )}
     </div>
   );

@@ -7,7 +7,7 @@ import { Button } from '@shared/components/ui/Button';
 import { EmptyState } from '@shared/components/ui/EmptyState';
 import { Spinner } from '@shared/components/ui/Spinner';
 import { useAuthStore } from '@features/auth/stores/authStore';
-import { FloatingChat } from '@features/chat/components/FloatingChat';
+import SimpleChatModal from '@features/chat/components/SimpleChatModal';
 import { ridesService } from '@features/rides/services/ridesService';
 import { normalizeRequest } from '@shared/utils/normalizeRequest';
 
@@ -205,8 +205,8 @@ export function PassengerRidesPage() {
       </div>
 
       {openChat && (
-        <FloatingChat
-          id_solicitacao={openChat.id_solicitacao}
+        <SimpleChatModal
+          requestId={openChat.id_solicitacao}
           otherUserName={openChat.otherUserName}
           onClose={() => setOpenChat(null)}
         />
