@@ -167,49 +167,94 @@ export function AnuncioViewer({ className = '' }) {
 export default AnuncioViewer;
 
 export function AnuncioViewerCompact({ className = '' }) {
-  const { ad, isLoadingAd } = useAnuncios();
+  const { ad, isLoadingAd, refetchAd } = useAnuncios();
   const [loaded, setLoaded] = useState(false);
   if (isLoadingAd || !ad) return null;
   const isVideo = /\.(mp4|webm|ogg)$/i.test(ad.anuncio);
   const isYouTube = ad?.anuncio ? /youtube\.com|youtu\.be/i.test(ad.anuncio) : false;
+
   return (
-    <div role="region" aria-label={`Anúncio: ${ad.nome_fantasia || ad.nome_dono || 'patrocinado'}`} tabIndex={0} className={`relative rounded-lg overflow-hidden shadow ${className}`}>
-      <div className="absolute top-2 right-2 z-10 bg-black/60 text-white text-xs px-2 py-1 rounded">Anúncio</div>
-      {!loaded && <div className="absolute inset-0 flex items-center justify-center bg-gray-200/60"><div className="w-32 h-4 bg-gray-300 rounded animate-pulse" aria-hidden="true"></div></div>}
-      {isVideo ? (
-        <video src={ad.anuncio} autoPlay muted loop className="w-full h-full object-cover" onLoadedData={() => setLoaded(true)} aria-label={ad.nome_fantasia || 'Vídeo do anúncio compacto'} />
-      ) : isYouTube ? (
-        (function(){
-          try {
-            const u = new URL(ad.anuncio);
-            let embed = ad.anuncio;
-            const params = 'rel=0&modestbranding=1';
-            if (u.hostname.includes('youtu.be')) {
-              embed = `https://www.youtube-nocookie.com/embed/${u.pathname.replace(/^\//,'')}?${params}`;
-            } else {
-              const v = u.searchParams.get('v');
-              embed = v ? `https://www.youtube-nocookie.com/embed/${v}?${params}` : ad.anuncio;
+    <Card className={`relative rounded-lg overflow-hidden shadow ${className}`}>
+      <div className="absolute top-3 right-3 z-10 bg-black/60 text-white text-xs px-2 py-1 rounded">Patrocinado</div>
+
+      <div className="flex items-center gap-3 p-3">
+        <img src={ad.logo || getPlaceholderDataUri(48, 48, 'Logo')} alt={ad.nome_fantasia || 'Logo'} className="w-10 h-10 rounded-full object-cover border" />
+        <div className="flex-1">
+          {ad.nome_fantasia && <div className="text-sm font-semibold text-gray-800 truncate">{ad.nome_fantasia}</div>}
+        </div>
+      </div>
+
+      <div className="aspect-video w-full bg-gray-100 relative">
+        {!loaded && (
+          <div className="absolute inset-0 flex items-center justify-center bg-gray-200/60">
+            <div className="w-24 h-4 bg-gray-300 rounded animate-pulse" aria-hidden="true"></div>
+          </div>
+        )}
+        {isVideo ? (
+          <video src={ad.anuncio} autoPlay muted playsInline loop className="w-full h-full object-cover" onLoadedData={() => setLoaded(true)} aria-label={ad.nome_fantasia || 'Vídeo do anúncio compacto'} />
+        ) : isYouTube ? (
+          (function(){
+            try {
+              const u = new URL(ad.anuncio);
+              let embed = ad.anuncio;
+              const params = 'rel=0&modestbranding=1&autoplay=1&mute=1';
+              if (u.hostname.includes('youtu.be')) {
+                embed = `https://www.youtube-nocookie.com/embed/${u.pathname.replace(/^\//,'')}?${params}`;
+              } else {
+                const v = u.searchParams.get('v');
+                embed = v ? `https://www.youtube-nocookie.com/embed/${v}?${params}` : ad.anuncio;
+              }
+              return (
+                <iframe
+                  title={ad.nome_fantasia || 'anuncio-video-compact'}
+                  src={embed}
+                  frameBorder="0"
+                  onLoad={() => setLoaded(true)}
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  allowFullScreen
+                  className="w-full h-full"
+                />
+              );
+            } catch (e) {
+              return (
+                <img src={getPlaceholderDataUri(400, 200, 'Anúncio')} alt="Anúncio" className="w-full h-full object-cover" onLoad={() => setLoaded(true)} />
+              );
             }
+          })()
+        ) : (
+          <img src={ad.anuncio} alt={ad.nome_fantasia || 'Anúncio'} className="w-full h-full object-cover" onLoad={() => setLoaded(true)} onError={(e) => { try { e.target.onerror = null; } catch {} e.target.src = getPlaceholderDataUri(400, 200, 'Anúncio'); setLoaded(true); }} />
+        )}
+      </div>
+
+      <div className="p-3 bg-white">
+        <p className="text-sm text-gray-700 mb-2 max-h-16 overflow-hidden">{ad.descricao_anuncio}</p>
+
+        <div className="flex flex-col gap-2 text-xs text-gray-600">
+          {ad.contato && (function(){
+            const raw = String(ad.contato || '');
+            const digits = raw.replace(/\D/g,'');
+            const wa = digits ? `https://wa.me/${digits}` : '#';
             return (
-              <iframe
-                title={ad.nome_fantasia || 'anuncio-video-compact'}
-                src={embed}
-                frameBorder="0"
-                onLoad={() => setLoaded(true)}
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                allowFullScreen
-                className="w-full h-full"
-              />
+              <a key="wa" href={wa} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 text-gray-700 hover:text-green-600">
+                <FaWhatsapp className="w-4 h-4 text-green-600" />
+                <span className="text-sm">{raw}</span>
+              </a>
             );
-          } catch (e) {
-            return (
-              <img src={getPlaceholderDataUri(400, 200, 'Anúncio')} alt="Anúncio" className="w-full h-full object-cover" onLoad={() => setLoaded(true)} />
-            );
-          }
-        })()
-      ) : (
-        <img src={ad.anuncio} alt={ad.nome_fantasia || 'Anúncio'} className="w-full h-full object-cover" onLoad={() => setLoaded(true)} onError={(e) => { try { e.target.onerror = null; } catch {} e.target.src = getPlaceholderDataUri(400, 200, 'Anúncio'); setLoaded(true); }} />
-      )}
-    </div>
+          })()}
+
+          {ad.email && (
+            <a key="mail" href={`mailto:${ad.email}`} className="inline-flex items-center gap-2 text-gray-700 hover:text-fatecride-blue">
+              <FiPlus className="w-4 h-4 text-gray-600" />
+              <span className="text-sm">{ad.email}</span>
+            </a>
+          )}
+        </div>
+
+        <div className="mt-3 flex gap-2">
+          <button onClick={() => { setLoaded(false); refetchAd?.(); }} className="flex-1 px-3 py-2 bg-white border border-gray-200 rounded text-sm hover:shadow">Ver outro</button>
+          <a href={`mailto:${ad.email}`} className="flex-1 px-3 py-2 bg-fatecride-blue text-white rounded text-sm text-center shadow-md hover:opacity-95">Entrar</a>
+        </div>
+      </div>
+    </Card>
   );
 }
