@@ -13,6 +13,7 @@ import { MapView } from '@shared/components/map/MapView';
 import { AddressCard } from '@shared/components/cards/AddressCard';
 import { FiMapPin } from 'react-icons/fi';
 import { vehiclesService } from '@features/vehicles/services/vehiclesService';
+import { AnuncioViewerCompact } from '@features/anuncios/components/AnuncioViewer';
 
 /**
  * DriverPage - Página de criação de carona (Motorista)
@@ -142,6 +143,10 @@ export function DriverPage() {
                         <h1 className="text-3xl font-bold text-gray-900 mb-6">
                             Oferecer Carona 🚗
                         </h1>
+
+                        <div className="mb-6">
+                            <AnuncioViewerCompact className="w-full rounded-lg overflow-hidden" />
+                        </div>
 
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                         {/* Coluna do Mapa - 2/3 */}

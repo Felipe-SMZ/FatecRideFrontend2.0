@@ -13,6 +13,7 @@ import { Spinner } from '@shared/components/ui/Spinner';
 import { AddressAutocomplete } from '@shared/components/ui/AddressAutocomplete';
 import { Button } from '@shared/components/ui/Button';
 import { FiSearch } from 'react-icons/fi';
+import { AnuncioViewerCompact } from '@features/anuncios/components/AnuncioViewer';
 
 /**
  * PassengerPage - Página de busca de caronas (Passageiro)
@@ -163,6 +164,10 @@ export function PassengerPage() {
                         <h1 className="text-3xl font-bold text-gray-900 mb-6">
                             Buscar Caronas 🔍
                         </h1>
+
+                        <div className="mb-6">
+                            <AnuncioViewerCompact className="w-full rounded-lg overflow-hidden" />
+                        </div>
 
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                         {/* Coluna do Mapa - 2/3 */}
