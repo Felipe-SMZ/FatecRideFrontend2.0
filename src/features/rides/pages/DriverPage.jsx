@@ -137,32 +137,27 @@ export function DriverPage() {
     };
 
     return (
-        <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white">
+        <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white pt-16">
             <PageContainer>
                     <div className="py-6">
-                        <h1 className="text-3xl font-bold text-gray-900 mb-6">
+                        <h1 className="text-3xl font-bold text-gray-900 mb-6 text-center">
                             Oferecer Carona 🚗
                         </h1>
-
-                        <div className="mb-6">
-                            <AnuncioViewerCompact className="w-full rounded-lg overflow-hidden" />
-                        </div>
-
-                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                        {/* Coluna do Mapa - 2/3 */}
-                        <div className="lg:col-span-2">
-                            <Card className="p-0 overflow-hidden h-[500px]">
+                        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                        {/* Coluna do Mapa */}
+                        <div className="lg:col-span-1 flex justify-center">
+                            <Card className="p-0 overflow-hidden h-[520px] w-[520px] max-w-full relative z-0">
                                 <MapView
                                     origin={originCoords ? { ...originCoords, label: 'Origem' } : null}
                                     destination={destinationCoords ? { ...destinationCoords, label: 'Destino' } : null}
                                     showRoute={!!(originCoords && destinationCoords)}
-                                    className="h-full"
+                                    className="h-full w-full"
                                 />
                             </Card>
 
-                            {/* Cards de Endereço */}
+                            {/* Pequena pré-visualização de endereços abaixo do mapa (mobile) */}
                             {(originAddress || destinationAddress) && (
-                                <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div className="mt-4 md:mt-6 grid grid-cols-1 gap-4 lg:hidden">
                                     {originAddress && (
                                         <AddressCard
                                             title="Origem"
@@ -181,13 +176,11 @@ export function DriverPage() {
                             )}
                         </div>
 
-                        {/* Coluna do Formulário - 1/3 */}
+                        {/* Coluna do Formulário */}
                         <div className="lg:col-span-1">
                             <Card>
                                 <div className="p-6">
-                                    <h2 className="text-2xl font-bold text-gray-900 mb-6">
-                                        Para onde vamos?
-                                    </h2>
+                                    <h2 className="text-xl md:text-2xl font-bold text-gray-900 mb-4 leading-tight whitespace-nowrap">Para onde vamos?</h2>
 
                                     <div className="space-y-4">
                                         {/* Origem com Autocomplete */}
@@ -258,6 +251,13 @@ export function DriverPage() {
                                     </div>
                                 </div>
                             </Card>
+                        </div>
+
+                        {/* Coluna do Anúncio */}
+                        <div className="lg:col-span-1">
+                            <div className="sticky top-24">
+                                <AnuncioViewerCompact className="w-full rounded-lg overflow-hidden" />
+                            </div>
                         </div>
                     </div>
                 </div>

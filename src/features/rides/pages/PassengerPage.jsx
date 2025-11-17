@@ -158,21 +158,21 @@ export function PassengerPage() {
     };
 
     return (
-        <div className="min-h-screen bg-gradient-to-b from-green-50 to-white pt-20">
+        <div className="min-h-screen bg-gradient-to-b from-green-50 to-white pt-16">
                 <PageContainer>
                     <div className="py-6">
-                        <h1 className="text-3xl font-bold text-gray-900 mb-6">
+                        <h1 className="text-3xl font-bold text-gray-900 mb-6 text-center">
                             Buscar Caronas 🔍
                         </h1>
                     <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
                         {/* Coluna do Mapa */}
-                        <div className="lg:col-span-1">
-                            <Card className="p-0 overflow-hidden h-[520px] relative z-0">
+                        <div className="lg:col-span-1 flex justify-center">
+                            <Card className="p-0 overflow-hidden h-[520px] w-[520px] max-w-full relative z-0">
                                 <MapView
                                     origin={originCoords ? { ...originCoords, label: 'Origem' } : null}
                                     destination={destinationCoords ? { ...destinationCoords, label: 'Destino' } : null}
                                     showRoute={!!(originCoords && destinationCoords)}
-                                    className="h-full"
+                                    className="h-full w-full"
                                 />
                             </Card>
                         </div>
