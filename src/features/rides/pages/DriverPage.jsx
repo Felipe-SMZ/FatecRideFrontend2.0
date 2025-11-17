@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
-import { Navbar } from '@shared/components/layout/Navbar';
+ 
 import { PageContainer } from '@shared/components/layout/PageContainer';
 import { Card } from '@shared/components/ui/Card';
 import { Button } from '@shared/components/ui/Button';
@@ -12,6 +12,7 @@ import { AddressAutocomplete } from '@shared/components/ui/AddressAutocomplete';
 import { MapView } from '@shared/components/map/MapView';
 import { AddressCard } from '@shared/components/cards/AddressCard';
 import { FiMapPin } from 'react-icons/fi';
+import { vehiclesService } from '@features/vehicles/services/vehiclesService';
 
 /**
  * DriverPage - Página de criação de carona (Motorista)
@@ -49,41 +50,28 @@ export function DriverPage() {
     useEffect(() => {
         const fetchVehicles = async () => {
             try {
-                const token = localStorage.getItem('token');
-                const response = await fetch('http://localhost:8080/veiculos', {
-                    headers: { Authorization: `Bearer ${token}` }
-                });
-                
-                if (!response.ok) {
-                    const errorText = await response.text();
-                    console.error('❌ Erro ao buscar veículos:', response.status, errorText);
-                    
-                    // Se não tem veículo, redireciona para cadastro
-                    if (response.status === 404 || response.status === 500) {
-                        toast.error('Você precisa cadastrar um veículo primeiro', { duration: 5000 });
-                        setTimeout(() => navigate('/cadastrar-veiculo'), 2000);
-                        return;
-                    }
-                    throw new Error('Erro ao buscar veículos');
-                }
-                
-                const data = await response.json();
-                console.log('🚗 Veículos carregados:', data);
-                
-                // Se array está vazio
+                const data = await vehiclesService.getAll();
+                console.log('🚗 Veículos carregados (service):', data);
+
                 if (!data || data.length === 0) {
                     toast.error('Você precisa cadastrar um veículo primeiro', { duration: 5000 });
                     setTimeout(() => navigate('/cadastrar-veiculo'), 2000);
                     return;
                 }
-                
+
                 setVehicles(data);
-                
+
                 if (data.length > 0) {
                     setVehicleId(data[0].id || data[0].id_veiculo || data[0].idVeiculo);
                 }
             } catch (error) {
-                console.error('❌ Exceção ao buscar veículos:', error);
+                console.error('❌ Exceção ao buscar veículos (service):', error);
+                // Se backend retornou 403, indicar que usuário não tem permissão
+                const status = error?.response?.status || error?.status;
+                if (status === 403) {
+                    toast.error('Você não tem permissão para ver veículos', { duration: 5000 });
+                    return;
+                }
                 toast.error('Erro ao carregar veículos');
             }
         };
@@ -127,8 +115,6 @@ export function DriverPage() {
 
         try {
             setCreatingRide(true);
-            const token = localStorage.getItem('token');
-
             const payload = {
                 originDTO: originAddress,
                 destinationDTO: destinationAddress,
@@ -136,19 +122,8 @@ export function DriverPage() {
                 id_veiculo: vehicleId
             };
 
-            const response = await fetch('http://localhost:8080/rides', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    Authorization: `Bearer ${token}`
-                },
-                body: JSON.stringify(payload)
-            });
-
-            if (!response.ok) {
-                const errorText = await response.text();
-                throw new Error(errorText || 'Erro ao criar carona');
-            }
+            // Usar service para garantir Authorization via interceptor
+            await (await import('@features/rides/services/ridesService')).ridesService.createRide(payload);
 
             toast.success('Carona criada com sucesso!');
             navigate('/inicio');
@@ -161,10 +136,8 @@ export function DriverPage() {
     };
 
     return (
-        <>
-            <Navbar showAuthButton={true} />
-            <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white">
-                <PageContainer>
+        <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white">
+            <PageContainer>
                     <div className="py-6">
                         <h1 className="text-3xl font-bold text-gray-900 mb-6">
                             Oferecer Carona 🚗
@@ -285,6 +258,5 @@ export function DriverPage() {
                 </div>
             </PageContainer>
         </div>
-        </>
     );
 }

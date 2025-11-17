@@ -17,20 +17,57 @@ export const useChatStore = create((set, get) => ({
     console.log('📥 chatStore.addMessage chamado:', message);
     const { id_solicitacao } = message;
     console.log('  📋 id_solicitacao:', id_solicitacao);
-    
-    set((state) => ({
-      messages: {
-        ...state.messages,
-        [id_solicitacao]: [
-          ...(state.messages[id_solicitacao] || []),
-          {
-            ...message,
-            id: message._id || Date.now(),
-            timestamp: message.data || new Date().toISOString()
-          }
-        ].sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp))
+    // Evitar duplicatas: checar por id único (_id ou id) ou por combinação de campos
+    set((state) => {
+      const existing = state.messages[id_solicitacao] || [];
+
+      // Normalizar id candidato (preferir _id do payload quando disponível)
+      const incomingId = message._id ?? message.id ?? null;
+      const incomingTimestamp = message.data ?? message.timestamp ?? new Date().toISOString();
+
+      // Checar existência por id
+      if (incomingId) {
+        const foundById = existing.find(m => String(m.id) === String(incomingId) || String(m._id) === String(incomingId));
+        if (foundById) {
+          console.log('⚠️ Mensagem duplicada detectada por id, ignorando:', incomingId);
+          return { messages: { ...state.messages } };
+        }
       }
-    }));
+
+      // Checar por combinação (sender + texto + timestamp aproximado)
+      const duplicateByContent = existing.find((m) => {
+        try {
+          const sameSender = Number(m.id_sender) === Number(message.id_sender);
+          const sameText = (m.message || '').trim() === (message.message || '').trim();
+          const t1 = new Date(m.timestamp || m.data || m.dataHora || 0).getTime();
+          const t2 = new Date(incomingTimestamp).getTime();
+          const timeDiff = Math.abs(t1 - t2);
+          // considerar duplicata se tempo for muito próximo (<= 2000ms)
+          return sameSender && sameText && timeDiff <= 2000;
+        } catch (e) {
+          return false;
+        }
+      });
+
+      if (duplicateByContent) {
+        console.log('⚠️ Mensagem duplicada detectada por conteúdo/timestamp, ignorando');
+        return { messages: { ...state.messages } };
+      }
+
+      // Não é duplicata — adicionar
+      const newMsg = {
+        ...message,
+        id: incomingId ?? Date.now(),
+        timestamp: incomingTimestamp
+      };
+
+      return {
+        messages: {
+          ...state.messages,
+          [id_solicitacao]: [...existing, newMsg].sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp))
+        }
+      };
+    });
     
     console.log('✅ Mensagem adicionada ao chatStore');
 
@@ -59,7 +96,8 @@ export const useChatStore = create((set, get) => ({
   updateConversationLastMessage: (id_solicitacao, message) => {
     set((state) => {
       const conversations = [...state.conversations];
-      const index = conversations.findIndex(c => c.id_solicitacao === id_solicitacao);
+      const targetId = Number(id_solicitacao);
+      const index = conversations.findIndex(c => Number(c.id_solicitacao) === targetId);
       
       if (index >= 0) {
         conversations[index] = {
@@ -71,7 +109,7 @@ export const useChatStore = create((set, get) => ({
       } else {
         // Criar nova conversa se não existir
         conversations.push({
-          id_solicitacao,
+          id_solicitacao: targetId,
           lastMessage: message.message,
           lastMessageDate: message.data || message.timestamp,
           unread: 0
@@ -126,3 +164,5 @@ export const useChatStore = create((set, get) => ({
     });
   }
 }));
+
+export default useChatStore;

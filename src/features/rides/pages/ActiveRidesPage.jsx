@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { FiTruck, FiMessageCircle } from 'react-icons/fi';
-import { Navbar } from '@shared/components/layout/Navbar';
 import { Card } from '@shared/components/ui/Card';
 import { Button } from '@shared/components/ui/Button';
 import { EmptyState } from '@shared/components/ui/EmptyState';
@@ -301,7 +300,6 @@ export function ActiveRidesPage() {
 
   return (
     <>
-      <Navbar showAuthButton={true} />
       
       <div className="min-h-[calc(100vh-80px)] bg-gray-100 py-8 px-4">
         <div className="container mx-auto max-w-6xl">
@@ -557,20 +555,38 @@ export function ActiveRidesPage() {
                                       console.log('🔵 Abrindo chat - Request completo:', JSON.stringify(request, null, 2));
                                       console.log('  📋 id_solicitacao:', request.id_solicitacao);
                                       console.log('  👤 nome_passageiro:', request.nome_passageiro);
-                                      console.log('  🆔 id_passageiro:', request.id_passageiro);
-                                      
-                                      // Backend NÃO tem GET /solicitacao/:id então vamos HARDCODE
-                                      // Como sabemos que Felipe (id=2) é o passageiro, usamos ele
-                                      // TODO: Backend precisa retornar id_passageiro no RequestsForMyRideDTO
-                                      
-                                      const receiverId = 2; // HARDCODE - Felipe é o passageiro
-                                      console.warn('⚠️ HARDCODE: Usando id_passageiro = 2 (Felipe)');
-                                      console.log('  🎯 receiverId final:', receiverId);
-                                      
+                                      console.log('  🆔 id_passageiro (raw):', request.id_passageiro);
+
+                                      const raw = request.__raw || request || {};
+
+                                      const inferPassengerId = (obj) => {
+                                        if (!obj) return null;
+                                        return obj.id_passageiro
+                                          ?? obj.idPassageiro
+                                          ?? obj.passageiro?.id
+                                          ?? obj.passageiro?.id_usuario
+                                          ?? obj.passageiro?.userId
+                                          ?? obj.passageiro?.idUser
+                                          ?? obj.id_passageiro_fk
+                                          ?? obj.passageiroId
+                                          ?? obj.id_usuario
+                                          ?? obj.__raw?.id_passageiro
+                                          ?? obj.__raw?.passageiro?.id
+                                          ?? null;
+                                      };
+
+                                      const inferredId = inferPassengerId(request) || inferPassengerId(raw) || null;
+
+                                      if (!inferredId) {
+                                        console.warn('⚠️ receiverId não encontrado no payload da solicitação (tentadas várias chaves). Atualize o backend para retornar id_passageiro.');
+                                      } else {
+                                        console.log('  🎯 receiverId inferido:', inferredId);
+                                      }
+
                                       setOpenChat({
                                         requestId: request.id_solicitacao,
-                                        otherUserName: request.nome_passageiro || 'Passageiro',
-                                        receiverId: receiverId
+                                        otherUserName: request.nome_passageiro || request.passageiro?.nome || 'Passageiro',
+                                        receiverId: inferredId || null
                                       });
                                     }}
                                     className="bg-fatecride-blue hover:bg-fatecride-blue-dark"

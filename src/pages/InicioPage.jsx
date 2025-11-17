@@ -1,11 +1,9 @@
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Navbar } from '@shared/components/layout/Navbar';
 import { Card } from '@shared/components/ui/Card';
 import { FiTruck, FiUser } from 'react-icons/fi';
 import { useAuthStore } from '@features/auth/stores/authStore';
-//import { AdViewer } from '@/features/anuncios/components/AdViewer';
-import { AnuncioDebug } from '@/features/anuncios/components/AnuncioDebug';
+import AnuncioViewer from '@/features/anuncios/components/AnuncioViewer';
 
 export function InicioPage() {
   const navigate = useNavigate();
@@ -18,10 +16,7 @@ export function InicioPage() {
   }, [isAuthenticated, navigate]);
 
   return (
-    <>
-      <Navbar showAuthButton={true} />
-
-      <div className="min-h-[calc(100vh-80px)] bg-gray-100 flex items-center justify-center py-12 px-4">
+    <div className="min-h-[calc(100vh-80px)] bg-gray-100 flex items-center justify-center py-12 px-4">
         <div className="container mx-auto max-w-5xl">
           <h2 className="text-4xl md:text-5xl font-bold text-fatecride-blue mb-12 text-center">
             O que você deseja?
@@ -61,12 +56,12 @@ export function InicioPage() {
             </Card>
           </div>
           <div className="my-6">
-            <AnuncioDebug />
+            <div className="max-w-4xl mx-auto px-4">
+              <AnuncioViewer />
+            </div>
           </div>
         </div>
       </div>
-
-    </>
   );
 }
 

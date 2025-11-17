@@ -9,7 +9,7 @@ import websocketService from '../services/websocketService';
  * Conecta automaticamente quando o usuário está autenticado
  */
 export function useChat() {
-  const { token, isAuthenticated, user } = useAuthStore();
+  const { token, messagesToken, isAuthenticated, user } = useAuthStore();
   const { 
     addMessage, 
     setConnected, 
@@ -23,23 +23,48 @@ export function useChat() {
 
   // Registrar handlers ANTES de qualquer conexão
   useEffect(() => {
-    if (!isAuthenticated || !token) return;
+    // conectar somente se autenticado e existir ao menos um token (principal ou messages)
+    if (!isAuthenticated || (!token && !messagesToken)) return;
     
     console.log('🔌 Iniciando configuração WebSocket...');
     
-    // Handler de mensagens recebidas
+    // Handler de mensagens recebidas (mais tolerante a formatos diferentes do servidor)
     const unsubscribeMessage = websocketService.onMessage((data) => {
       console.log('🎯 useChat - Handler de mensagem CHAMADO:', data);
-      console.log('📨 Mensagem processada:', data);
 
-      if (data.tipo === 'mensagem_recebida' && data.mensagem) {
-        console.log('✉️ Tipo mensagem_recebida detectado, adicionando ao store...');
-        // Usar getState para evitar dependência
-        const { addMessage, incrementUnread } = useChatStore.getState();
-        addMessage(data.mensagem);
-        // Incrementar contador de não lidas se não estiver na conversa
-        if (window.location.pathname !== `/chat/${data.mensagem.id_solicitacao}`) {
-          incrementUnread(data.mensagem.id_solicitacao);
+      // Log completo para diagnóstico
+      console.log('📨 Mensagem processada (raw):', data);
+
+      // Tentar extrair o payload da mensagem em várias chaves possíveis
+      const extractMessagePayload = (obj) => {
+        if (!obj || typeof obj !== 'object') return null;
+        // Possíveis lugares onde o servidor coloca o objeto da mensagem
+        return obj.mensagem || obj.message || obj.data || obj.payload || obj.msg || null;
+      };
+
+      if (data.tipo === 'mensagem_recebida') {
+        const incoming = extractMessagePayload(data);
+        if (!incoming) {
+          console.warn('⚠️ mensagem_recebida sem payload esperado:', data);
+        } else {
+          // Normalizar campos do payload para garantir id_solicitacao e coerência de tipos
+          const msg = {
+            id_sender: Number(incoming.id_sender ?? incoming.idSender ?? incoming.sender ?? incoming.id_remetente ?? null) || null,
+            id_receiver: Number(incoming.id_receiver ?? incoming.idReceiver ?? incoming.receiver ?? incoming.id_destinatario ?? null) || null,
+            id_solicitacao: Number(incoming.id_solicitacao ?? incoming.idSolicitacao ?? incoming.id ?? null) || null,
+            message: incoming.message ?? incoming.mensagem ?? incoming.text ?? incoming.msg ?? null,
+            data: incoming.data ?? incoming.timestamp ?? new Date().toISOString(),
+            _id: incoming._id ?? incoming.id ?? `srv-${Date.now()}`
+          };
+
+          console.log('✉️ mensagem_recebida normalizada:', msg);
+
+          const { addMessage, incrementUnread } = useChatStore.getState();
+          addMessage(msg);
+
+          if (window.location.pathname !== `/chat/${msg.id_solicitacao}`) {
+            incrementUnread(msg.id_solicitacao);
+          }
         }
       }
 
@@ -72,7 +97,8 @@ export function useChat() {
       connectingRef.current = true;
       
       // IMPORTANTE: Conectar DEPOIS de registrar handlers
-      websocketService.connect(token);
+      const tokenToUse = messagesToken || token;
+      websocketService.connect(tokenToUse);
       
       // CRÍTICO: Verificar estado após um pequeno delay
       setTimeout(() => {
@@ -102,7 +128,7 @@ export function useChat() {
       unsubscribeMessage();
       unsubscribeConnection();
     };
-  }, [isAuthenticated, token]);
+  }, [isAuthenticated, token, messagesToken]);
 
   // Desconectar ao fazer logout
   useEffect(() => {
@@ -121,18 +147,35 @@ export function useChat() {
    */
   const sendMessage = useCallback((message) => {
     if (!websocketService.isConnected()) {
+      console.warn('⚠️ sendMessage chamado, mas WebSocket não está conectado');
       throw new Error('WebSocket não está conectado');
     }
 
-    websocketService.sendMessage(message);
-
-    // Adicionar mensagem localmente (otimistic update)
-    addMessage({
-      id_sender: user.id,
-      id_receiver: message.receiver,
-      id_solicitacao: message.id_solicitacao,
+    // Normalizar o payload antes de enviar
+    const safePayload = {
+      receiver: message.receiver != null ? Number(message.receiver) : message.receiver,
+      id_solicitacao: message.id_solicitacao != null ? Number(message.id_solicitacao) : null,
       message: message.message,
-      data: new Date().toISOString(),
+      data: message.data || new Date().toISOString()
+    };
+
+    // Tenta enviar via WebSocket e logar resultado
+    try {
+      const sent = websocketService.sendMessage(safePayload);
+      console.log('useChat.sendMessage -> websocketService.sendMessage retornou:', sent);
+    } catch (err) {
+      console.error('useChat.sendMessage -> erro ao enviar via WS, deve tratar fallback externamente:', err);
+      throw err;
+    }
+
+    // Adicionar mensagem localmente (optimistic update)
+    const senderId = user?.id_usuario ?? user?.id ?? user?.userId ?? null;
+    addMessage({
+      id_sender: senderId != null ? Number(senderId) : senderId,
+      id_receiver: safePayload.receiver,
+      id_solicitacao: safePayload.id_solicitacao,
+      message: safePayload.message,
+      data: safePayload.data,
       _id: `temp-${Date.now()}`
     });
   }, [addMessage, user]);
@@ -143,3 +186,5 @@ export function useChat() {
     markAsRead
   };
 }
+
+export default useChat;

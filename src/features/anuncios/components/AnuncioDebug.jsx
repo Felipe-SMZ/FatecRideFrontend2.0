@@ -1,9 +1,31 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useAnuncios } from '../hooks/useAnuncios';
 import { Card } from '@shared/components/ui/Card';
 
 export function AnuncioDebug() {
   const { ad, isLoadingAd, isErrorAd, adError } = useAnuncios();
+  const [testUrl, setTestUrl] = useState('');
+
+  const previewUrl = testUrl || ad?.anuncio;
+
+  const toYouTubeEmbed = (url) => {
+    if (!url) return null;
+    try {
+      // Handle typical YouTube watch urls and youtu.be links
+      const u = new URL(url);
+      if (u.hostname.includes('youtube.com')) {
+        const v = u.searchParams.get('v');
+        return v ? `https://www.youtube.com/embed/${v}` : null;
+      }
+      if (u.hostname === 'youtu.be') {
+        const id = u.pathname.replace(/^\//, '');
+        return id ? `https://www.youtube.com/embed/${id}` : null;
+      }
+      return null;
+    } catch (e) {
+      return null;
+    }
+  };
 
   return (
     <Card className="p-6 bg-yellow-50 border-2 border-yellow-400">
@@ -29,17 +51,40 @@ export function AnuncioDebug() {
           <div className="border-t pt-3">
             <strong>Preview do Anúncio:</strong>
             <div className="mt-2 border rounded p-2 bg-white">
-              {ad.anuncio ? (
-                ad.anuncio.match(/\.(jpg|jpeg|png|gif|webp)$/i) ? (
-                  <img src={ad.anuncio} alt="Preview" className="max-h-40 mx-auto" />
-                ) : ad.anuncio.match(/\.(mp4|webm|ogg)$/i) ? (
-                  <video src={ad.anuncio} controls className="max-h-40 mx-auto">Vídeo</video>
+              {previewUrl ? (
+                // Prefer imagem -> vídeo direto -> youtube embed -> fallback
+                previewUrl.match(/\.(jpg|jpeg|png|gif|webp)$/i) ? (
+                  <img src={previewUrl} alt="Preview" className="max-h-40 mx-auto" />
+                ) : previewUrl.match(/\.(mp4|webm|ogg)$/i) ? (
+                  <video src={previewUrl} controls className="max-h-40 mx-auto">Vídeo</video>
+                ) : toYouTubeEmbed(previewUrl) ? (
+                  <div className="w-full max-h-60 overflow-hidden">
+                    <iframe
+                      title="YouTube Anúncio"
+                      src={toYouTubeEmbed(previewUrl)}
+                      frameBorder="0"
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                      allowFullScreen
+                      className="w-full h-56"
+                    />
+                  </div>
                 ) : (
-                  <div className="text-red-600">⚠️ URL não é imagem nem vídeo válido:<code className="block mt-1 text-xs">{ad.anuncio}</code></div>
+                  <div className="text-red-600">⚠️ URL não é imagem, vídeo direto ou link YouTube:<code className="block mt-1 text-xs">{previewUrl}</code></div>
                 )
               ) : (
                 <div className="text-red-600">❌ Campo "anuncio" está vazio</div>
               )}
+            </div>
+            <div className="mt-3 flex gap-2">
+              <button
+                onClick={() => setTestUrl('https://www.youtube.com/watch?v=qcUTYakn1kg')}
+                className="px-3 py-1 bg-fatecride-blue text-white rounded"
+              >Usar vídeo de teste</button>
+              <button
+                onClick={() => setTestUrl('https://via.placeholder.com/800x400/CCCCCC/666666?text=Anuncio+Imagem')}
+                className="px-3 py-1 bg-green-600 text-white rounded"
+              >Usar imagem de teste</button>
+              <button onClick={() => setTestUrl('')} className="px-3 py-1 bg-gray-200 rounded">Usar original</button>
             </div>
           </div>
         )}

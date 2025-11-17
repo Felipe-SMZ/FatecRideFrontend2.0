@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { FiPlus, FiEdit2, FiTrash2, FiTruck } from "react-icons/fi";
-import { Navbar } from "@shared/components/layout/Navbar";
 import { PageContainer } from "@shared/components/layout/PageContainer";
 import { Card } from "@shared/components/ui/Card";
 import { Button } from "@shared/components/ui/Button";
@@ -93,7 +92,6 @@ export function VehiclesPage() {
 
   return (
     <>
-      <Navbar showAuthButton={true} />
       <PageContainer
         title="Meus Veículos"
         description="Gerencie os veículos cadastrados para oferecer caronas"

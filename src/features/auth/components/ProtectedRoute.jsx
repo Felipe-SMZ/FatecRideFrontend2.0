@@ -1,5 +1,6 @@
 import { Navigate } from "react-router-dom";
 import { useAuthStore } from "../stores/authStore";
+import { Navbar } from '@shared/components/layout/Navbar';
 
 /**
  * ProtectedRoute - Wrapper para rotas que exigem autenticação
@@ -49,6 +50,13 @@ export function ProtectedRoute({ children, requiredRole }) {
     }
   }
 
-  // Tudo certo, renderiza o conteúdo protegido
-  return children;
+  // Tudo certo, renderiza o conteúdo protegido com a Navbar
+  return (
+    <>
+      <Navbar showAuthButton={true} />
+      <main className="pt-20">
+        {children}
+      </main>
+    </>
+  );
 }

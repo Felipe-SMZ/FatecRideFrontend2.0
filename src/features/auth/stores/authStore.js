@@ -9,6 +9,7 @@ export const useAuthStore = create(
             // State
             user: null,
             token: null,
+            messagesToken: null,
             isAuthenticated: false,
             isLoading: false,
 
@@ -61,11 +62,14 @@ export const useAuthStore = create(
                 }
             },
 
-            setAuth: (user, token) => set({
+            setAuth: (user, token, messagesToken = null) => set({
                 user,
                 token,
+                messagesToken,
                 isAuthenticated: true
             }),
+
+            setMessagesToken: (messagesToken) => set({ messagesToken }),
 
             loadUserData: async () => {
                 try {
@@ -145,6 +149,7 @@ export const useAuthStore = create(
                 set({
                     user: null,
                     token: null,
+                    messagesToken: null,
                     isAuthenticated: false
                 });
                 localStorage.removeItem('token');
@@ -154,7 +159,8 @@ export const useAuthStore = create(
 
             // Getters
             getUserType: () => get().user?.userTypeId,
-            hasVehicle: () => get().user?.hasVehicle || false
+            hasVehicle: () => get().user?.hasVehicle || false,
+            getMessagesToken: () => get().messagesToken
         }),
         {
             name: 'fatecride-auth',
@@ -164,6 +170,7 @@ export const useAuthStore = create(
                 user: state.user,
                 isAuthenticated: state.isAuthenticated,
                 token: state.token, // Precisamos do token para as requisições
+                messagesToken: state.messagesToken
             })
         }
     )

@@ -148,15 +148,23 @@ export function LoginPage() {
             </div>
 
             {/* Botão criar conta */}
-            <Link to="/select-user-type" className="block">
-              <Button 
-                type="button" 
-                fullWidth 
-                className="bg-fatecride-blue hover:bg-fatecride-blue-dark transition-colors"
-              >
-                Criar conta
-              </Button>
-            </Link>
+            <div className="space-y-3">
+              <Link to="/select-user-type" className="block">
+                <Button 
+                  type="button" 
+                  fullWidth 
+                  className="bg-fatecride-blue hover:bg-fatecride-blue-dark transition-colors"
+                >
+                  Criar conta
+                </Button>
+              </Link>
+
+              <div className="text-center">
+                <Link to="/anunciante/login" className="inline-block">
+                  <Button type="button" variant="secondary">Área do Anunciante</Button>
+                </Link>
+              </div>
+            </div>
           </div>
         </div>
       </div>

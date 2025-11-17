@@ -2,13 +2,14 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { FiMapPin, FiClock, FiTruck, FiMessageCircle } from 'react-icons/fi';
-import { Navbar } from '@shared/components/layout/Navbar';
 import { Card } from '@shared/components/ui/Card';
 import { Button } from '@shared/components/ui/Button';
 import { EmptyState } from '@shared/components/ui/EmptyState';
 import { Spinner } from '@shared/components/ui/Spinner';
 import { useAuthStore } from '@features/auth/stores/authStore';
 import { FloatingChat } from '@features/chat/components/FloatingChat';
+import { ridesService } from '@features/rides/services/ridesService';
+import { normalizeRequest } from '@shared/utils/normalizeRequest';
 
 export function PassengerRidesPage() {
   const navigate = useNavigate();
@@ -38,32 +39,28 @@ export function PassengerRidesPage() {
   const fetchMyRequests = async () => {
     try {
       setLoading(true);
-      const token = localStorage.getItem('token');
-      
-      const response = await fetch('http://localhost:8080/solicitacao/concluidas?pagina=0&itens=100', {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
+      // Use ridesService to centralize API calls and avoid localStorage usage here
+      try {
+        const data = await ridesService.getPassengerHistory(0, 100);
+        let requestsArray = Array.isArray(data) ? data : (data?.content || []);
 
-      if (response.ok) {
-        const data = await response.json();
-        let requestsArray = Array.isArray(data) ? data : (data.content || []);
-        
+        // Se a API retornar um único objeto, coloque em array
+        if (data && typeof data === 'object' && !Array.isArray(data) && !data.content) {
+          requestsArray = [data];
+        }
+
         // Remover duplicatas baseado no ID
-        const uniqueRequests = requestsArray.reduce((acc, current) => {
-          const exists = acc.find(item => item.id === current.id);
-          if (!exists) {
-            acc.push(current);
-          }
-          return acc;
-        }, []);
-        
+        const map = new Map();
+        requestsArray.forEach((r) => {
+          const key = r?.id || r?.id_solicitacao || JSON.stringify(r);
+          if (!map.has(key)) map.set(key, r);
+        });
+
+        const uniqueRequests = Array.from(map.values()).map(normalizeRequest);
         console.log(`✅ ${uniqueRequests.length} solicitações únicas (${requestsArray.length} total)`);
         setRequests(uniqueRequests);
-      } else {
-        console.log('ℹ️ Sem solicitações');
+      } catch (err) {
+        console.warn('⚠️ Falha ao buscar histórico do passageiro', err);
         setRequests([]);
       }
     } catch (error) {
@@ -77,20 +74,12 @@ export function PassengerRidesPage() {
   const handleCancelRequest = async (requestId) => {
     try {
       setCancelingId(requestId);
-      const token = localStorage.getItem('token');
-      
-      const response = await fetch(`http://localhost:8080/solicitacao/${requestId}/cancelar`, {
-        method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
-
-      if (response.ok) {
+      try {
+        await ridesService.cancelRequest(requestId);
         toast.success('Solicitação cancelada com sucesso!');
         await fetchMyRequests();
-      } else {
+      } catch (err) {
+        console.error('Erro ao cancelar solicitação (service):', err);
         toast.error('Erro ao cancelar solicitação');
       }
     } catch (error) {
@@ -123,7 +112,6 @@ export function PassengerRidesPage() {
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50">
-        <Navbar />
         <div className="flex items-center justify-center h-[calc(100vh-64px)]">
           <Spinner size="lg" />
         </div>
@@ -133,7 +121,6 @@ export function PassengerRidesPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <Navbar />
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900">Minhas Solicitações</h1>

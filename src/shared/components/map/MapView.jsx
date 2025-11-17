@@ -39,14 +39,18 @@ function RoutingMachine({ origin, destination }) {
 
   useEffect(() => {
     if (!origin || !destination || !map) return;
+    try {
+      // Remove rota anterior se existir (try/catch para evitar erros se controle estiver em estado inconsistente)
+      if (routingControlRef.current && map) {
+        try {
+          map.removeControl(routingControlRef.current);
+        } catch (e) {
+          console.warn('Aviso: falha ao remover controle de rota (ignorando):', e);
+        }
+      }
 
-    // Remove rota anterior se existir
-    if (routingControlRef.current) {
-      map.removeControl(routingControlRef.current);
-    }
-
-    // Cria nova rota
-    routingControlRef.current = L.Routing.control({
+      // Cria nova rota
+      routingControlRef.current = L.Routing.control({
       waypoints: [
         L.latLng(origin.lat, origin.lng),
         L.latLng(destination.lat, destination.lng)
@@ -58,13 +62,45 @@ function RoutingMachine({ origin, destination }) {
         styles: [{ color: '#0057b7', weight: 5, opacity: 0.7 }]
       },
       createMarker: () => null // Remove marcadores padrão (usamos os nossos)
-    }).addTo(map);
+      }).addTo(map);
+
+      // Workaround: a biblioteca às vezes tenta manipular layers nulos ao receber respostas assíncronas.
+      // Substituímos _clearLines por uma versão segura para evitar TypeError 'removeLayer' em null.
+      try {
+        if (routingControlRef.current && typeof routingControlRef.current._clearLines === 'function') {
+          routingControlRef.current._clearLines = function safeClearLines() {
+            try {
+              if (this._line && this._line._map) {
+                try {
+                  // removeLayer pode lançar se já removido; protegemos com try/catch
+                  this._map.removeLayer(this._line);
+                } catch (e) {
+                  // Ignorar erros de remoção
+                }
+              }
+            } catch (e) {
+              console.warn('Ignored routing clear error', e);
+            }
+            this._line = null;
+          };
+        }
+      } catch (e) {
+        console.warn('Não foi possível aplicar workaround no RoutingMachine:', e);
+      }
+    } catch (e) {
+      console.warn('Erro ao iniciar RoutingMachine (ignorado):', e);
+    }
 
     // Cleanup ao desmontar
     return () => {
       if (routingControlRef.current && map) {
-        map.removeControl(routingControlRef.current);
+        try {
+          map.removeControl(routingControlRef.current);
+        } catch (e) {
+          console.warn('Aviso: falha ao remover controle de rota no cleanup (ignorando):', e);
+        }
       }
+      routingControlRef.current = null;
     };
   }, [origin, destination, map]);
 

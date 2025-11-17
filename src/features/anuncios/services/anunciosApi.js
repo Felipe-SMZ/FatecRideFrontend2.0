@@ -21,7 +21,12 @@ anunciosApi.interceptors.response.use(
             window.location.href = '/anunciante/login';
         }
         const message = error.response?.data?.message || error.message || 'Erro desconhecido';
-        return Promise.reject(new Error(message));
+        const err = new Error(message);
+        // Anexar a resposta original para possibilitar inspeção do body/status
+        err.response = error.response;
+        err.status = error.response?.status;
+        err.original = error;
+        return Promise.reject(err);
     }
 );
 

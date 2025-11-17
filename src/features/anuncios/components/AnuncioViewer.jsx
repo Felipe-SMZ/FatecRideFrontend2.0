@@ -1,42 +1,19 @@
 import React from 'react';
-
-export function AnuncioViewer({ anuncio }) {
-  if (!anuncio) return null;
-  return (
-    <div className="border rounded overflow-hidden">
-      <img src={anuncio.anuncio} alt="anuncio" className="w-full object-cover" />
-      <div className="p-2">
-        <h3 className="font-semibold">{anuncio.nome_fantasia}</h3>
-        <p className="text-sm text-gray-600">Alcance: {anuncio.quantidade_alcancados}</p>
-      </div>
-    </div>
-  );
-}
-
-export function AnuncioViewerCompact({ anuncio }) {
-  if (!anuncio) return <div className="text-sm text-gray-500">Sem anúncio</div>;
-  return (
-    <div className="flex items-center gap-3">
-      <img src={anuncio.anuncio} alt="anuncio" className="w-12 h-12 rounded object-cover" />
-      <div>
-        <div className="text-sm font-medium">{anuncio.nome_fantasia}</div>
-        <div className="text-xs text-gray-500">Alcance: {anuncio.quantidade_alcancados}</div>
-      </div>
-    </div>
-  );
-}
-
-export default AnuncioViewer;
-// src/features/anuncios/components/AnuncioViewer.jsx
-
 import { useAnuncios } from '../hooks/useAnuncios';
 import { Spinner } from '@shared/components/ui/Spinner';
 import { Card } from '@shared/components/ui/Card';
 
-export function AnuncioViewer({ className = '', autoRefresh = false, refreshInterval = 60000 }) {
+function Badge({ children }) {
+  return (
+    <span className="inline-flex items-center gap-2 bg-black/70 text-white text-xs px-3 py-1 rounded-full">{children}</span>
+  );
+}
+
+export function AnuncioViewer({ className = '' }) {
   const { ad, isLoadingAd, isErrorAd, adError, refetchAd } = useAnuncios();
 
   const isVideo = ad?.anuncio ? /\.(mp4|webm|ogg)$/i.test(ad.anuncio) : false;
+  const isYouTube = ad?.anuncio ? /youtube\.com|youtu\.be/i.test(ad.anuncio) : false;
 
   if (isLoadingAd && !ad) {
     return (
@@ -67,23 +44,92 @@ export function AnuncioViewer({ className = '', autoRefresh = false, refreshInte
 
   return (
     <Card className={`relative overflow-hidden shadow-lg ${className}`}>
-      <div className="absolute top-3 right-3 z-10 bg-black/70 text-white text-xs px-3 py-1 rounded-full backdrop-blur-sm">Anúncio</div>
+      <div className="absolute top-3 right-3 z-10">
+        <Badge>Patrocinado</Badge>
+      </div>
+
+      {/* Header: logo + advertiser info */}
+      <div className="flex flex-col sm:flex-row items-center gap-3 p-3 border-b bg-white">
+        <img src={ad.logo || 'https://via.placeholder.com/64'} alt={ad.nome_fantasia || ad.nome_dono} className="w-12 h-12 rounded-full object-cover border" />
+        <div className="flex-1">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <div className="text-sm font-semibold">{ad.nome_fantasia || ad.nome_dono}</div>
+              <div className="text-xs text-gray-500">{ad.razao_social}</div>
+            </div>
+            <div className="text-right mt-2 sm:mt-0">
+              <div className="text-xs text-gray-500">Alcance</div>
+              <div className="text-sm font-semibold">{ad.quantidade_alcance ?? ad.quantidadeAlcance ?? '-'}</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <div className="aspect-video w-full bg-gray-100">
         {isVideo ? (
           <video src={ad.anuncio} controls autoPlay muted loop className="w-full h-full object-cover" />
+        ) : isYouTube ? (
+          (function(){
+            try {
+              const u = new URL(ad.anuncio);
+              let embed = ad.anuncio;
+              // use privacy-enhanced youtube-nocookie domain to reduce ad-related calls
+              const params = 'rel=0&modestbranding=1';
+              if (u.hostname.includes('youtu.be')) {
+                embed = `https://www.youtube-nocookie.com/embed/${u.pathname.replace(/^\//,'')}?${params}`;
+              } else {
+                const v = u.searchParams.get('v');
+                embed = v ? `https://www.youtube-nocookie.com/embed/${v}?${params}` : ad.anuncio;
+              }
+              return (
+                <iframe
+                  title={ad.nome_fantasia || 'anuncio-video'}
+                  src={embed}
+                  frameBorder="0"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  allowFullScreen
+                  className="w-full h-full"
+                />
+              );
+            } catch (e) {
+              return (
+                <div className="p-4 text-sm text-gray-500">URL de vídeo inválida</div>
+              );
+            }
+          })()
         ) : (
-          <img src={ad.anuncio} alt="Anúncio" className="w-full h-full object-cover" onError={(e)=>{e.target.src='https://via.placeholder.com/800x400/CCCCCC/666666?text=Anuncio+Indisponivel'}} />
+          <img
+            src={ad.anuncio}
+            alt={ad.nome_fantasia || 'Anúncio'}
+            className="w-full h-full object-cover"
+            onError={(e) => {
+              // previne loop se o placeholder também falhar
+              try {
+                e.target.onerror = null;
+              } catch (err) {}
+              e.target.src = 'https://via.placeholder.com/800x400/CCCCCC/666666?text=Anuncio+Indisponivel';
+            }}
+          />
         )}
       </div>
-      <div className="p-3 bg-gray-50 border-t">
-        <div className="flex items-center justify-between text-xs text-gray-500">
-          <span>Patrocinado</span>
-          <button onClick={() => refetchAd()} className="hover:text-gray-700 underline">Ver outro anúncio</button>
+
+      <div className="p-4 bg-white border-t">
+        <div className="flex items-start gap-4">
+          <div className="flex-1">
+            <p className="text-sm text-gray-700 mb-2">{ad.descricao_anuncio}</p>
+            <div className="text-xs text-gray-500">Contato: {ad.contato} · {ad.email}</div>
+          </div>
+          <div className="flex flex-col gap-2 sm:items-end items-start w-full">
+            <button onClick={() => refetchAd()} className="px-3 py-2 bg-gray-100 rounded text-sm w-full sm:w-auto">Ver outro</button>
+            <a href={`mailto:${ad.email}`} className="px-3 py-2 bg-fatecride-blue text-white rounded text-sm text-center w-full sm:w-auto">Entrar em contato</a>
+          </div>
         </div>
       </div>
     </Card>
   );
 }
+
+export default AnuncioViewer;
 
 export function AnuncioViewerCompact({ className = '' }) {
   const { ad, isLoadingAd } = useAnuncios();

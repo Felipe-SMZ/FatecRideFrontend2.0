@@ -2,7 +2,8 @@ import anunciosApi from './anunciosApi';
 
 export async function loginAnunciante(credentials) {
   const res = await anunciosApi.post('/login', credentials);
-  const token = res.data?.data;
+  // Backend: { data: { token: '...' } }
+  const token = res.data?.data?.token ?? res.data?.token ?? null;
   if (token) localStorage.setItem('anuncios_token', token);
   return token;
 }
@@ -14,15 +15,24 @@ export async function criarAnunciante(payload) {
 
 export async function divulgarAnuncio() {
   const res = await anunciosApi.get('/divulgar');
-  const payload = res.data;
-  // backend may return either { data: [ ... ] } or an array directly
-  if (Array.isArray(payload)) return payload[0] ?? null;
-  if (payload && Array.isArray(payload.data)) return payload.data[0] ?? null;
-  return null;
+  // Expecting { data: { ... } }
+  return res.data?.data ?? res.data ?? null;
+}
+
+export async function getAnunciante() {
+  // Backend should expose GET /me to return the authenticated anunciante data
+  const res = await anunciosApi.get('/me');
+  // Try to return data in different shapes
+  return res.data?.data || res.data || null;
 }
 
 export async function atualizarAnunciante(payload) {
   const res = await anunciosApi.put('/', payload);
+  return res.data;
+}
+
+export async function atualizarAnuncianteParcial(payload) {
+  const res = await anunciosApi.patch('/', payload);
   return res.data;
 }
 
@@ -47,6 +57,8 @@ export default {
   criarAnunciante,
   divulgarAnuncio,
   atualizarAnunciante,
+  atualizarAnuncianteParcial,
   deletarAnunciante,
+  getAnunciante,
   decodeToken,
 };

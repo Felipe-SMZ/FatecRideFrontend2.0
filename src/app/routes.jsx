@@ -12,6 +12,7 @@ import { SelectUserTypePage } from '@features/auth/pages/SelectUserTypePage';
 import { ForgotPasswordPage } from '@features/auth/pages/ForgotPasswordPage';
 // Páginas de anunciante (renomeadas para evitar filtros)
 import { AnuncianteLogin } from '@features/anuncios/pages/AnuncianteLogin';
+import { AnuncianteRegister } from '@features/anuncios/pages/AnuncianteRegister';
 import { AnuncianteDashboard } from '@features/anuncios/pages/AnuncianteDashboard';
 import { AnuncianteProtectedRoute } from '@features/anuncios/components/AnuncianteProtectedRoute';
 
@@ -125,6 +126,7 @@ export function AppRoutes() {
 
                 {/* Rotas para anunciantes (separadas do fluxo de usuário comum) */}
                 <Route path="/anunciante/login" element={<AnuncianteLogin />} />
+                <Route path="/anunciante/register" element={<AnuncianteRegister />} />
                 <Route path="/anunciante" element={
                     <AnuncianteProtectedRoute>
                         <AnuncianteDashboard />

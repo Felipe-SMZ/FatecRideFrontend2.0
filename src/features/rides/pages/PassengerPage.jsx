@@ -2,10 +2,11 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
-import { Navbar } from '@shared/components/layout/Navbar';
+ 
 import { PageContainer } from '@shared/components/layout/PageContainer';
 import { Card } from '@shared/components/ui/Card';
 import { MapView } from '@shared/components/map/MapView';
+import { ridesService } from '@features/rides/services/ridesService';
 import { RideCard } from '@shared/components/cards/RideCard';
 import { EmptyState } from '@shared/components/ui/EmptyState';
 import { Spinner } from '@shared/components/ui/Spinner';
@@ -78,9 +79,7 @@ export function PassengerPage() {
             setSearching(true);
             setAvailableRides([]);
 
-            // Busca caronas próximas
-            // PassengerSearchRequest: latitudeOrigem, longitudeOrigem, latitudeDestino, longitudeDestino
-            const token = localStorage.getItem('token');
+            // Busca caronas próximas via service (usa `api` com interceptor)
             const payload = {
                 latitudeOrigem: originCoords.lat,
                 longitudeOrigem: originCoords.lng,
@@ -90,48 +89,32 @@ export function PassengerPage() {
 
             console.log('🔍 Buscando caronas com payload:', payload);
 
-            const response = await fetch('http://localhost:8080/solicitacao/proximos', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    Authorization: `Bearer ${token}`
-                },
-                body: JSON.stringify(payload)
-            });
+            try {
+                const rides = await ridesService.searchNearby(payload);
+                console.log('✅ Caronas encontradas (service):', rides);
+                setAvailableRides(rides || []);
 
-            if (!response.ok) {
-                const errorText = await response.text();
-                console.error('❌ Erro do backend:', errorText);
-                
-                // Backend retorna 500 quando não há motoristas próximos
-                // Idealmente deveria retornar 200 com array vazio
-                try {
-                    const errorData = JSON.parse(errorText);
-                    if (errorData.message?.includes('Nenhum motorista')) {
-                        setAvailableRides([]);
-                        toast.info(
-                            'Nenhuma carona encontrada para esta rota. ' +
-                            'Tente buscar com endereços próximos ou principais da região.',
-                            { duration: 5000 }
-                        );
-                        setSearching(false);
-                        return;
-                    }
-                } catch (e) {
-                    // Se não for JSON, continua com erro normal
+                if (!rides || rides.length === 0) {
+                    toast.info('Nenhuma carona encontrada para esta rota');
+                } else {
+                    toast.success(`${rides.length} carona(s) encontrada(s)!`);
                 }
-                
-                throw new Error(errorText || 'Erro ao buscar caronas');
-            }
+            } catch (err) {
+                // axios error -> verificar response.data.message
+                const backendMessage = err?.response?.data?.message || err?.message || '';
+                console.error('❌ Erro do backend (service):', backendMessage, err);
 
-            const rides = await response.json();
-            console.log('✅ Caronas encontradas:', rides);
-            setAvailableRides(rides);
+                if (backendMessage.includes('Nenhum motorista')) {
+                    setAvailableRides([]);
+                    toast.info(
+                        'Nenhuma carona encontrada para esta rota. Tente buscar com endereços próximos ou principais da região.',
+                        { duration: 5000 }
+                    );
+                    setSearching(false);
+                    return;
+                }
 
-            if (rides.length === 0) {
-                toast.info('Nenhuma carona encontrada para esta rota');
-            } else {
-                toast.success(`${rides.length} carona(s) encontrada(s)!`);
+                throw new Error(backendMessage || 'Erro ao buscar caronas');
             }
         } catch (error) {
             console.error('❌ Erro ao buscar caronas:', error);
@@ -151,44 +134,30 @@ export function PassengerPage() {
             return;
         }
 
-        try {
-            setRequesting(true);
-            const token = localStorage.getItem('token');
+            try {
+                setRequesting(true);
 
-            const payload = {
-                id_carona: ride.idCarona,
-                originDTO: originAddress,
-                destinationDTO: destinationAddress
-            };
+                const payload = {
+                    id_carona: ride.idCarona,
+                    originDTO: originAddress,
+                    destinationDTO: destinationAddress
+                };
 
-            const response = await fetch('http://localhost:8080/solicitacao', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    Authorization: `Bearer ${token}`
-                },
-                body: JSON.stringify(payload)
-            });
+                await ridesService.requestRide(payload);
 
-            if (!response.ok) {
-                const errorText = await response.text();
-                throw new Error(errorText || 'Erro ao solicitar carona');
+                toast.success('Solicitação enviada com sucesso!');
+                navigate('/inicio');
+            } catch (error) {
+                console.error('Erro ao solicitar carona (service):', error);
+                const backendMessage = error?.response?.data?.message || error?.message;
+                toast.error(backendMessage || 'Erro ao solicitar carona');
+            } finally {
+                setRequesting(false);
             }
-
-            toast.success('Solicitação enviada com sucesso!');
-            navigate('/inicio');
-        } catch (error) {
-            console.error('Erro ao solicitar carona:', error);
-            toast.error(error.message || 'Erro ao solicitar carona');
-        } finally {
-            setRequesting(false);
-        }
     };
 
     return (
-        <>
-            <Navbar showAuthButton={true} />
-            <div className="min-h-screen bg-gradient-to-b from-green-50 to-white">
+        <div className="min-h-screen bg-gradient-to-b from-green-50 to-white">
                 <PageContainer>
                     <div className="py-6">
                         <h1 className="text-3xl font-bold text-gray-900 mb-6">
@@ -315,6 +284,5 @@ export function PassengerPage() {
                 </div>
             </PageContainer>
         </div>
-        </>
     );
 }

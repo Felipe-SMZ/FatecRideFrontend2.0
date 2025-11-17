@@ -8,8 +8,9 @@ class WebSocketService {
   constructor() {
     this.ws = null;
     this.reconnectInterval = null;
-    this.messageHandler = null; // ÚNICO handler para mensagens
-    this.connectionHandler = null; // ÚNICO handler para conexão
+    // Suportar múltiplos handlers simultâneos (Set evita duplicatas)
+    this.messageHandlers = new Set();
+    this.connectionHandlers = new Set();
     this.isConnecting = false;
     this.hasEverConnected = false; // Flag global para evitar múltiplas conexões
   }
@@ -32,17 +33,25 @@ class WebSocketService {
     this.isConnecting = true;
 
     try {
-      // WebSocket com token no protocolo (Sec-WebSocket-Protocol header)
-      this.ws = new WebSocket('ws://localhost:9000', token);
+      // Usa URL configurável e envia token como subprotocol (array)
+      const WS_URL = (import.meta.env.VITE_WS_URL || 'ws://localhost:9000');
+      // Se houver token, enviar como subprotocol; caso contrário, conectar sem subprotocol
+      if (token) {
+        this.ws = new WebSocket(WS_URL, [token]);
+      } else {
+        this.ws = new WebSocket(WS_URL);
+      }
 
       this.ws.onopen = () => {
         console.log('✅ WebSocket conectado');
         this.isConnecting = false;
         
-        // Notificar handler de conexão
-        if (this.connectionHandler) {
-          console.log('📢 Notificando handler de conexão');
-          this.connectionHandler(true);
+        // Notificar todos os handlers de conexão
+        if (this.connectionHandlers.size > 0) {
+          console.log('📢 Notificando handlers de conexão:', this.connectionHandlers.size);
+          this.connectionHandlers.forEach((h) => {
+            try { h(true); } catch (e) { console.error('Erro em connection handler:', e); }
+          });
         }
         
         // Limpar tentativas de reconexão
@@ -55,10 +64,13 @@ class WebSocketService {
       this.ws.onmessage = (event) => {
         try {
           const data = JSON.parse(event.data);
-          console.log('📨 Mensagem WebSocket:', data.tipo);
-          
-          if (this.messageHandler) {
-            this.messageHandler(data);
+          console.log('📨 Mensagem WebSocket (raw):', data);
+
+          // Entregar a todos os handlers registrados
+          if (this.messageHandlers.size > 0) {
+            this.messageHandlers.forEach((h) => {
+              try { h(data); } catch (e) { console.error('Erro em message handler:', e); }
+            });
           }
         } catch (error) {
           console.error('❌ Erro ao parsear mensagem:', error, event.data);
@@ -74,8 +86,11 @@ class WebSocketService {
         console.log('🔌 WebSocket desconectado', event.code, event.reason);
         this.isConnecting = false;
         
-        if (this.connectionHandler) {
-          this.connectionHandler(false);
+        // Notificar todos os handlers de conexão
+        if (this.connectionHandlers.size > 0) {
+          this.connectionHandlers.forEach((h) => {
+            try { h(false); } catch (e) { console.error('Erro em connection handler:', e); }
+          });
         }
         
         // Tentar reconectar após 3 segundos se não foi fechamento intencional
@@ -112,15 +127,23 @@ class WebSocketService {
       throw new Error('WebSocket não conectado');
     }
 
+    // Normalizar tipos: backend espera numbers para as chaves de busca
     const payload = {
-      receiver: message.receiver,
-      id_solicitacao: message.id_solicitacao,
-      data: new Date().toISOString(),
+      receiver: message.receiver != null ? Number(message.receiver) : message.receiver,
+      id_solicitacao: message.id_solicitacao != null ? Number(message.id_solicitacao) : null,
+      data: message.data || new Date().toISOString(),
       message: message.message
     };
 
-    console.log('📤 Enviando mensagem:', payload);
-    this.ws.send(JSON.stringify(payload));
+    try {
+      console.log('📤 Enviando mensagem via WS:', payload);
+      this.ws.send(JSON.stringify(payload));
+      console.log('🟢 Mensagem enviada via WS (socket.send retornado)');
+      return true;
+    } catch (err) {
+      console.error('❌ Falha ao enviar mensagem via WS:', err);
+      throw err;
+    }
   }
 
   /**
@@ -128,8 +151,8 @@ class WebSocketService {
    * Substitui o handler anterior (apenas 1 por vez)
    */
   onMessage(handler) {
-    this.messageHandler = handler;
-    return () => { this.messageHandler = null; };
+    this.messageHandlers.add(handler);
+    return () => { this.messageHandlers.delete(handler); };
   }
 
   /**
@@ -137,8 +160,8 @@ class WebSocketService {
    * Substitui o handler anterior (apenas 1 por vez)
    */
   onConnectionChange(handler) {
-    this.connectionHandler = handler;
-    return () => { this.connectionHandler = null; };
+    this.connectionHandlers.add(handler);
+    return () => { this.connectionHandlers.delete(handler); };
   }
 
   /**
@@ -155,8 +178,14 @@ class WebSocketService {
       this.ws = null;
     }
 
-    this.messageHandler = null;
-    this.connectionHandler = null;
+    // Não limpar os sets para que handlers possam ser re-registrados por componentes que persistem
+    // Porém, se quiser limpar tudo, pode usar clearHandlers()
+  }
+
+  // Limpa todos os handlers registrados (uso controlado)
+  clearHandlers() {
+    this.messageHandlers.clear();
+    this.connectionHandlers.clear();
   }
 
   /**

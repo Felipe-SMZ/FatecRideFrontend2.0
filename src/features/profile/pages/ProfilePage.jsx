@@ -1,4 +1,4 @@
-import { Navbar } from "@shared/components/layout/Navbar";
+ 
 import { PageContainer } from "@shared/components/layout/PageContainer";
 import { Card } from "@shared/components/ui/Card";
 import { Button } from "@shared/components/ui/Button";
@@ -479,12 +479,10 @@ export function ProfilePage() {
   };
 
   return (
-    <>
-      <Navbar showAuthButton={true} />
-      <PageContainer
-        title="Meu Perfil"
-        description="Visualize e edite suas informações pessoais"
-      >
+    <PageContainer
+      title="Meu Perfil"
+      description="Visualize e edite suas informações pessoais"
+    >
       <div className="max-w-4xl mx-auto space-y-6">
         
         {/* Card: Informações Pessoais */}
@@ -960,7 +958,6 @@ export function ProfilePage() {
         </div>
       )}
     </PageContainer>
-    </>
   );
 }
 

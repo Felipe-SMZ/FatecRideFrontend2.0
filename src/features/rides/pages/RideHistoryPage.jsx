@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Navbar } from '@shared/components/layout/Navbar';
+ 
 import { Card } from '@shared/components/ui/Card';
 import { Button } from '@shared/components/ui/Button';
 import { EmptyState } from '@shared/components/ui/EmptyState';
@@ -177,11 +177,8 @@ export function RideHistoryPage() {
   };
 
   return (
-    <>
-      <Navbar showAuthButton={true} />
-      
-      <div className="min-h-[calc(100vh-80px)] bg-gray-100 py-8 px-4">
-        <div className="container mx-auto max-w-6xl">
+    <div className="min-h-[calc(100vh-80px)] bg-gray-100 py-8 px-4">
+      <div className="container mx-auto max-w-6xl">
           <div className="flex items-center justify-between mb-8">
             <div>
               <h1 className="text-4xl font-bold text-fatecride-blue mb-2">
@@ -357,6 +354,5 @@ export function RideHistoryPage() {
           )}
         </div>
       </div>
-    </>
   );
 }
