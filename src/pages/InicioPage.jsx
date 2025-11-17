@@ -96,7 +96,7 @@ export function InicioPage() {
 
             {/* Anúncio como sidebar responsiva */}
             <aside className="md:col-span-1 flex justify-center">
-              <div className="md:sticky md:top-24 w-full max-w-xs">
+              <div className="md:sticky md:top-24 w-full max-w-lg lg:max-w-xl">
                 <div className="relative bg-white rounded-xl shadow-xl p-4">
                   <button
                     aria-label={showAd ? 'Fechar anúncio' : 'Abrir anúncio'}

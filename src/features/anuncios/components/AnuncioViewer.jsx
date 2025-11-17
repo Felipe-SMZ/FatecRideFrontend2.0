@@ -3,6 +3,8 @@ import { useAnuncios } from '../hooks/useAnuncios';
 import { Spinner } from '@shared/components/ui/Spinner';
 import { Card } from '@shared/components/ui/Card';
 import { getPlaceholderDataUri } from '../utils/placeholder';
+import { FaInstagram, FaWhatsapp } from 'react-icons/fa';
+import { FiPlus } from 'react-icons/fi';
 
 function Badge({ children }) {
   return (
@@ -45,25 +47,15 @@ export function AnuncioViewer({ className = '' }) {
   }
 
   return (
-    <Card className={`relative overflow-hidden shadow-lg ${className}`}>
+    <Card className={`relative overflow-hidden shadow-lg bg-gradient-to-br from-white to-blue-50 ${className}`}>
       <div className="absolute top-3 right-3 z-10">
         <Badge>Patrocinado</Badge>
       </div>
-
-      {/* Header: logo + advertiser info */}
-      <div className="flex flex-col sm:flex-row items-center gap-3 p-3 border-b bg-white">
-        <img src={ad.logo || getPlaceholderDataUri(64, 64, 'Logo')} alt={ad.nome_fantasia || ad.nome_dono} className="w-12 h-12 rounded-full object-cover border" />
+      {/* Header: only logo (minimal) */}
+      <div className="flex items-center gap-3 p-3 border-b bg-transparent">
+        <img src={ad.logo || getPlaceholderDataUri(64, 64, 'Logo')} alt={ad.nome_fantasia || 'Logo'} className="w-12 h-12 rounded-full object-cover border" />
         <div className="flex-1">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <div className="text-sm font-semibold">{ad.nome_fantasia || ad.nome_dono}</div>
-              <div className="text-xs text-gray-500">{ad.razao_social}</div>
-            </div>
-            <div className="text-right mt-2 sm:mt-0">
-              <div className="text-xs text-gray-500">Alcance</div>
-              <div className="text-sm font-semibold">{ad.quantidade_alcance ?? ad.quantidadeAlcance ?? '-'}</div>
-            </div>
-          </div>
+          {ad.nome_fantasia && <div className="text-sm font-semibold text-gray-800">{ad.nome_fantasia}</div>}
         </div>
       </div>
 
@@ -79,6 +71,7 @@ export function AnuncioViewer({ className = '' }) {
             controls
             autoPlay
             muted
+            playsInline
             loop
             className="w-full h-full object-cover"
             onLoadedData={() => setMediaLoaded(true)}
@@ -90,7 +83,8 @@ export function AnuncioViewer({ className = '' }) {
               const u = new URL(ad.anuncio);
               let embed = ad.anuncio;
               // use privacy-enhanced youtube-nocookie domain to reduce ad-related calls
-              const params = 'rel=0&modestbranding=1';
+              // autoplay=1&mute=1 para permitir autoplay em navegadores modernos (muted)
+              const params = 'rel=0&modestbranding=1&autoplay=1&mute=1';
               if (u.hostname.includes('youtu.be')) {
                 embed = `https://www.youtube-nocookie.com/embed/${u.pathname.replace(/^\//,'')}?${params}`;
               } else {
@@ -132,15 +126,44 @@ export function AnuncioViewer({ className = '' }) {
         )}
       </div>
 
-      <div className="p-4 bg-white border-t">
-        <div className="flex items-start gap-4">
-          <div className="flex-1">
-            <p className="text-sm text-gray-700 mb-2">{ad.descricao_anuncio}</p>
-            <div className="text-xs text-gray-500">Contato: {ad.contato} · {ad.email}</div>
+      <div className="p-4 bg-transparent border-t">
+        <div className="flex flex-col gap-3">
+          <p className="text-sm text-gray-800">{ad.descricao_anuncio}</p>
+          <div className="text-xs text-gray-500">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:gap-4 gap-2">
+              {ad.nome_fantasia && (
+                <a href={`https://instagram.com/${String(ad.nome_fantasia).replace(/\s+/g,'')}`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 text-gray-700 hover:text-fatecride-blue">
+                  <FaInstagram className="w-4 h-4 text-pink-500" />
+                  <span className="text-sm font-medium">@{ad.nome_fantasia}</span>
+                </a>
+              )}
+
+              {ad.contato && (
+                (function(){
+                  const raw = String(ad.contato || '');
+                  const digits = raw.replace(/\D/g,'');
+                  const wa = digits ? `https://wa.me/${digits}` : null;
+                  return (
+                    <a href={wa || '#'} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 text-gray-700 hover:text-green-600">
+                      <FaWhatsapp className="w-4 h-4 text-green-600" />
+                      <span className="text-sm">{raw}</span>
+                    </a>
+                  );
+                })()
+              )}
+
+              {ad.email && (
+                <a href={`mailto:${ad.email}`} className="inline-flex items-center gap-2 text-gray-700 hover:text-fatecride-blue">
+                  <FiPlus className="w-4 h-4 text-gray-600" />
+                  <span className="text-sm">Mais</span>
+                </a>
+              )}
+            </div>
           </div>
-            <div className="flex flex-col gap-2 sm:items-end items-start w-full">
-            <button onClick={() => { setMediaLoaded(false); refetchAd(); }} className="px-3 py-2 bg-gray-100 rounded text-sm w-full sm:w-auto" aria-label="Ver outro anúncio">Ver outro</button>
-            <a href={`mailto:${ad.email}`} className="px-3 py-2 bg-fatecride-blue text-white rounded text-sm text-center w-full sm:w-auto" aria-label="Entrar em contato por e-mail">Entrar em contato</a>
+
+          <div className="flex gap-3 mt-2 justify-center">
+            <button onClick={() => { setMediaLoaded(false); refetchAd(); }} className="px-4 py-2 bg-white border border-gray-200 rounded-md text-sm hover:shadow" aria-label="Ver outro anúncio">Ver outro</button>
+            <a href={`mailto:${ad.email}`} className="px-4 py-2 bg-fatecride-blue text-white rounded-md text-sm shadow-md hover:opacity-95" aria-label="Entrar em contato por e-mail">Entrar em contato</a>
           </div>
         </div>
       </div>
