@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useAnuncios } from '../hooks/useAnuncios';
 import { Spinner } from '@shared/components/ui/Spinner';
 import { Card } from '@shared/components/ui/Card';
+import { getPlaceholderDataUri } from '../utils/placeholder';
 
 function Badge({ children }) {
   return (
@@ -51,7 +52,7 @@ export function AnuncioViewer({ className = '' }) {
 
       {/* Header: logo + advertiser info */}
       <div className="flex flex-col sm:flex-row items-center gap-3 p-3 border-b bg-white">
-        <img src={ad.logo || 'https://via.placeholder.com/64'} alt={ad.nome_fantasia || ad.nome_dono} className="w-12 h-12 rounded-full object-cover border" />
+        <img src={ad.logo || getPlaceholderDataUri(64, 64, 'Logo')} alt={ad.nome_fantasia || ad.nome_dono} className="w-12 h-12 rounded-full object-cover border" />
         <div className="flex-1">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
             <div>
@@ -114,20 +115,20 @@ export function AnuncioViewer({ className = '' }) {
             }
           })()
         ) : (
-          <img
-            src={ad.anuncio}
-            alt={ad.nome_fantasia || 'Anúncio'}
-            className="w-full h-full object-cover"
-            onLoad={() => setMediaLoaded(true)}
-            onError={(e) => {
-              // previne loop se o placeholder também falhar
-              try {
-                e.target.onerror = null;
-              } catch (err) {}
-              e.target.src = 'https://via.placeholder.com/800x400/CCCCCC/666666?text=Anuncio+Indisponivel';
-              setMediaLoaded(true);
-            }}
-          />
+            <img
+              src={ad.anuncio}
+              alt={ad.nome_fantasia || 'Anúncio'}
+              className="w-full h-full object-cover"
+              onLoad={() => setMediaLoaded(true)}
+              onError={(e) => {
+                // previne loop se o placeholder também falhar
+                try {
+                  e.target.onerror = null;
+                } catch (err) {}
+                e.target.src = getPlaceholderDataUri(800, 400, 'Anúncio Indisponível');
+                setMediaLoaded(true);
+              }}
+            />
         )}
       </div>
 
@@ -151,17 +152,47 @@ export default AnuncioViewer;
 
 export function AnuncioViewerCompact({ className = '' }) {
   const { ad, isLoadingAd } = useAnuncios();
-  if (isLoadingAd || !ad) return null;
   const [loaded, setLoaded] = useState(false);
+  if (isLoadingAd || !ad) return null;
   const isVideo = /\.(mp4|webm|ogg)$/i.test(ad.anuncio);
+  const isYouTube = ad?.anuncio ? /youtube\.com|youtu\.be/i.test(ad.anuncio) : false;
   return (
     <div role="region" aria-label={`Anúncio: ${ad.nome_fantasia || ad.nome_dono || 'patrocinado'}`} tabIndex={0} className={`relative rounded-lg overflow-hidden shadow ${className}`}>
       <div className="absolute top-2 right-2 z-10 bg-black/60 text-white text-xs px-2 py-1 rounded">Anúncio</div>
       {!loaded && <div className="absolute inset-0 flex items-center justify-center bg-gray-200/60"><div className="w-32 h-4 bg-gray-300 rounded animate-pulse" aria-hidden="true"></div></div>}
       {isVideo ? (
         <video src={ad.anuncio} autoPlay muted loop className="w-full h-full object-cover" onLoadedData={() => setLoaded(true)} aria-label={ad.nome_fantasia || 'Vídeo do anúncio compacto'} />
+      ) : isYouTube ? (
+        (function(){
+          try {
+            const u = new URL(ad.anuncio);
+            let embed = ad.anuncio;
+            const params = 'rel=0&modestbranding=1';
+            if (u.hostname.includes('youtu.be')) {
+              embed = `https://www.youtube-nocookie.com/embed/${u.pathname.replace(/^\//,'')}?${params}`;
+            } else {
+              const v = u.searchParams.get('v');
+              embed = v ? `https://www.youtube-nocookie.com/embed/${v}?${params}` : ad.anuncio;
+            }
+            return (
+              <iframe
+                title={ad.nome_fantasia || 'anuncio-video-compact'}
+                src={embed}
+                frameBorder="0"
+                onLoad={() => setLoaded(true)}
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowFullScreen
+                className="w-full h-full"
+              />
+            );
+          } catch (e) {
+            return (
+              <img src={getPlaceholderDataUri(400, 200, 'Anúncio')} alt="Anúncio" className="w-full h-full object-cover" onLoad={() => setLoaded(true)} />
+            );
+          }
+        })()
       ) : (
-        <img src={ad.anuncio} alt={ad.nome_fantasia || 'Anúncio'} className="w-full h-full object-cover" onLoad={() => setLoaded(true)} onError={(e) => { try { e.target.onerror = null; } catch {} e.target.src = 'https://via.placeholder.com/400x200/CCCCCC/666666?text=Anuncio'; setLoaded(true); }} />
+        <img src={ad.anuncio} alt={ad.nome_fantasia || 'Anúncio'} className="w-full h-full object-cover" onLoad={() => setLoaded(true)} onError={(e) => { try { e.target.onerror = null; } catch {} e.target.src = getPlaceholderDataUri(400, 200, 'Anúncio'); setLoaded(true); }} />
       )}
     </div>
   );

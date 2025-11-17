@@ -6,11 +6,12 @@ import { Card } from '@shared/components/ui/Card';
 import { Input } from '@shared/components/ui/Input';
 import { Button } from '@shared/components/ui/Button';
 import AnuncioViewer from '../components/AnuncioViewer';
+import { getPlaceholderDataUri } from '../utils/placeholder';
 import toast from 'react-hot-toast';
 
 export function AnuncianteDashboard() {
   const { ad, refetchAd, isLoadingAd } = useAnuncios();
-  const { isAuthenticated } = useAnunciosStore();
+  const isAuthenticated = useAnunciosStore.getState().isAuthenticated();
   const { logout } = useAnunciosAuth();
 
   const token = useAnunciosStore.getState().token;
@@ -69,7 +70,7 @@ export function AnuncianteDashboard() {
         className="w-full h-48 object-cover"
         onError={(e) => {
           try { e.target.onerror = null; } catch (err) {}
-          e.target.src = 'https://via.placeholder.com/800x400/CCCCCC/666666?text=Anuncio+Indisponivel';
+          e.target.src = getPlaceholderDataUri(800, 400, 'Anúncio Indisponível');
         }}
       />
     );

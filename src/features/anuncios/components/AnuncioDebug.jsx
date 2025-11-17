@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useAnuncios } from '../hooks/useAnuncios';
 import { Card } from '@shared/components/ui/Card';
+import { getPlaceholderDataUri } from '../utils/placeholder';
 
 export function AnuncioDebug() {
   const { ad, isLoadingAd, isErrorAd, adError } = useAnuncios();
@@ -81,7 +82,7 @@ export function AnuncioDebug() {
                 className="px-3 py-1 bg-fatecride-blue text-white rounded"
               >Usar vídeo de teste</button>
               <button
-                onClick={() => setTestUrl('https://via.placeholder.com/800x400/CCCCCC/666666?text=Anuncio+Imagem')}
+                onClick={() => setTestUrl(getPlaceholderDataUri(800, 400, 'Anúncio Imagem'))}
                 className="px-3 py-1 bg-green-600 text-white rounded"
               >Usar imagem de teste</button>
               <button onClick={() => setTestUrl('')} className="px-3 py-1 bg-gray-200 rounded">Usar original</button>
