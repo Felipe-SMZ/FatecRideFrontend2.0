@@ -18,6 +18,7 @@ export function PageContainer({
   children,
   className,
   maxWidth = "7xl",
+  centerTitle = false,
 }) {
   /**
    * Mapeamento de larguras máximas
@@ -38,10 +39,10 @@ export function PageContainer({
       {(title || description) && (
         <div className="mb-6">
           {title && (
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">{title}</h1>
+            <h1 className={`text-3xl font-bold text-gray-900 mb-2 ${centerTitle ? 'text-center' : ''}`}>{title}</h1>
           )}
           {description && (
-            <p className="text-gray-600">{description}</p>
+            <p className={`text-gray-600 ${centerTitle ? 'text-center mx-auto max-w-2xl' : ''}`}>{description}</p>
           )}
         </div>
       )}
