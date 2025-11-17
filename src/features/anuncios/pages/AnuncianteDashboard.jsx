@@ -136,22 +136,22 @@ export function AnuncianteDashboard() {
           embed = v ? `https://www.youtube-nocookie.com/embed/${v}?${params}` : url;
         }
         return (
-          <iframe title="preview" src={embed} frameBorder="0" allowFullScreen className="w-full h-48" />
+            <iframe title="preview" src={embed} frameBorder="0" allowFullScreen className="w-full h-full absolute inset-0" />
         );
       }
     } catch (e) {
       return <div className="p-4 text-sm text-gray-500">URL inválida</div>;
     }
-    if (url.match(/\.(mp4|webm|ogg)$/i)) return <video src={url} controls className="w-full h-48 object-cover" />;
+    if (url.match(/\.(mp4|webm|ogg)$/i)) return <video src={url} controls className="w-full h-64 object-cover" />;
     if (url.match(/\.(jpg|jpeg|png|gif|webp)$/i)) {
       return (
         <img
           src={url}
           alt="preview"
-          className="w-full h-48 object-cover"
+            className="w-full h-full object-cover absolute inset-0"
           onError={(e) => {
             try { e.target.onerror = null; } catch (err) {}
-            e.target.src = getPlaceholderDataUri(800, 400, 'Anúncio Indisponível');
+              e.target.src = getPlaceholderDataUri(1280, 720, 'Anúncio Indisponível');
           }}
         />
       );
@@ -160,10 +160,10 @@ export function AnuncianteDashboard() {
       <img
         src={url}
         alt="preview"
-        className="w-full h-48 object-cover"
+          className="w-full h-full object-cover absolute inset-0"
         onError={(e) => {
           try { e.target.onerror = null; } catch (err) {}
-          e.target.src = getPlaceholderDataUri(800, 400, 'Anúncio Indisponível');
+            e.target.src = getPlaceholderDataUri(1280, 720, 'Anúncio Indisponível');
         }}
       />
     );
@@ -180,22 +180,21 @@ export function AnuncianteDashboard() {
         )}
       />
 
-      <div className="bg-white border-b">
-        <div className="max-w-6xl mx-auto px-4 py-4 flex items-center gap-4">
-          <Logo size="lg" />
+      <div className="bg-gray-100 border-b">
+        <div className="max-w-6xl mx-auto px-4 py-6 flex flex-col items-center text-center gap-2">
           <div>
             <div className="text-xl font-bold">FatecRide Anúncios</div>
-            <div className="text-sm text-gray-500">Painel de marketing e anúncios patrocinados</div>
+            <div className="text-sm text-gray-600">Painel de marketing e anúncios patrocinados</div>
           </div>
         </div>
       </div>
 
       <main className="py-10">
         <div className="max-w-6xl mx-auto px-4">
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className={`grid grid-cols-1 ${activeTab === 'anuncio' ? 'lg:grid-cols-4' : 'lg:grid-cols-3'} gap-10`}>
             <aside className="lg:col-span-1 hidden lg:flex flex-col items-center justify-start p-6 bg-white rounded-lg shadow-md">
               {profile?.logo ? (
-                <img src={profile.logo} alt={profile.nome_fantasia || 'Logo do anunciante'} className="w-28 h-28 object-contain rounded-md shadow-sm" />
+                <img src={profile.logo} alt={profile.nome_fantasia || 'Logo do anunciante'} className="w-36 h-36 object-contain rounded-md shadow-sm" />
               ) : (
                 <Logo size="2xl" />
               )}
@@ -214,7 +213,7 @@ export function AnuncianteDashboard() {
               </div>
             </aside>
 
-            <section className="lg:col-span-2">
+            <section className={`${activeTab === 'anuncio' ? 'lg:col-span-3' : 'lg:col-span-2'}`}>
               <div className="mb-4">
                 <div className="flex items-center gap-3">
                   <div className="flex-1">
@@ -232,7 +231,7 @@ export function AnuncianteDashboard() {
               </div>
 
               {activeTab === 'anuncio' ? (
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                   <Card className="p-4">
                     <h2 className="font-medium mb-2">Editar anúncio</h2>
                     {profile === null ? (
@@ -248,8 +247,21 @@ export function AnuncianteDashboard() {
 
                         <div className="flex justify-between items-center">
                           <div className="flex gap-2">
-                            <Button type="submit" disabled={saving}>{saving ? 'Salvando...' : 'Atualizar'}</Button>
-                            <Button type="button" variant="danger" onClick={handleDelete}>Excluir conta</Button>
+                            <Button type="submit" variant="success" loading={saving} disabled={saving}>
+                              {!saving && (
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                                  <path fillRule="evenodd" d="M16.704 5.043a1 1 0 010 1.414l-8.25 8.25a1 1 0 01-1.414 0l-4.25-4.25a1 1 0 011.414-1.414L7 12.586l7.543-7.543a1 1 0 011.414 0z" clipRule="evenodd" />
+                                </svg>
+                              )}
+                              {saving ? 'Salvando...' : 'Atualizar'}
+                            </Button>
+                            <Button type="button" variant="danger" onClick={handleDelete}>
+                              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                                <path d="M6 2a1 1 0 00-1 1v1H3a1 1 0 100 2h14a1 1 0 100-2h-2V3a1 1 0 00-1-1H6z" />
+                                <path fillRule="evenodd" d="M5 7a1 1 0 011 1v7a2 2 0 002 2h4a2 2 0 002-2V8a1 1 0 112 0v7a4 4 0 01-4 4H8a4 4 0 01-4-4V8a1 1 0 011-1z" clipRule="evenodd" />
+                              </svg>
+                              Excluir conta
+                            </Button>
                           </div>
                         </div>
                       </form>
@@ -258,20 +270,32 @@ export function AnuncianteDashboard() {
                   </Card>
 
                   <div>
-                    <h3 className="text-lg font-medium mb-2">Pré-visualização do Anúncio</h3>
                     <Card className="overflow-hidden">
+                      <div className="p-4 border-b">
+                        <div className="text-lg font-medium">Pré-visualização do Anúncio</div>
+                      </div>
                       <div className="aspect-video w-full bg-black relative">
                         {renderPreviewMedia(form.anuncio)}
                       </div>
-                      <div className="p-3 flex items-center justify-between">
-                        <div>
-                          <div className="text-sm font-semibold">{form.nome_fantasia || form.nome_dono || 'Preview do anunciante'}</div>
-                          <div className="text-xs text-gray-500">{form.descricao_anuncio}</div>
-                          <div className="text-xs text-gray-500 mt-2">Contato: {form.contato || '—'} · {form.email || '—'}</div>
-                        </div>
-                        <div className="flex gap-2">
-                          <a href={form.anuncio || '#'} target="_blank" rel="noopener noreferrer" className="px-3 py-2 bg-fatecride-blue text-white rounded">Abrir anúncio</a>
-                          <button onClick={() => setForm({ ...form, anuncio: '' })} className="px-3 py-2 bg-gray-100 rounded">Limpar</button>
+                      <div className="p-4">
+                        <div className="text-sm font-semibold">{form.nome_fantasia || form.nome_dono || 'Preview do anunciante'}</div>
+                        <div className="text-xs text-gray-500">{form.descricao_anuncio}</div>
+                        <div className="text-xs text-gray-500 mt-2">Contato: {form.contato || '—'} · {form.email || '—'}</div>
+
+                        <div className="mt-4 flex gap-3">
+                          <a href={form.anuncio || '#'} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 px-4 py-2 bg-fatecride-blue text-white rounded">
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                              <path d="M12.293 2.293a1 1 0 011.414 0l4 4a1 1 0 01-1.414 1.414L14 5.414V15a1 1 0 11-2 0V5.414L9.707 7.707A1 1 0 118.293 6.293l4-4z" />
+                              <path d="M3 9a1 1 0 011-1h4a1 1 0 110 2H5v6h10v-3a1 1 0 112 0v4a1 1 0 01-1 1H4a1 1 0 01-1-1V9z" />
+                            </svg>
+                            Abrir anúncio
+                          </a>
+                          <button onClick={() => setForm({ ...form, anuncio: '' })} className="inline-flex items-center gap-2 px-4 py-2 bg-gray-100 rounded">
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-gray-700" viewBox="0 0 20 20" fill="currentColor">
+                              <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                            </svg>
+                            Limpar
+                          </button>
                         </div>
                       </div>
                     </Card>
@@ -297,9 +321,22 @@ export function AnuncianteDashboard() {
                       <Input label="Senha (nova)" placeholder="Senha de acesso" type="password" value={form.senha} onChange={(e) => setForm({ ...form, senha: e.target.value })} />
 
                       <div className="md:col-span-2 flex justify-between mt-2">
-                        <div className="flex gap-2">
-                          <Button type="submit" disabled={saving}>{saving ? 'Salvando...' : 'Atualizar'}</Button>
-                          <Button type="button" variant="danger" onClick={handleDelete}>Excluir conta</Button>
+                          <div className="flex gap-2">
+                          <Button type="submit" variant="success" loading={saving} disabled={saving}>{saving ? 'Salvando...' : (
+                            <>
+                              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                                <path fillRule="evenodd" d="M16.704 5.043a1 1 0 010 1.414l-8.25 8.25a1 1 0 01-1.414 0l-4.25-4.25a1 1 0 011.414-1.414L7 12.586l7.543-7.543a1 1 0 011.414 0z" clipRule="evenodd" />
+                              </svg>
+                              Atualizar
+                            </>
+                          )}</Button>
+                          <Button type="button" variant="danger" onClick={handleDelete}>
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                              <path d="M6 2a1 1 0 00-1 1v1H3a1 1 0 100 2h14a1 1 0 100-2h-2V3a1 1 0 00-1-1H6z" />
+                              <path fillRule="evenodd" d="M5 7a1 1 0 011 1v7a2 2 0 002 2h4a2 2 0 002-2V8a1 1 0 112 0v7a4 4 0 01-4 4H8a4 4 0 01-4-4V8a1 1 0 011-1z" clipRule="evenodd" />
+                            </svg>
+                            Excluir conta
+                          </Button>
                         </div>
                       </div>
                     </form>

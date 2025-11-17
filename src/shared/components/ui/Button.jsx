@@ -6,6 +6,8 @@ const variants = {
     primary: 'bg-red-600 hover:bg-red-700 text-white shadow-md',
     secondary: 'bg-gray-200 hover:bg-gray-300 text-gray-900',
     danger: 'bg-red-600 hover:bg-red-700 text-white',
+    success: 'bg-green-600 hover:bg-green-700 text-white',
+    info: 'bg-blue-600 hover:bg-blue-700 text-white',
     ghost: 'hover:bg-gray-100 text-gray-700',
     outline: 'border-2 border-gray-300 text-gray-700 hover:bg-gray-50'
 };
@@ -38,7 +40,14 @@ export const Button = forwardRef(({
                 'font-semibold rounded-lg',
                 'transition-all duration-200',
                 'disabled:opacity-50 disabled:cursor-not-allowed',
-                'focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2',
+                'focus:outline-none focus:ring-2 focus:ring-offset-2',
+                // ring color per variant (keeps accessibility focus visible)
+                (variant === 'success' && 'focus:ring-green-500') ||
+                (variant === 'info' && 'focus:ring-blue-500') ||
+                (variant === 'secondary' && 'focus:ring-gray-300') ||
+                (variant === 'ghost' && 'focus:ring-gray-300') ||
+                (variant === 'outline' && 'focus:ring-gray-300') ||
+                'focus:ring-red-500',
                 variants[variant],
                 sizes[size],
                 fullWidth && 'w-full',
