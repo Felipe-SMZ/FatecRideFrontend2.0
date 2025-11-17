@@ -4,8 +4,8 @@ import { useAnuncios } from '../hooks/useAnuncios';
 import { Card } from '@shared/components/ui/Card';
 import { Input } from '@shared/components/ui/Input';
 import { Button } from '@shared/components/ui/Button';
-import { Navbar } from '@shared/components/layout/Navbar';
 import { Logo } from '@shared/components/ui/Logo';
+import { Alert } from '@shared/components/ui/Alert';
 
 export function AnuncianteLogin() {
   const navigate = useNavigate();
@@ -32,63 +32,85 @@ export function AnuncianteLogin() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <Navbar showAuthButton={false} />
-      <main className="flex items-center justify-center py-12 px-4">
-        <div className="w-full max-w-4xl">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-center">
-            <aside className="hidden md:flex flex-col items-center justify-center p-6 bg-white/60 rounded-lg shadow-md">
-              <Logo size="xl" />
-              <h2 className="mt-4 text-2xl font-bold">Área do Anunciante</h2>
-              <p className="text-gray-600 mt-2 text-center">Gerencie seus anúncios e acompanhe resultados. Acesse com seu e-mail cadastrado.</p>
-            </aside>
+    <div className="min-h-screen flex">
+      {/* Lado Esquerdo - Azul com Logo e Mensagem (desktop) */}
+      <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-fatecride-blue via-fatecride-blue-dark to-fatecride-blue-darker relative overflow-hidden">
+        <div className="relative z-10 flex flex-col items-center justify-center w-full p-12 text-white text-center">
+          <Logo size="2xl" className="mb-6 drop-shadow-2xl" />
+          <h1 className="text-4xl font-bold mb-2">Área do Anunciante</h1>
+          <p className="text-lg text-white/90">Gerencie seus anúncios e acompanhe seus resultados</p>
+        </div>
+      </div>
 
-            <section>
-              <Card className="p-6">
-                <h3 className="text-lg font-semibold mb-4">Entrar</h3>
-                {error && (
-                  <div className="mb-4 text-sm text-red-700 bg-red-100 p-2 rounded" role="alert">{error}</div>
-                )}
+      {/* Lado Direito - Formulário */}
+      <div className="flex-1 flex items-center justify-center p-8 bg-gray-50">
+        <div className="w-full max-w-md">
+          <div className="lg:hidden flex justify-center mb-8">
+            <Logo size="xl" />
+          </div>
 
-                <form onSubmit={handleSubmit} className="space-y-4" aria-labelledby="anunciante-login">
-                  <Input
-                    label="Email"
-                    placeholder="seu@exemplo.com"
-                    value={email}
-                    name="email"
-                    onChange={(e) => setEmail(e.target.value)}
-                    disabled={isLoggingIn}
-                    helperText="Use o email cadastrado para acessar a área do anunciante"
-                    required
-                  />
+          <div className="bg-white rounded-2xl shadow-xl p-8 border border-gray-100">
+            <h2 className="text-3xl font-bold text-fatecride-blue mb-2">Anunciante</h2>
+            <p className="text-text-secondary mb-6">Acesse sua conta de anunciante</p>
 
-                  <Input
-                    label="Senha"
-                    placeholder="Sua senha"
-                    type="password"
-                    value={senha}
-                    name="senha"
-                    onChange={(e) => setSenha(e.target.value)}
-                    disabled={isLoggingIn}
-                    helperText="Mínimo 6 caracteres"
-                    required
-                  />
+            {error && (
+              <Alert variant="danger" dismissible onClose={() => setError(null)} className="mb-6">{error}</Alert>
+            )}
 
-                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                    <div className="text-sm">
-                      <Link to="/anunciante/register" className="text-blue-600 hover:underline">Ainda não tem conta? Cadastre-se</Link>
-                    </div>
-                    <div className="flex gap-2">
-                      <Button type="submit" loading={isLoggingIn}>{isLoggingIn ? 'Entrando...' : 'Entrar'}</Button>
-                      <Button type="button" variant="secondary" onClick={() => navigate('/anunciante')} disabled={isLoggingIn}>Ir para o Painel</Button>
-                    </div>
-                  </div>
-                </form>
-              </Card>
-            </section>
+            <form onSubmit={handleSubmit} className="space-y-5" aria-labelledby="anunciante-login">
+              <Input
+                label="Email"
+                placeholder="seu@exemplo.com"
+                value={email}
+                name="email"
+                onChange={(e) => setEmail(e.target.value)}
+                disabled={isLoggingIn}
+                required
+              />
+
+              <Input
+                label="Senha"
+                placeholder="Sua senha"
+                type="password"
+                value={senha}
+                name="senha"
+                onChange={(e) => setSenha(e.target.value)}
+                disabled={isLoggingIn}
+                required
+              />
+
+              <div className="text-right">
+                <Link to="/anunciante/forgot" className="text-sm text-fatecride-blue hover:text-fatecride-blue-dark font-semibold">Esqueceu a senha?</Link>
+              </div>
+
+              <Button type="submit" fullWidth disabled={isLoggingIn} size="lg" className="bg-fatecride-blue hover:bg-fatecride-blue-dark transition-colors shadow-md">
+                {isLoggingIn ? 'Entrando...' : 'Entrar'}
+              </Button>
+            </form>
+
+            <div className="relative my-6">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-gray-200"></div>
+              </div>
+              <div className="relative flex justify-center text-sm">
+                <span className="px-4 bg-white text-text-secondary">ou</span>
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              <Link to="/anunciante/register" className="block">
+                <Button type="button" fullWidth className="bg-fatecride-blue hover:bg-fatecride-blue-dark transition-colors">Criar conta de anunciante</Button>
+              </Link>
+
+              <div className="text-center">
+                <Link to="/login" className="inline-block">
+                  <Button type="button" variant="secondary">Login normal</Button>
+                </Link>
+              </div>
+            </div>
           </div>
         </div>
-      </main>
+      </div>
     </div>
   );
 }
