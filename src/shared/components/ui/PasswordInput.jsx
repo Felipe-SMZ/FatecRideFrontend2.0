@@ -1,20 +1,22 @@
 import { useState, forwardRef } from 'react';
 import { Input } from './Input';
-import { FiEye, FiEyeOff } from 'react-icons/fi';
+import { HiOutlineEye, HiOutlineEyeOff } from 'react-icons/hi';
 import { cn } from '@shared/utils/cn';
 
 export const PasswordInput = forwardRef(({ className = '', ...props }, ref) => {
   const [show, setShow] = useState(false);
   const toggle = () => setShow(s => !s);
 
-  const EyeButton = ({ className: iconClass }) => (
+  // RightIcon expects a component that accepts className
+  const EyeButton = ({ className: iconClass = '' }) => (
     <button
       type="button"
       onClick={toggle}
       aria-label={show ? 'Ocultar senha' : 'Mostrar senha'}
-      className={cn(iconClass, 'text-gray-500 hover:text-gray-700 focus:outline-none')}
+      title={show ? 'Ocultar senha' : 'Mostrar senha'}
+      className={cn(iconClass, 'inline-flex items-center justify-center p-1 rounded focus:ring-2 focus:ring-offset-1 focus:ring-primary')}
     >
-      {show ? <FiEyeOff className="w-5 h-5" /> : <FiEye className="w-5 h-5" />}
+      {show ? <HiOutlineEyeOff className="w-5 h-5 text-gray-600" /> : <HiOutlineEye className="w-5 h-5 text-gray-600" />}
     </button>
   );
 
