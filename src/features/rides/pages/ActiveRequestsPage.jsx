@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
 import { FiMapPin, FiClock, FiUser, FiMessageCircle } from 'react-icons/fi';
 import { Card } from '@shared/components/ui/Card';
+import { PageContainer } from '@shared/components/layout/PageContainer';
 import { Button } from '@shared/components/ui/Button';
 import { EmptyState } from '@shared/components/ui/EmptyState';
 import { Spinner } from '@shared/components/ui/Spinner';
@@ -224,18 +225,14 @@ export function ActiveRequestsPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      
-      <div className="max-w-4xl mx-auto p-6">
-        {/* Header */}
-        <div className="mb-6">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">
-            Solicitações Ativas
-          </h1>
-          <p className="text-gray-600">
-            Suas caronas aceitas pelos motoristas
-          </p>
-        </div>
+    <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white pt-2">
+      <PageContainer
+        title="Solicitações Ativas"
+        description="Suas caronas aceitas pelos motoristas"
+        centerTitle={true}
+        maxWidth="full"
+        className="max-w-screen-2xl px-6 py-2"
+      >
 
         {/* Lista de Solicitações */}
         {loading ? (
@@ -322,7 +319,7 @@ export function ActiveRequestsPage() {
                 <div className="flex justify-end">
                   <Button
                     onClick={() => handleOpenChat(request)}
-                    className="bg-fatecride-blue hover:bg-fatecride-blue-dark"
+                    variant="info"
                   >
                     <FiMessageCircle className="mr-2" />
                     Chat com Motorista
@@ -332,7 +329,7 @@ export function ActiveRequestsPage() {
             ))}
           </div>
         )}
-      </div>
+      </PageContainer>
 
       {/* Modal de Chat */}
       {openChat && (
