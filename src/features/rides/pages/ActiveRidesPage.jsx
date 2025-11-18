@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
-import { FiTruck, FiMessageCircle } from 'react-icons/fi';
+import { FiMessageCircle } from 'react-icons/fi';
+import { FaCar } from 'react-icons/fa';
 import { Card } from '@shared/components/ui/Card';
 import { Button } from '@shared/components/ui/Button';
 import { EmptyState } from '@shared/components/ui/EmptyState';
@@ -316,7 +317,7 @@ export function ActiveRidesPage() {
                       : 'text-gray-600 hover:bg-gray-100'
                   }`}
                 >
-                  <FiTruck className="inline mr-2" />
+                  <FaCar className="inline mr-2" />
                   Minhas Caronas
                 </button>
                 <button
@@ -361,7 +362,7 @@ export function ActiveRidesPage() {
             <Card className="p-8 text-center">
               <div className="max-w-md mx-auto">
                 <div className="w-20 h-20 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <FiTruck className="w-10 h-10 text-fatecride-blue" />
+                  <FaCar className="w-10 h-10 text-fatecride-blue" />
                 </div>
                 <h2 className="text-2xl font-bold text-gray-900 mb-3">
                   Esta página é para Motoristas
@@ -391,7 +392,7 @@ export function ActiveRidesPage() {
           {/* Empty State - Nenhuma carona (motoristas, ambos ou tipo indefinido) */}
           {!loading && !isPassenger && rides.length === 0 && (
             <EmptyState
-              icon={FiTruck}
+              icon={FaCar}
               title="Nenhuma carona ativa"
               description="Você não possui caronas ativas no momento"
               action={{

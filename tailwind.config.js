@@ -19,6 +19,12 @@ export default {
           dark: '#002966',
           light: '#f5f9ff'
         },
+        // Superfícies sutis para destacar cards/formulários sem perder branco
+        surface: {
+          DEFAULT: '#fbfcfe', // leve off-white
+          soft: '#f7f9fb',    // ainda mais suave
+          muted: '#f3f6f9'    // para seções menos destacadas
+        },
         text: {
           primary: '#333333',
           secondary: '#666666',

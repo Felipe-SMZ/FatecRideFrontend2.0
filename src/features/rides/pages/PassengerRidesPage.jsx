@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
-import { FiMapPin, FiClock, FiTruck, FiMessageCircle } from 'react-icons/fi';
+import { FiMapPin, FiClock, FiMessageCircle } from 'react-icons/fi';
+import { FaCar } from 'react-icons/fa';
 import { Card } from '@shared/components/ui/Card';
 import { Button } from '@shared/components/ui/Button';
 import { EmptyState } from '@shared/components/ui/EmptyState';
@@ -129,7 +130,7 @@ export function PassengerRidesPage() {
 
         {requests.length === 0 ? (
           <EmptyState
-            icon={FiTruck}
+            icon={FaCar}
             title="Nenhuma solicitação"
             description="Você ainda não solicitou nenhuma carona"
             action={{
@@ -165,7 +166,7 @@ export function PassengerRidesPage() {
                       </div>
                       {request.nome_motorista && (
                         <div className="flex items-center gap-2">
-                          <FiTruck className="w-4 h-4" />
+                          <FaCar className="w-4 h-4" />
                           <span><strong>Motorista:</strong> {request.nome_motorista}</span>
                         </div>
                       )}

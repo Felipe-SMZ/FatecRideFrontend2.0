@@ -4,7 +4,8 @@ import { useForm } from 'react-hook-form';
 import { Card } from '@shared/components/ui/Card';
 import { Input } from '@shared/components/ui/Input';
 import { Button } from '@shared/components/ui/Button';
-import { FiMapPin, FiTruck } from 'react-icons/fi';
+import { FiMapPin } from 'react-icons/fi';
+import { FaCar } from 'react-icons/fa';
 import { useVehicles } from '@features/vehicles/hooks/useVehicles';
 
 export function RideForm({ onGenerateRoute, onSubmit, isLoading }) {

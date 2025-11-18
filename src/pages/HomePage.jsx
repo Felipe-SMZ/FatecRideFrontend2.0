@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
-import { FiMapPin, FiTruck, FiUser, FiClock } from "react-icons/fi";
+import { FiMapPin, FiUser, FiClock } from "react-icons/fi";
+import { FaCar } from 'react-icons/fa';
 import { PageContainer } from "@shared/components/layout/PageContainer";
 import { Card } from "@shared/components/ui/Card";
 import { useAuthStore } from "@features/auth/stores/authStore";
@@ -32,7 +33,7 @@ export function HomePage() {
     },
     {
       to: "/oferecer-carona",
-      icon: FiTruck,
+      icon: FaCar,
       title: "Oferecer carona",
       description: "Cadastre uma nova carona",
       color: "green",
@@ -40,7 +41,7 @@ export function HomePage() {
     },
     {
       to: "/meus-veiculos",
-      icon: FiTruck,
+      icon: FaCar,
       title: "Meus veículos",
       description: "Gerencie seus veículos",
       color: "purple",

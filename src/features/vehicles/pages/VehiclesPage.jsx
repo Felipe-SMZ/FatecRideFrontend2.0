@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { HiPlus, HiPencil, HiTrash, HiUserGroup } from "react-icons/hi";
-import { MdDriveEta } from 'react-icons/md';
+import { HiPlus, HiPencil, HiTrash } from "react-icons/hi";
+import { FaCar } from 'react-icons/fa';
 import { PageContainer } from "@shared/components/layout/PageContainer";
 import { Card } from "@shared/components/ui/Card";
 import { Button } from "@shared/components/ui/Button";
@@ -97,7 +97,7 @@ export function VehiclesPage() {
         title="Meus Veículos"
         description="Gerencie os veículos cadastrados para oferecer caronas"
       >
-      {/* Botão de adicionar novo veículo */}
+      {/* Botão de adicionar novo veículo (mantém apenas ação, título vem do PageContainer) */}
       <div className="mb-6 flex items-center justify-end">
         <Button
           onClick={() => {
@@ -114,46 +114,46 @@ export function VehiclesPage() {
       {/* Lista de veículos ou empty state */}
       {vehicles.length === 0 ? (
         <EmptyState
-          icon={MdDriveEta}
+          icon={FaCar}
           title="Nenhum veículo cadastrado"
           description="Adicione um veículo para começar a oferecer caronas"
           action={
             <Button onClick={() => setModalOpen(true)} className="gap-2">
-              <HiPlus className="w-4 h-4" /> Adicionar primeiro veículo
+              <HiPlus /> Adicionar primeiro veículo
             </Button>
           }
         />
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-8">
           {vehicles.map((vehicle) => (
-            <Card key={vehicle.id} className="flex flex-col hover:shadow-lg transform hover:-translate-y-1 transition">
+            <Card key={vehicle.id} className="flex flex-col hover:shadow-lg transform hover:-translate-y-1 transition p-8 min-h-[220px]">
               <div className="relative">
                 <div className="absolute right-3 top-3 flex items-center gap-2">
                   <button
                     onClick={() => handleEdit(vehicle)}
                     aria-label={`Editar ${vehicle.modelo}`}
                     title="Editar"
-                    className="inline-flex items-center justify-center w-9 h-9 rounded-full bg-white border border-gray-200 shadow-sm hover:bg-gray-50"
+                    className="inline-flex items-center justify-center w-10 h-10 rounded-full bg-white border border-gray-200 shadow-sm hover:bg-gray-50"
                   >
-                    <HiPencil className="w-4 h-4 text-gray-700" />
+                    <HiPencil className="w-5 h-5 text-gray-700" />
                   </button>
                   <button
                     onClick={() => setDeleteConfirm(vehicle)}
                     aria-label={`Excluir ${vehicle.modelo}`}
                     title="Excluir"
-                    className="inline-flex items-center justify-center w-9 h-9 rounded-full bg-white border border-gray-200 shadow-sm hover:bg-red-50"
+                    className="inline-flex items-center justify-center w-10 h-10 rounded-full bg-white border border-gray-200 shadow-sm hover:bg-red-50"
                   >
-                    <HiTrash className="w-4 h-4 text-red-600" />
+                    <HiTrash className="w-5 h-5 text-red-600" />
                   </button>
                 </div>
 
                 <div className="flex items-center gap-3 p-4">
                   <div className="w-12 h-12 bg-gradient-to-br from-gray-100 to-gray-50 rounded-lg flex items-center justify-center">
-                    <MdDriveEta className="w-6 h-6 text-gray-700" />
+                    <FaCar className="w-6 h-6 text-gray-700" />
                   </div>
                   <div>
-                    <h3 className="font-semibold text-lg text-gray-900">{vehicle.modelo}</h3>
-                    <p className="text-sm text-gray-600 uppercase tracking-wider">{vehicle.placa}</p>
+                    <h3 className="font-semibold text-lg">{vehicle.modelo}</h3>
+                    <p className="text-sm text-gray-500 uppercase">{vehicle.placa}</p>
                   </div>
                 </div>
               </div>
@@ -162,20 +162,16 @@ export function VehiclesPage() {
                 <div className="grid grid-cols-2 gap-2 text-sm text-gray-600">
                   <div>
                     <div className="text-xs text-gray-500">Cor</div>
-                    <div className="font-medium text-base text-gray-800">{vehicle.cor || '—'}</div>
+                    <div className="font-medium text-gray-800">{vehicle.cor || '—'}</div>
                   </div>
                   <div>
                     <div className="text-xs text-gray-500">Ano</div>
-                    <div className="font-medium text-base text-gray-800">{vehicle.ano || '—'}</div>
+                    <div className="font-medium text-gray-800">{vehicle.ano || '—'}</div>
                   </div>
                 </div>
 
-                <div className="mt-4 flex items-center gap-2">
-                  <Badge variant="primary" size="lg" className="flex items-center gap-2">
-                    <HiUserGroup className="w-4 h-4 text-blue-700" />
-                    <span className="font-semibold">{vehicle.vagas_disponiveis ?? '—'}</span>
-                    <span className="text-xs text-blue-800">passageiros</span>
-                  </Badge>
+                <div className="mt-4">
+                  <Badge variant="primary">{vehicle.vagas_disponiveis ?? vehicle.capacidade ?? '—'} passageiros</Badge>
                 </div>
               </div>
             </Card>
