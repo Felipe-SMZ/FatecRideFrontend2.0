@@ -92,10 +92,13 @@ export function VehiclesPage() {
   }
 
   return (
-    <>
+    <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white pt-2">
       <PageContainer
         title="Meus Veículos"
         description="Gerencie os veículos cadastrados para oferecer caronas"
+        centerTitle={true}
+        maxWidth="full"
+        className="max-w-screen-2xl px-6 py-2"
       >
       {/* Botão de adicionar novo veículo (mantém apenas ação, título vem do PageContainer) */}
       <div className="mb-6 flex items-center justify-end">
@@ -226,15 +229,15 @@ export function VehiclesPage() {
             <Button
               onClick={handleDelete}
               disabled={isDeleting}
-              className="bg-red-600 hover:bg-red-700"
+              variant="danger"
             >
               {isDeleting ? "Excluindo..." : "Excluir"}
             </Button>
           </div>
         </div>
       </Modal>
-    </PageContainer>
-    </>
+      </PageContainer>
+    </div>
   );
 }
 

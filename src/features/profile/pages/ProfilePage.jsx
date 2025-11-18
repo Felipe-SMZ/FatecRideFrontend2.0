@@ -968,7 +968,7 @@ export function ProfilePage() {
 
           <Button
             onClick={() => setShowDeleteModal(true)}
-            className="bg-red-600 hover:bg-red-700 text-white"
+            variant="danger"
           >
             <FiTrash2 className="w-4 h-4 mr-2" />
             Excluir minha conta
@@ -1003,14 +1003,16 @@ export function ProfilePage() {
             <div className="flex gap-3">
               <Button
                 onClick={() => setShowDeleteModal(false)}
-                className="flex-1 bg-gray-500 hover:bg-gray-600"
+                variant="outline"
+                className="flex-1"
               >
                 Cancelar
               </Button>
               <Button
                 onClick={handleDeleteAccount}
                 disabled={loading}
-                className="flex-1 bg-red-600 hover:bg-red-700"
+                variant="danger"
+                className="flex-1"
               >
                 {loading ? 'Excluindo...' : 'Sim, excluir conta'}
               </Button>

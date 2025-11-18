@@ -222,7 +222,7 @@ export const Navbar = ({ showAuthButton = false, extraNode = null, disableLogoLi
                   <button
                     type="button"
                     onClick={() => navigate('/login')}
-                    className="bg-red-600 hover:bg-red-700 text-white font-semibold px-6 py-2 rounded-lg transition-colors"
+                    className="bg-fatecride-blue hover:bg-fatecride-blue-dark text-white font-semibold px-6 py-2 rounded-lg transition-colors"
                   >
                     Entrar
                   </button>
