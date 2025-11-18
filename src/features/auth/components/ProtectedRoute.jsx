@@ -38,14 +38,10 @@ export function ProtectedRoute({ children, requiredRole }) {
   // Nota: user.tipo pode ser 'MOTORISTA', 'PASSAGEIRO' ou 'AMBOS'
   if (requiredRole) {
     const userType = user?.tipo;
-    
-    // Se o tipo é AMBOS, permite acesso a qualquer rota
-    if (userType === 'AMBOS') {
-      return children;
-    }
-    
-    // Caso contrário, verifica se o tipo corresponde ao requerido
-    if (userType !== requiredRole) {
+
+    // Permite acesso se o usuário tem o role requerido ou for 'AMBOS'.
+    // Caso contrário, redireciona para a tela inicial.
+    if (userType !== requiredRole && userType !== 'AMBOS') {
       return <Navigate to="/inicio" replace />;
     }
   }
