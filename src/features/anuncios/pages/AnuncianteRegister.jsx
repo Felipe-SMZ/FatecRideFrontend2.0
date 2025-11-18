@@ -4,6 +4,7 @@ import { criarAnunciante } from '../services/anunciosService';
 import toast from 'react-hot-toast';
 import { Card } from '@shared/components/ui/Card';
 import { Input } from '@shared/components/ui/Input';
+import { PasswordInput } from '@shared/components/ui/PasswordInput';
 import { Button } from '@shared/components/ui/Button';
 import { Navbar } from '@shared/components/layout/Navbar';
 import { Logo } from '@shared/components/ui/Logo';
@@ -112,7 +113,7 @@ export function AnuncianteRegister() {
                     <Input label="Contato" placeholder="(XX) XXXXX-XXXX" value={form.contato} onChange={handleChange('contato')} />
                     <Input label="Email" placeholder="seu@exemplo.com" value={form.email} onChange={handleChange('email')} required />
 
-                    <Input label="Senha" placeholder="Senha de acesso" type="password" value={form.senha} onChange={handleChange('senha')} helperText="Use uma senha segura (mín. 6 caracteres)" required />
+                    <PasswordInput label="Senha" placeholder="Senha de acesso" value={form.senha} onChange={handleChange('senha')} helperText="Use uma senha segura (mín. 6 caracteres)" required />
 
                     <Input label="Anúncio (URL ou YouTube)" placeholder="https://... or https://youtube.com/watch?v=..." value={form.anuncio} onChange={handleChange('anuncio')} helperText="Link para imagem, vídeo direto (mp4) ou YouTube" />
 

@@ -4,6 +4,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Input } from "@shared/components/ui/Input";
+import { PasswordInput } from "@shared/components/ui/PasswordInput";
 import { Button } from "@shared/components/ui/Button";
 import { Select } from "@shared/components/ui/Select";
 import { Alert } from "@shared/components/ui/Alert";
@@ -247,17 +248,15 @@ export function RegisterPage() {
               <h3 className="font-bold text-fatecride-blue text-lg">Segurança</h3>
             </div>
             
-            <Input
+            <PasswordInput
               label="Senha"
-              type="password"
               placeholder="Mínimo 6 caracteres"
               error={errors.senha?.message}
               {...register("senha")}
             />
 
-            <Input
+            <PasswordInput
               label="Confirmar Senha"
-              type="password"
               placeholder="Digite a senha novamente"
               error={errors.confirmarSenha?.message}
               {...register("confirmarSenha")}

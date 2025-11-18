@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAnuncios } from '../hooks/useAnuncios';
 import { Card } from '@shared/components/ui/Card';
 import { Input } from '@shared/components/ui/Input';
+import { PasswordInput } from '@shared/components/ui/PasswordInput';
 import { Button } from '@shared/components/ui/Button';
 import { Logo } from '@shared/components/ui/Logo';
 import { Alert } from '@shared/components/ui/Alert';
@@ -68,10 +69,9 @@ export function AnuncianteLogin() {
                 required
               />
 
-              <Input
+              <PasswordInput
                 label="Senha"
                 placeholder="Sua senha"
-                type="password"
                 value={senha}
                 name="senha"
                 onChange={(e) => setSenha(e.target.value)}

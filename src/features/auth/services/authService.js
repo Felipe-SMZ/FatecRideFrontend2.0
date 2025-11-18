@@ -37,6 +37,12 @@ export const authService = {
     },
 
     updateUser: async (userData) => {
+        // DEBUG: log payload to verify `rawPassword` is present (remove in production)
+        try {
+            console.log('DEBUG authService.updateUser payload:', JSON.parse(JSON.stringify(userData)));
+        } catch (e) {
+            console.log('DEBUG authService.updateUser payload (stringify failed):', userData);
+        }
         const { data } = await api.put('/users', userData);
         return data;
     },

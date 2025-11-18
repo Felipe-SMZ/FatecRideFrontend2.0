@@ -4,6 +4,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Input } from "@shared/components/ui/Input";
+import { PasswordInput } from "@shared/components/ui/PasswordInput";
 import { Button } from "@shared/components/ui/Button";
 import { Alert } from "@shared/components/ui/Alert";
 import { Logo } from "@shared/components/ui/Logo";
@@ -109,9 +110,8 @@ export function LoginPage() {
                 {...register("email")}
               />
 
-              <Input
+              <PasswordInput
                 label="Senha"
-                type="password"
                 placeholder="••••••••"
                 error={errors.senha?.message}
                 {...register("senha")}

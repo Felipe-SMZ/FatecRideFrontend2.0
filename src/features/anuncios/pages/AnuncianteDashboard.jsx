@@ -11,6 +11,7 @@ import {
 } from '../services/anunciosService';
 import { Card } from '@shared/components/ui/Card';
 import { Input } from '@shared/components/ui/Input';
+import { PasswordInput } from '@shared/components/ui/PasswordInput';
 import { Button } from '@shared/components/ui/Button';
 import AnuncioViewer from '../components/AnuncioViewer';
 import { getPlaceholderDataUri } from '../utils/placeholder';
@@ -39,6 +40,7 @@ export function AnuncianteDashboard() {
     contato: '',
     email: '',
     senha: '',
+    senhaAtual: '',
     anuncio: '',
     quantidade_alcance: '',
   });
@@ -78,7 +80,22 @@ export function AnuncianteDashboard() {
     e.preventDefault();
     setSaving(true);
     try {
+      // exigir senha atual para confirmar atualização
+      if (!form.senhaAtual) {
+        toast.error('Digite sua senha atual para confirmar a atualização');
+        setSaving(false);
+        return;
+      }
+
       const payload = { ...form, quantidade_alcance: Number(form.quantidade_alcance) };
+
+      // Não enviar senha vazia ao backend — remover a propriedade se for string vazia
+      if (payload.senha === "" || payload.senha == null) {
+        delete payload.senha;
+      }
+
+      // Incluir a senha atual para confirmação no backend (campo esperado: rawPassword)
+      payload.rawPassword = form.senhaAtual;
       try {
         await atualizarAnuncianteParcial(payload);
         toast.success('Anúncio atualizado (parcial) com sucesso');
@@ -101,7 +118,8 @@ export function AnuncianteDashboard() {
         endereco_dono: fresh?.endereco_dono ?? fresh?.['endereço_dono'],
       };
       setProfile(normalized || {});
-      setForm((f) => ({ ...f, ...(normalized || {}) }));
+      // preservar os campos do profile, mas limpar senhas sensíveis
+      setForm((f) => ({ ...f, ...(normalized || {}), senha: '', senhaAtual: '' }));
       if (refetchAd) refetchAd();
     } catch (err) {
       toast.error('Erro ao atualizar: ' + (err.message || err));
@@ -244,6 +262,7 @@ export function AnuncianteDashboard() {
                           <Input label="Descrição do anúncio" placeholder="Breve descrição" value={form.descricao_anuncio} onChange={(e) => setForm({ ...form, descricao_anuncio: e.target.value })} />
                           <Input label="Anúncio (URL ou YouTube)" placeholder="https://..." value={form.anuncio} onChange={(e) => setForm({ ...form, anuncio: e.target.value })} />
                           <Input label="Quantidade alcance" placeholder="Número" value={form.quantidade_alcance} onChange={(e) => setForm({ ...form, quantidade_alcance: e.target.value })} />
+                          <PasswordInput label="Senha atual (obrigatória)" placeholder="Digite sua senha atual" value={form.senhaAtual} onChange={(e) => setForm({ ...form, senhaAtual: e.target.value })} />
                         </div>
 
                         <div className="flex justify-between items-center">
@@ -319,7 +338,8 @@ export function AnuncianteDashboard() {
                       <Input label="Endereço do dono" placeholder="Endereço residencial (opcional)" value={form.endereco_dono} onChange={(e) => setForm({ ...form, endereco_dono: e.target.value })} />
                       <Input label="Contato" placeholder="(XX) XXXXX-XXXX" value={form.contato} onChange={(e) => setForm({ ...form, contato: e.target.value })} />
                       <Input label="Email" placeholder="seu@exemplo.com" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
-                      <Input label="Senha (nova)" placeholder="Senha de acesso" type="password" value={form.senha} onChange={(e) => setForm({ ...form, senha: e.target.value })} />
+                      <PasswordInput label="Senha atual (obrigatória)" placeholder="Digite sua senha atual" value={form.senhaAtual} onChange={(e) => setForm({ ...form, senhaAtual: e.target.value })} />
+                      <PasswordInput label="Senha (nova)" placeholder="Senha de acesso" value={form.senha} onChange={(e) => setForm({ ...form, senha: e.target.value })} />
 
                       <div className="md:col-span-2 flex justify-between mt-2">
                           <div className="flex gap-2">

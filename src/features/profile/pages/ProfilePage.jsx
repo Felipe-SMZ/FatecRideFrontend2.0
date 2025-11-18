@@ -3,6 +3,7 @@ import { PageContainer } from "@shared/components/layout/PageContainer";
 import { Card } from "@shared/components/ui/Card";
 import { Button } from "@shared/components/ui/Button";
 import { Input } from "@shared/components/ui/Input";
+import { PasswordInput } from "@shared/components/ui/PasswordInput";
 import { useAuthStore } from "@features/auth/stores/authStore";
 import { authService } from "@features/auth/services/authService";
 import { addressService } from "@features/profile/services/addressService";
@@ -39,7 +40,8 @@ export function ProfilePage() {
     email: "",
     foto: "",
     senha: "",
-    confirmarSenha: ""
+    confirmarSenha: "",
+    senhaAtual: ""
   });
   
   // Estado para endereço
@@ -109,7 +111,8 @@ export function ProfilePage() {
         email: userData.email || "",
         foto: userData.foto || "",
         senha: "",
-        confirmarSenha: ""
+        confirmarSenha: "",
+        senhaAtual: ""
       });
       
       // Buscar endereço do endpoint separado GET /address
@@ -319,30 +322,42 @@ export function ProfilePage() {
         }
       }
 
+      // Exigir que o usuário informe a senha atual para confirmar a atualização
+      if (!personalData.senhaAtual) {
+        toast.error('Digite sua senha atual para confirmar a atualização');
+        setLoading(false);
+        return;
+      }
+
       const cleanPhone = personalData.telefone.replace(/\D/g, '');
       
       // Buscar dados completos do usuário para não perder informações
       const currentUserData = await authService.getCurrentUser();
       console.log('📋 Dados atuais completos:', currentUserData);
       
-      // Backend exige TODOS os campos do UserBaseDTO:
-      // nome, sobrenome, email, senha, telefone, foto, userTypeId, genderId, courseId
+      // Preparar payload: enviar a senha atual para confirmação (`senhaAtual`)
+      // e enviar `senha` somente se o usuário informou uma nova senha.
       const updateData = {
         nome: personalData.nome,
         sobrenome: personalData.sobrenome,
         email: currentUserData.email, // Não pode ser alterado
-        // Se nova senha foi informada, usar ela; senão manter a atual
-        senha: personalData.senha || currentUserData.senha,
         telefone: cleanPhone,
         foto: personalData.foto || currentUserData.foto || "",
         userTypeId: currentUserData.userTypeId,
         genderId: currentUserData.genderId,
-        courseId: currentUserData.courseId
+        courseId: currentUserData.courseId,
+        // enviar campo compatível com o backend
+        rawPassword: personalData.senhaAtual
       };
+
+      if (personalData.senha) {
+        updateData.senha = personalData.senha;
+      }
 
       console.log('📤 Enviando para PUT /users:', {
         ...updateData,
-        senha: personalData.senha ? '***NOVA SENHA***' : '***SENHA ATUAL***'
+        senha: personalData.senha ? '***NOVA SENHA***' : '***SEM ALTERAÇÃO DE SENHA***',
+        rawPassword: '***SENHA ATUAL***'
       });
       
       const response = await authService.updateUser(updateData);
@@ -365,7 +380,8 @@ export function ProfilePage() {
       setPersonalData(prev => ({
         ...prev,
         senha: "",
-        confirmarSenha: ""
+        confirmarSenha: "",
+        senhaAtual: ""
       }));
       
       await loadUserData();
@@ -692,10 +708,21 @@ export function ProfilePage() {
                   <>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Senha atual (obrigatória)
+                      </label>
+                      <PasswordInput
+                        value={personalData.senhaAtual}
+                        onChange={(e) => handlePersonalChange('senhaAtual', e.target.value)}
+                        placeholder="Digite sua senha atual"
+                        autoComplete="current-password"
+                      />
+                      <p className="text-xs text-gray-500 mt-1">Para confirmar as alterações, informe sua senha atual.</p>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
                         Nova Senha (opcional)
                       </label>
-                      <Input 
-                        type="password"
+                      <PasswordInput
                         value={personalData.senha} 
                         onChange={(e) => handlePersonalChange('senha', e.target.value)}
                         placeholder="Deixe em branco para manter a atual"
@@ -708,8 +735,7 @@ export function ProfilePage() {
                       <label className="block text-sm font-medium text-gray-700 mb-1">
                         Confirmar Nova Senha
                       </label>
-                      <Input 
-                        type="password"
+                      <PasswordInput
                         value={personalData.confirmarSenha} 
                         onChange={(e) => handlePersonalChange('confirmarSenha', e.target.value)}
                         placeholder="Repita a nova senha"
