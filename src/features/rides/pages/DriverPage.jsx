@@ -137,15 +137,15 @@ export function DriverPage() {
     };
 
     return (
-        <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white pt-16">
-            <PageContainer>
+        <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white pt-2">
+            <PageContainer centerTitle={true} maxWidth="full" className="max-w-screen-2xl px-6 py-2">
                     <div className="py-6">
-                        <h1 className="text-3xl font-bold text-gray-900 mb-6 text-center">
+                        <h1 className="text-3xl font-bold text-fatecride-blue mb-6 text-center">
                             Oferecer Carona 🚗
                         </h1>
-                        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
                         {/* Coluna do Mapa */}
-                        <div className="lg:col-span-1 flex justify-center">
+                        <div className="lg:col-span-4 flex justify-center">
                             <Card className="p-0 overflow-hidden h-[520px] w-[520px] max-w-full relative z-0">
                                 <MapView
                                     origin={originCoords ? { ...originCoords, label: 'Origem' } : null}
@@ -177,10 +177,10 @@ export function DriverPage() {
                         </div>
 
                         {/* Coluna do Formulário */}
-                        <div className="lg:col-span-1">
+                        <div className="lg:col-span-4">
                             <Card>
                                 <div className="p-6">
-                                    <h2 className="text-xl md:text-2xl font-bold text-gray-900 mb-4 leading-tight whitespace-nowrap">Para onde vamos?</h2>
+                                    <h2 className="text-2xl font-semibold text-fatecride-blue mb-4 leading-tight">Para onde vamos?</h2>
 
                                     <div className="space-y-4">
                                         {/* Origem com Autocomplete */}
@@ -254,8 +254,8 @@ export function DriverPage() {
                         </div>
 
                         {/* Coluna do Anúncio */}
-                        <div className="lg:col-span-1">
-                            <div className="sticky top-24">
+                        <div className="lg:col-span-4">
+                            <div className="sticky top-16">
                                 <AnuncioViewerCompact className="w-full rounded-lg overflow-hidden" />
                             </div>
                         </div>
