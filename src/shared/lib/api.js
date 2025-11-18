@@ -4,13 +4,20 @@ import { useAuthStore } from '@features/auth/stores/authStore';
 import { toast } from 'react-hot-toast';
 import { checkTokenExpiration, clearExpiredToken } from '@shared/utils/tokenUtils';
 
+const resolvedDefaultBase = (typeof window !== 'undefined' && window.location)
+  ? `${window.location.protocol}//${window.location.host}`
+  : 'http://localhost:3000';
+
 const api = axios.create({
-    baseURL: import.meta.env.VITE_API_URL || 'http://localhost:8080',
+    baseURL: import.meta.env.VITE_API_URL || resolvedDefaultBase,
     timeout: 15000,
     headers: {
         'Content-Type': 'application/json'
     }
 });
+
+// Debug: mostrar baseURL efetiva para facilitar diagnóstico durante dev
+try { console.debug('api: baseURL =', api.defaults.baseURL); } catch (e) {}
 
 // Request interceptor - verifica expiração antes de enviar
 api.interceptors.request.use(

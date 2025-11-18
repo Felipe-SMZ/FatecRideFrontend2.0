@@ -3,6 +3,8 @@ import { useEffect, useCallback, useRef } from 'react';
 import { useAuthStore } from '@features/auth/stores/authStore';
 import { useChatStore } from '../stores/chatStore';
 import websocketService from '../services/websocketService';
+import { chatService } from '../services/chatService';
+import { ridesService } from '@features/rides/services/ridesService';
 
 /**
  * Hook para gerenciar chat com WebSocket
@@ -42,7 +44,7 @@ export function useChat() {
         return obj.mensagem || obj.message || obj.data || obj.payload || obj.msg || null;
       };
 
-      if (data.tipo === 'mensagem_recebida') {
+          if (data.tipo === 'mensagem_recebida') {
         const incoming = extractMessagePayload(data);
         if (!incoming) {
           console.warn('⚠️ mensagem_recebida sem payload esperado:', data);
@@ -61,6 +63,18 @@ export function useChat() {
 
           const { addMessage, incrementUnread } = useChatStore.getState();
           addMessage(msg);
+
+          // Persistir mapeamento id_solicitacao -> participantes para fallback
+          try {
+            if (msg.id_solicitacao) {
+              const motorista = Number(msg.id_sender) || null;
+              const passageiro = Number(msg.id_receiver) || null;
+              ridesService.saveSolicitacaoMapping(msg.id_solicitacao, { motorista, passageiro });
+              console.log('💾 mapeamento salvo via useChat (mensagem_recebida):', { id_solicitacao: msg.id_solicitacao, motorista, passageiro });
+            }
+          } catch (e) {
+            console.warn('Falha ao salvar mapeamento via useChat:', e?.message || e);
+          }
 
           if (window.location.pathname !== `/chat/${msg.id_solicitacao}`) {
             incrementUnread(msg.id_solicitacao);
@@ -145,12 +159,7 @@ export function useChat() {
   /**
    * Enviar mensagem
    */
-  const sendMessage = useCallback((message) => {
-    if (!websocketService.isConnected()) {
-      console.warn('⚠️ sendMessage chamado, mas WebSocket não está conectado');
-      throw new Error('WebSocket não está conectado');
-    }
-
+  const sendMessage = useCallback(async (message) => {
     // Normalizar o payload antes de enviar
     const safePayload = {
       receiver: message.receiver != null ? Number(message.receiver) : message.receiver,
@@ -159,25 +168,53 @@ export function useChat() {
       data: message.data || new Date().toISOString()
     };
 
-    // Tenta enviar via WebSocket e logar resultado
-    try {
-      const sent = websocketService.sendMessage(safePayload);
-      console.log('useChat.sendMessage -> websocketService.sendMessage retornou:', sent);
-    } catch (err) {
-      console.error('useChat.sendMessage -> erro ao enviar via WS, deve tratar fallback externamente:', err);
-      throw err;
-    }
+    const tokenToUse = messagesToken || token;
 
-    // Adicionar mensagem localmente (optimistic update)
+    // Tentar enviar via WS quando conectado; caso contrário, usar REST. Aguadar resultados para consistência.
     const senderId = user?.id_usuario ?? user?.id ?? user?.userId ?? null;
-    addMessage({
+    const localMsgTemplate = {
       id_sender: senderId != null ? Number(senderId) : senderId,
       id_receiver: safePayload.receiver,
       id_solicitacao: safePayload.id_solicitacao,
       message: safePayload.message,
       data: safePayload.data,
       _id: `temp-${Date.now()}`
-    });
+    };
+
+    try {
+      if (websocketService.isConnected()) {
+        console.log('useChat.sendMessage -> enviando via WS', safePayload);
+        websocketService.sendMessage(safePayload);
+        // optimistic add
+        addMessage(localMsgTemplate);
+        return { via: 'ws' };
+      }
+
+      // WS não conectado -> enviar por REST
+      console.log('useChat.sendMessage -> WS desconectado, usando REST', safePayload);
+      const resp = await chatService.sendMessage(safePayload, tokenToUse);
+      // se backend retornou o objeto persistido, use-o; caso contrário, usa optimistic local
+      const persisted = resp && (resp.data || resp.message || resp);
+      if (persisted && typeof persisted === 'object') {
+        const serverMsg = {
+          id_sender: persisted.id_sender ?? persisted.sender ?? persisted.from ?? senderId,
+          id_receiver: persisted.id_receiver ?? persisted.receiver ?? safePayload.receiver,
+          id_solicitacao: persisted.id_solicitacao ?? safePayload.id_solicitacao,
+          message: persisted.message ?? persisted.mensagem ?? safePayload.message,
+          data: persisted.data ?? persisted.timestamp ?? safePayload.data,
+          _id: persisted._id ?? persisted.id ?? `rest-${Date.now()}`
+        };
+        addMessage(serverMsg);
+        return { via: 'rest', serverMsg };
+      }
+
+      // fallback optimistic
+      addMessage(localMsgTemplate);
+      return { via: 'rest', optimistic: true };
+    } catch (err) {
+      console.error('useChat.sendMessage -> erro ao enviar mensagem:', err);
+      throw err;
+    }
   }, [addMessage, user]);
 
   return {

@@ -34,7 +34,17 @@ class WebSocketService {
 
     try {
       // Usa URL configurável e envia token como subprotocol (array)
-      const WS_URL = (import.meta.env.VITE_WS_URL || 'ws://localhost:9000');
+      // Novo contrato: WebSocket no backend em :9000 (ws://<HOST>:9000)
+      const envWs = import.meta.env.VITE_WS_URL;
+      let defaultWs = envWs || 'ws://localhost:9000';
+      try {
+        const host = window?.location?.hostname || 'localhost';
+        // Se não houver override via env, conectar direto ao backend na porta 9000
+        if (!envWs) defaultWs = `ws://${host}:9000`;
+      } catch (e) {
+        // ambiente sem window - fallback
+      }
+      const WS_URL = envWs || defaultWs;
       // Se houver token, enviar como subprotocol; caso contrário, conectar sem subprotocol
       if (token) {
         this.ws = new WebSocket(WS_URL, [token]);
@@ -42,8 +52,8 @@ class WebSocketService {
         this.ws = new WebSocket(WS_URL);
       }
 
-      this.ws.onopen = () => {
-        console.log('✅ WebSocket conectado');
+        this.ws.onopen = () => {
+          console.log('✅ WebSocket conectado', WS_URL);
         this.isConnecting = false;
         
         // Notificar todos os handlers de conexão
@@ -63,8 +73,10 @@ class WebSocketService {
 
       this.ws.onmessage = (event) => {
         try {
+          // Log raw string para depuração em caso de payloads inválidos
+          console.log('📨 WebSocket onmessage raw string:', event.data);
           const data = JSON.parse(event.data);
-          console.log('📨 Mensagem WebSocket (raw):', data);
+          console.log('📨 Mensagem WebSocket (parsed):', data);
 
           // Entregar a todos os handlers registrados
           if (this.messageHandlers.size > 0) {
@@ -122,6 +134,9 @@ class WebSocketService {
    * @param {Object} message - Dados da mensagem
    */
   sendMessage(message) {
+    // Log do estado do socket para diagnóstico
+    console.log('websocketService.sendMessage - ws obj:', this.ws);
+    console.log('websocketService.sendMessage - ws.readyState:', this.ws ? this.ws.readyState : 'no-ws');
     if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
       console.error('WebSocket não está conectado');
       throw new Error('WebSocket não conectado');

@@ -158,16 +158,13 @@ export function PassengerPage() {
     };
 
     return (
-        <div className="min-h-screen bg-gradient-to-b from-green-50 to-white pt-16">
-                <PageContainer>
-                    <div className="py-6">
-                        <h1 className="text-3xl font-bold text-gray-900 mb-6 text-center">
-                            Buscar Caronas 🔍
-                        </h1>
-                    <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+            <div className="min-h-screen bg-gradient-to-b from-green-50 to-white pt-2">
+                <PageContainer title="Buscar Caronas" description="Encontre motoristas disponíveis na sua rota" centerTitle={true} maxWidth="full" className="max-w-screen-2xl px-6 py-2">
+                    <div className="py-2">
+                    <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
                         {/* Coluna do Mapa */}
-                        <div className="lg:col-span-1 flex justify-center">
-                            <Card className="p-0 overflow-hidden h-[520px] w-[520px] max-w-full relative z-0">
+                            <div className="lg:col-span-3">
+                            <Card className="p-0 overflow-hidden h-[620px] w-full max-w-full relative z-0">
                                 <MapView
                                     origin={originCoords ? { ...originCoords, label: 'Origem' } : null}
                                     destination={destinationCoords ? { ...destinationCoords, label: 'Destino' } : null}
@@ -177,10 +174,10 @@ export function PassengerPage() {
                             </Card>
                         </div>
                         {/* Formulário - coluna 2 */}
-                        <div className="lg:col-span-1">
+                        <div className="lg:col-span-3">
                             <Card>
                                 <div className="p-6">
-                                    <h2 className="text-xl md:text-2xl font-extrabold text-fatecride-blue mb-4 leading-tight whitespace-nowrap">Informe sua rota</h2>
+                                    <h2 className="text-2xl font-semibold text-fatecride-blue mb-4 leading-tight">Informe sua rota</h2>
 
                                     <div className="space-y-4">
                                         <div>
@@ -216,10 +213,10 @@ export function PassengerPage() {
                         </div>
 
                         {/* Resultados - coluna 3 */}
-                        <div className="lg:col-span-1">
+                        <div className="lg:col-span-3">
                             <Card>
                                 <div className="p-6">
-                                    <h3 className="text-xl font-semibold text-fatecride-blue mb-4">Caronas Disponíveis</h3>
+                                    <h3 className="text-2xl font-semibold text-fatecride-blue mb-4">Caronas Disponíveis</h3>
 
                                     {searching ? (
                                         <div className="flex justify-center py-12"><Spinner size="lg" /></div>
@@ -237,9 +234,9 @@ export function PassengerPage() {
                         </div>
 
                         {/* Anúncio - coluna 4 (última) */}
-                        <div className="lg:col-span-1">
-                            <div className="sticky top-24">
-                                <AnuncioViewerCompact className="w-full" />
+                        <div className="lg:col-span-3">
+                                <div className="sticky top-16">
+                                <AnuncioViewerCompact className="w-full max-w-sm" />
                             </div>
                         </div>
                     </div>

@@ -181,7 +181,9 @@ export function SimpleChatModal({ requestId, otherUserName, receiverId, onClose 
 
         // CORREÇÃO: Buscar pelo ID do outro usuário, usando token específico para mensagens quando disponível
         const tokenToUse = messagesToken || token;
-        const historico = await chatService.getHistoricoConversa(Number(localReceiverId), tokenToUse);
+        console.log('  🔐 tokenToUse (masked):', tokenToUse ? `${String(tokenToUse).slice(0,6)}...` : null);
+        // Usar o novo endpoint compatível: getHistoryWith / with/:userId
+        const historico = await chatService.getHistoryWith(Number(localReceiverId), tokenToUse, 1, 200);
 
         console.log('✅ Histórico recebido:', Array.isArray(historico) ? historico.length : 0, 'mensagens');
 
@@ -194,6 +196,35 @@ export function SimpleChatModal({ requestId, otherUserName, receiverId, onClose 
           console.log('📨 Mensagens desta solicitação:', mensagensDaSolicitacao.length);
 
           setMessages(parseInt(requestId), mensagensDaSolicitacao);
+
+          // Após carregar histórico, marcar último recebimento como lido (se aplicável)
+          try {
+            const myUserId = user?.id_usuario ?? user?.id ?? user?.userId ?? null;
+            // Encontrar última mensagem que NÃO seja do usuário (ou a última mensagem geral)
+            const lastIncoming = [...mensagensDaSolicitacao].reverse().find(m => Number(m.id_sender) !== Number(myUserId));
+            const tokenToUse = messagesToken || token;
+            if (lastIncoming && (lastIncoming._id || lastIncoming.id)) {
+              const lastId = lastIncoming._id || lastIncoming.id;
+              try {
+                console.log('🔁 Marcando última mensagem como lida via REST (se suportado) ->', lastId);
+                await chatService.markAsRead(lastId, tokenToUse);
+                // Atualizar store local para refletir leitura
+                try {
+                  const { updateConversationLastMessage, markAsRead } = useChatStore.getState();
+                  const updated = { ...lastIncoming, read: true };
+                  updateConversationLastMessage(Number(requestId), updated);
+                  markAsRead(Number(requestId));
+                } catch (e) {
+                  console.warn('Falha ao atualizar store local após markAsRead:', e?.message || e);
+                }
+              } catch (e) {
+                // backend pode não suportar esse endpoint; não bloquear
+                console.info('markAsRead não suportado ou falhou (não crítico):', e?.message || e);
+              }
+            }
+          } catch (e) {
+            console.warn('Erro ao tentar marcar mensagens como lidas após loadHistory:', e?.message || e);
+          }
         }
 
       } catch (err) {
@@ -277,6 +308,7 @@ export function SimpleChatModal({ requestId, otherUserName, receiverId, onClose 
 
     // IMPORTANTE: usar o valor recuperado imediatamente (recovered) porque setLocalReceiverId é assíncrono
     const effectiveReceiver = recovered ?? localReceiverId ?? receiverId ?? null;
+    console.log('🔎 effectiveReceiver decidido:', effectiveReceiver);
     if (effectiveReceiver == null) {
       console.warn('⚠️ receiverId ausente mesmo após tentativa de recuperação — enviando mensagem vinculada apenas à solicitação (backend deve reconciliar destinatário)');
     }
@@ -292,6 +324,11 @@ export function SimpleChatModal({ requestId, otherUserName, receiverId, onClose 
     };
     
     console.log('📤 Enviando mensagem:', messageData);
+    // log adicional com token (mascarado) para diagnosticar CORS / autenticação
+    try {
+      const tokenPreview = (messagesToken || token) ? `${String(messagesToken || token).slice(0,6)}...` : null;
+      console.log('  🔐 token (masked):', tokenPreview);
+    } catch (e) {}
 
     // Tenta enviar via WebSocket; se não, faz fallback via REST
     (async () => {
@@ -300,6 +337,18 @@ export function SimpleChatModal({ requestId, otherUserName, receiverId, onClose 
           sendMessage(messageData);
           setMessage('');
           console.log('✅ Mensagem enviada via WebSocket (enfileirada localmente)');
+
+          // Persistir mapping localmente para ajudar clientes AMBOS
+          try {
+            const senderId = user?.id_usuario ?? user?.id ?? user?.userId ?? null;
+            if (requestId) {
+              ridesService.saveSolicitacaoMapping(requestId, { motorista: Number(effectiveReceiver) || null, passageiro: Number(senderId) || null });
+              console.log('💾 mapeamento salvo via SimpleChatModal (WS send):', { requestId, motorista: Number(effectiveReceiver) || null, passageiro: Number(senderId) || null });
+            }
+          } catch (e) {
+            console.warn('Falha ao salvar mapeamento após envio WS:', e?.message || e);
+          }
+
           // A confirmação do servidor virá via evento WS com tipo 'mensagem_confirmada' ou 'mensagem_recebida'
           return;
         } catch (error) {
@@ -310,7 +359,8 @@ export function SimpleChatModal({ requestId, otherUserName, receiverId, onClose 
       // Fallback: enviar por REST
         try {
         console.log('📡 Fallback REST: enviando mensagem via chatService.sendMessage', messageData);
-        const resp = await chatService.sendMessage(messageData);
+        const tokenToUse = messagesToken || token;
+        const resp = await chatService.sendMessage(messageData, tokenToUse);
         console.log('📥 Fallback REST: resposta recebida', resp);
         // optimistic update local
         const senderId = user?.id_usuario ?? user?.id ?? user?.userId ?? null;
@@ -325,6 +375,17 @@ export function SimpleChatModal({ requestId, otherUserName, receiverId, onClose 
         const { addMessage } = useChatStore.getState();
         addMessage(localMsg);
         setMessage('');
+
+        // Persistir mapping localmente para ajudar clientes AMBOS
+        try {
+          if (requestId) {
+            ridesService.saveSolicitacaoMapping(requestId, { motorista: Number(effectiveReceiver) || null, passageiro: Number(senderId) || null });
+            console.log('💾 mapeamento salvo via SimpleChatModal (REST fallback):', { requestId, motorista: Number(effectiveReceiver) || null, passageiro: Number(senderId) || null });
+          }
+        } catch (e) {
+          console.warn('Falha ao salvar mapeamento após envio REST:', e?.message || e);
+        }
+
         console.log('✅ Mensagem enviada via REST e adicionada localmente', resp);
         } catch (err) {
         console.error('❌ Erro ao enviar via REST:', err);
