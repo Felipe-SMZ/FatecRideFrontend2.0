@@ -5,6 +5,7 @@ import { loginSchema } from '@shared/utils/validators';
 import { useLogin } from '../hooks/useAuth';
 import { Button } from '@shared/components/ui/Button';
 import { Input } from '@shared/components/ui/Input';
+import { PasswordInput } from '@shared/components/ui/PasswordInput';
 import { FiMail, FiLock } from 'react-icons/fi';
 
 export function LoginForm() {
@@ -37,9 +38,8 @@ export function LoginForm() {
                 placeholder="seu@email.com"
             />
 
-            <Input
+            <PasswordInput
                 label="Senha"
-                type="password"
                 leftIcon={FiLock}
                 {...register('senha')}
                 error={errors.senha?.message}

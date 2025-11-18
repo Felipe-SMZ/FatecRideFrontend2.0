@@ -1,13 +1,15 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
-import { FiTruck } from 'react-icons/fi';
-import { Navbar } from '@shared/components/layout/Navbar';
+import { FiMessageCircle } from 'react-icons/fi';
+import { FaCar } from 'react-icons/fa';
 import { Card } from '@shared/components/ui/Card';
 import { Button } from '@shared/components/ui/Button';
 import { EmptyState } from '@shared/components/ui/EmptyState';
 import { Spinner } from '@shared/components/ui/Spinner';
 import { useAuthStore } from '@features/auth/stores/authStore';
+import { SimpleChatModal } from '@features/chat/components/SimpleChatModal';
+import { sendRideAcceptedMessage } from '@features/chat/services/autoMessageService';
 
 /**
  * ActiveRidesPage - Página de gerenciamento de caronas ativas
@@ -26,41 +28,68 @@ import { useAuthStore } from '@features/auth/stores/authStore';
 
 export function ActiveRidesPage() {
   const navigate = useNavigate();
-  const { user } = useAuthStore();
+  const { user, token } = useAuthStore();
   const [rides, setRides] = useState([]);
   const [loading, setLoading] = useState(true);
   const [processingId, setProcessingId] = useState(null);
+  const [openChat, setOpenChat] = useState(null);
+  const [activeTab, setActiveTab] = useState('driver'); // 'driver' ou 'passenger'
 
-  // Verificar tipo de usuário
-  const isPassenger = user?.tipo === 'PASSAGEIRO';
-  const isDriver = user?.tipo === 'MOTORISTA';
-  const isBoth = user?.tipo === 'AMBOS';
+  // Verificar tipo de usuário (memoizar para evitar recalcular)
+  const userTipo = user?.tipo;
+  const isPassenger = userTipo === 'PASSAGEIRO';
+  const isDriver = userTipo === 'MOTORISTA';
+  const isBoth = userTipo === 'AMBOS';
 
-  console.log('🔍 ActiveRidesPage - User:', user);
-  console.log('🔍 ActiveRidesPage - Tipo:', user?.tipo);
-  console.log('🔍 ActiveRidesPage - isDriver:', isDriver, 'isBoth:', isBoth, 'isPassenger:', isPassenger);
+  console.log('\n========== ACTIVE RIDES PAGE ==========');
+  console.log('👤 User completo:', JSON.stringify(user, null, 2));
+  console.log('📋 Tipo de usuário:', user?.tipo);
+  console.log('🎭 Flags:', {
+    isPassenger,
+    isDriver,
+    isBoth,
+    temTipo: !!user?.tipo
+  });
+  console.log('=======================================\n');
+
+  // REMOVIDO: Redirect automático - passageiro também pode ver esta página
 
   // Buscar caronas ativas ao carregar
-  // Se tipo não está definido, assumir que pode ser motorista (para evitar tela branca)
   useEffect(() => {
-    if (isDriver || isBoth || !user?.tipo) {
-      console.log('✅ Buscando caronas ativas...');
+    console.log('\n🔄 useEffect executado');
+    console.log('📊 Estado atual:', { isDriver, isBoth, isPassenger, userTipo, activeTab });
+    
+    // Apenas buscar se for motorista ou ambos E aba driver
+    if ((isDriver || isBoth) && activeTab === 'driver') {
+      console.log('✅ Usuário é MOTORISTA ou AMBOS - Buscando caronas ativas...');
       fetchActiveRides();
-    } else if (isPassenger) {
-      console.log('ℹ️ Usuário é passageiro, não busca caronas');
-      setLoading(false); // Não busca dados para passageiros
+    } else {
+      console.log('ℹ️ Não buscar caronas - limpar estado');
+      setLoading(false);
+      setRides([]);
     }
-  }, [user]);
+  }, [userTipo, activeTab]); // Apenas tipo e aba
 
   const fetchActiveRides = async () => {
+    console.log('\n🚀 INICIANDO fetchActiveRides');
+    console.log('👤 User ID:', user?.id);
+    console.log('📧 User Email:', user?.email);
+    console.log('🎭 User Tipo:', user?.tipo);
+    
     try {
       setLoading(true);
-      const token = localStorage.getItem('token');
       
-      console.log('🔍 Token:', token ? 'Presente' : 'Ausente');
+      console.log('🔑 Token:', token ? `Presente (${token.substring(0, 20)}...)` : '❌ AUSENTE');
+      
+      if (!token) {
+        console.error('❌ Token não encontrado! Redirecionando para login...');
+        toast.error('Sessão expirada. Faça login novamente.');
+        navigate('/login');
+        return;
+      }
       
       // MOTORISTA: Buscar caronas criadas
-      console.log('📡 Buscando caronas ativas...');
+      console.log('\n📡 Buscando caronas ativas do motorista...');
       const ridesResponse = await fetch('http://localhost:8080/rides/corridasAtivas', {
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -123,14 +152,12 @@ export function ActiveRidesPage() {
     }
   };
 
-  const handleAcceptRequest = async (rideId, requestId) => {
-    console.log('🔵 handleAcceptRequest chamado:', { rideId, requestId });
+  const handleAcceptRequest = async (rideId, requestId, passageiroNome, passageiroId) => {
+    console.log('🎯 Aceitando solicitação:', { rideId, requestId, passageiroNome, passageiroId });
     
     try {
       setProcessingId(requestId);
-      const token = localStorage.getItem('token');
       
-      console.log('📤 Enviando requisição PUT /rides/${requestId}/acept');
       const response = await fetch(`http://localhost:8080/rides/${requestId}/acept`, {
         method: 'PUT',
         headers: {
@@ -139,19 +166,25 @@ export function ActiveRidesPage() {
         },
         body: JSON.stringify({ idCarona: rideId })
       });
-
-      console.log('📥 Resposta recebida:', response.status);
       
       if (response.ok) {
-        toast.success('Solicitação aceita com sucesso!');
-        await fetchActiveRides(); // Recarregar lista
+        toast.success('Solicitação aceita!');
+        await fetchActiveRides();
+        
+        // Abrir chat simples
+        setOpenChat({
+          requestId: requestId,
+          otherUserName: passageiroNome,
+          receiverId: passageiroId
+        });
+        
+        // Enviar mensagem automática
+        sendRideAcceptedMessage(requestId, user?.name, passageiroNome, 'Origem', 'Destino');
       } else {
-        const error = await response.json();
-        console.error('❌ Erro na resposta:', error);
-        toast.error(error.message || 'Erro ao aceitar solicitação');
+        toast.error('Erro ao aceitar solicitação');
       }
     } catch (error) {
-      console.error('❌ Exceção ao aceitar solicitação:', error);
+      console.error('Erro ao aceitar solicitação:', error);
       toast.error('Erro ao aceitar solicitação');
     } finally {
       setProcessingId(null);
@@ -163,7 +196,6 @@ export function ActiveRidesPage() {
     
     try {
       setProcessingId(requestId);
-      const token = localStorage.getItem('token');
       
       const response = await fetch(`http://localhost:8080/solicitacao/cancelar/${requestId}`, {
         method: 'PUT',
@@ -193,7 +225,6 @@ export function ActiveRidesPage() {
 
     try {
       setProcessingId(`complete-${rideId}`);
-      const token = localStorage.getItem('token');
       
       console.log('📤 Concluindo carona:', rideId);
       
@@ -233,7 +264,6 @@ export function ActiveRidesPage() {
 
     try {
       setProcessingId(`cancel-${rideId}`);
-      const token = localStorage.getItem('token');
       
       const response = await fetch(`http://localhost:8080/rides/cancelar/${rideId}`, {
         method: 'PUT',
@@ -271,18 +301,20 @@ export function ActiveRidesPage() {
 
   return (
     <>
-      <Navbar showAuthButton={true} />
       
       <div className="min-h-[calc(100vh-80px)] bg-gray-100 py-8 px-4">
         <div className="container mx-auto max-w-6xl">
+          {/* Abas para usuários AMBOS */}
+          {/* Aba removida: 'Minhas Caronas' não é mais necessária para usuários AMBOS */}
+
           {/* Header */}
           <div className="flex items-center justify-between mb-8">
             <div>
               <h1 className="text-4xl font-bold text-fatecride-blue mb-2">
-                Caronas Ativas
+                {isBoth && activeTab === 'driver' ? 'Minhas Caronas' : 'Caronas Ativas'}
               </h1>
               <p className="text-gray-600">
-                Gerencie suas caronas em andamento
+                {isBoth ? 'Gerencie suas caronas oferecidas' : 'Gerencie suas caronas em andamento'}
               </p>
             </div>
             <Button
@@ -305,7 +337,7 @@ export function ActiveRidesPage() {
             <Card className="p-8 text-center">
               <div className="max-w-md mx-auto">
                 <div className="w-20 h-20 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <FiTruck className="w-10 h-10 text-fatecride-blue" />
+                  <FaCar className="w-10 h-10 text-fatecride-blue" />
                 </div>
                 <h2 className="text-2xl font-bold text-gray-900 mb-3">
                   Esta página é para Motoristas
@@ -335,7 +367,7 @@ export function ActiveRidesPage() {
           {/* Empty State - Nenhuma carona (motoristas, ambos ou tipo indefinido) */}
           {!loading && !isPassenger && rides.length === 0 && (
             <EmptyState
-              icon={FiTruck}
+              icon={FaCar}
               title="Nenhuma carona ativa"
               description="Você não possui caronas ativas no momento"
               action={{
@@ -490,27 +522,84 @@ export function ActiveRidesPage() {
                                 </div>
                               </div>
 
-                              {/* Botões de ação - só para pendentes */}
-                              {isPending && (
-                                <div className="flex gap-2 ml-4">
+                              {/* Botões de ação */}
+                              <div className="flex gap-2 ml-4">
+                                {/* Botão de chat para solicitações aceitas */}
+                                {isAccepted && (
                                   <Button
-                                    onClick={() => handleAcceptRequest(ride.id, request.id_solicitacao)}
-                                    disabled={processingId === request.id_solicitacao}
-                                    className="bg-green-600 hover:bg-green-700"
+                                    onClick={async () => {
+                                      console.log('🔵 Abrindo chat - Request completo:', JSON.stringify(request, null, 2));
+                                      console.log('  📋 id_solicitacao:', request.id_solicitacao);
+                                      console.log('  👤 nome_passageiro:', request.nome_passageiro);
+                                      console.log('  🆔 id_passageiro (raw):', request.id_passageiro);
+
+                                      const raw = request.__raw || request || {};
+
+                                      const inferPassengerId = (obj) => {
+                                        if (!obj) return null;
+                                        return obj.id_passageiro
+                                          ?? obj.idPassageiro
+                                          ?? obj.passageiro?.id
+                                          ?? obj.passageiro?.id_usuario
+                                          ?? obj.passageiro?.userId
+                                          ?? obj.passageiro?.idUser
+                                          ?? obj.id_passageiro_fk
+                                          ?? obj.passageiroId
+                                          ?? obj.id_usuario
+                                          ?? obj.__raw?.id_passageiro
+                                          ?? obj.__raw?.passageiro?.id
+                                          ?? null;
+                                      };
+
+                                      const inferredId = inferPassengerId(request) || inferPassengerId(raw) || null;
+
+                                      if (!inferredId) {
+                                        console.warn('⚠️ receiverId não encontrado no payload da solicitação (tentadas várias chaves). Atualize o backend para retornar id_passageiro.');
+                                      } else {
+                                        console.log('  🎯 receiverId inferido:', inferredId);
+                                      }
+
+                                      setOpenChat({
+                                        requestId: request.id_solicitacao,
+                                        otherUserName: request.nome_passageiro || request.passageiro?.nome || 'Passageiro',
+                                        receiverId: inferredId || null
+                                      });
+                                    }}
+                                    className="bg-fatecride-blue hover:bg-fatecride-blue-dark"
                                     size="sm"
                                   >
-                                    {processingId === request.id_solicitacao ? 'Processando...' : 'Aceitar'}
+                                    <FiMessageCircle className="mr-2" />
+                                    Chat
                                   </Button>
-                                  <Button
-                                    onClick={() => handleRejectRequest(ride.id, request.id_solicitacao)}
-                                    disabled={processingId === request.id_solicitacao}
-                                    variant="danger"
-                                    size="sm"
-                                  >
-                                    Recusar
-                                  </Button>
-                                </div>
-                              )}
+                                )}
+                                
+                                {/* Botões de aceitar/recusar - só para pendentes */}
+                                {isPending && (
+                                  <>
+                                    <Button
+                                      onClick={() => handleAcceptRequest(
+                                        ride.id, 
+                                        request.id_solicitacao,
+                                        request.passageiro?.nome || 'Passageiro',
+                                        request.passageiro?.id
+                                      )}
+                                      disabled={processingId === request.id_solicitacao}
+                                      className="bg-green-600 hover:bg-green-700"
+                                      size="sm"
+                                    >
+                                      {processingId === request.id_solicitacao ? 'Processando...' : 'Aceitar'}
+                                    </Button>
+                                    <Button
+                                      onClick={() => handleRejectRequest(ride.id, request.id_solicitacao)}
+                                      disabled={processingId === request.id_solicitacao}
+                                      variant="danger"
+                                      size="sm"
+                                    >
+                                      Recusar
+                                    </Button>
+                                  </>
+                                )}
+                              </div>
                             </div>
                           );
                         })}
@@ -523,6 +612,16 @@ export function ActiveRidesPage() {
           )}
         </div>
       </div>
+      
+      {/* Chat Flutuante */}
+      {openChat && (
+        <SimpleChatModal
+          requestId={openChat.requestId}
+          otherUserName={openChat.otherUserName}
+          receiverId={openChat.receiverId}
+          onClose={() => setOpenChat(null)}
+        />
+      )}
     </>
   );
 }

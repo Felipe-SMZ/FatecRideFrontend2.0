@@ -11,7 +11,7 @@ import { checkTokenExpiration, clearExpiredToken } from '@shared/utils/tokenUtil
  */
 export function useTokenExpiration() {
   const navigate = useNavigate();
-  const { isAuthenticated, logout } = useAuthStore();
+  const { isAuthenticated, logout, token } = useAuthStore();
   const intervalRef = useRef(null);
   const hasShownWarningRef = useRef(false);
 
@@ -34,17 +34,18 @@ export function useTokenExpiration() {
         clearInterval(intervalRef.current);
       }
     };
-  }, [isAuthenticated]);
+  }, [isAuthenticated, token]); // Adicionar token como dependência
 
   const checkToken = () => {
-    const token = localStorage.getItem('token');
+    // Buscar token do Zustand store ao invés de localStorage
+    const currentToken = useAuthStore.getState().token;
     
-    if (!token) {
-      console.log('🔐 Token não encontrado');
+    if (!currentToken) {
+      console.log('🔐 Token não encontrado no store');
       return;
     }
 
-    const tokenInfo = checkTokenExpiration(token);
+    const tokenInfo = checkTokenExpiration(currentToken);
     
     if (tokenInfo.isExpired) {
       console.error('❌ Token expirado detectado! Fazendo logout automático...');

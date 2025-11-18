@@ -2,16 +2,18 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
-import { Navbar } from '@shared/components/layout/Navbar';
+ 
 import { PageContainer } from '@shared/components/layout/PageContainer';
 import { Card } from '@shared/components/ui/Card';
 import { MapView } from '@shared/components/map/MapView';
+import { ridesService } from '@features/rides/services/ridesService';
 import { RideCard } from '@shared/components/cards/RideCard';
 import { EmptyState } from '@shared/components/ui/EmptyState';
 import { Spinner } from '@shared/components/ui/Spinner';
 import { AddressAutocomplete } from '@shared/components/ui/AddressAutocomplete';
 import { Button } from '@shared/components/ui/Button';
 import { FiSearch } from 'react-icons/fi';
+import { AnuncioViewerCompact } from '@features/anuncios/components/AnuncioViewer';
 
 /**
  * PassengerPage - Página de busca de caronas (Passageiro)
@@ -78,9 +80,7 @@ export function PassengerPage() {
             setSearching(true);
             setAvailableRides([]);
 
-            // Busca caronas próximas
-            // PassengerSearchRequest: latitudeOrigem, longitudeOrigem, latitudeDestino, longitudeDestino
-            const token = localStorage.getItem('token');
+            // Busca caronas próximas via service (usa `api` com interceptor)
             const payload = {
                 latitudeOrigem: originCoords.lat,
                 longitudeOrigem: originCoords.lng,
@@ -90,48 +90,32 @@ export function PassengerPage() {
 
             console.log('🔍 Buscando caronas com payload:', payload);
 
-            const response = await fetch('http://localhost:8080/solicitacao/proximos', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    Authorization: `Bearer ${token}`
-                },
-                body: JSON.stringify(payload)
-            });
+            try {
+                const rides = await ridesService.searchNearby(payload);
+                console.log('✅ Caronas encontradas (service):', rides);
+                setAvailableRides(rides || []);
 
-            if (!response.ok) {
-                const errorText = await response.text();
-                console.error('❌ Erro do backend:', errorText);
-                
-                // Backend retorna 500 quando não há motoristas próximos
-                // Idealmente deveria retornar 200 com array vazio
-                try {
-                    const errorData = JSON.parse(errorText);
-                    if (errorData.message?.includes('Nenhum motorista')) {
-                        setAvailableRides([]);
-                        toast.info(
-                            'Nenhuma carona encontrada para esta rota. ' +
-                            'Tente buscar com endereços próximos ou principais da região.',
-                            { duration: 5000 }
-                        );
-                        setSearching(false);
-                        return;
-                    }
-                } catch (e) {
-                    // Se não for JSON, continua com erro normal
+                if (!rides || rides.length === 0) {
+                    toast('Ainda não encontramos motoristas para essa rota. Tente ampliar a área de busca ou tente novamente mais tarde.', { duration: 5000 });
+                } else {
+                    toast.success(`${rides.length} carona(s) encontrada(s)!`);
                 }
-                
-                throw new Error(errorText || 'Erro ao buscar caronas');
-            }
+            } catch (err) {
+                // axios error -> verificar response.data.message
+                const backendMessage = err?.response?.data?.message || err?.message || '';
+                console.error('❌ Erro do backend (service):', backendMessage, err);
 
-            const rides = await response.json();
-            console.log('✅ Caronas encontradas:', rides);
-            setAvailableRides(rides);
+                if (backendMessage.includes('Nenhum motorista')) {
+                    setAvailableRides([]);
+                    toast(
+                        'Não encontramos motoristas próximos desta rota. Experimente procurar por locais próximos a pontos principais (ex.: terminais) ou tente novamente mais tarde.',
+                        { duration: 6000 }
+                    );
+                    setSearching(false);
+                    return;
+                }
 
-            if (rides.length === 0) {
-                toast.info('Nenhuma carona encontrada para esta rota');
-            } else {
-                toast.success(`${rides.length} carona(s) encontrada(s)!`);
+                throw new Error(backendMessage || 'Erro ao buscar caronas');
             }
         } catch (error) {
             console.error('❌ Erro ao buscar caronas:', error);
@@ -151,170 +135,113 @@ export function PassengerPage() {
             return;
         }
 
-        try {
-            setRequesting(true);
-            const token = localStorage.getItem('token');
+            try {
+                setRequesting(true);
 
-            const payload = {
-                id_carona: ride.idCarona,
-                originDTO: originAddress,
-                destinationDTO: destinationAddress
-            };
+                const payload = {
+                    id_carona: ride.idCarona,
+                    originDTO: originAddress,
+                    destinationDTO: destinationAddress
+                };
 
-            const response = await fetch('http://localhost:8080/solicitacao', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    Authorization: `Bearer ${token}`
-                },
-                body: JSON.stringify(payload)
-            });
+                await ridesService.requestRide(payload);
 
-            if (!response.ok) {
-                const errorText = await response.text();
-                throw new Error(errorText || 'Erro ao solicitar carona');
+                toast.success('Solicitação enviada com sucesso!');
+                navigate('/inicio');
+            } catch (error) {
+                console.error('Erro ao solicitar carona (service):', error);
+                const backendMessage = error?.response?.data?.message || error?.message;
+                toast.error(backendMessage || 'Erro ao solicitar carona');
+            } finally {
+                setRequesting(false);
             }
-
-            toast.success('Solicitação enviada com sucesso!');
-            navigate('/inicio');
-        } catch (error) {
-            console.error('Erro ao solicitar carona:', error);
-            toast.error(error.message || 'Erro ao solicitar carona');
-        } finally {
-            setRequesting(false);
-        }
     };
 
     return (
-        <>
-            <Navbar showAuthButton={true} />
-            <div className="min-h-screen bg-gradient-to-b from-green-50 to-white">
-                <PageContainer>
-                    <div className="py-6">
-                        <h1 className="text-3xl font-bold text-gray-900 mb-6">
-                            Buscar Caronas 🔍
-                        </h1>
-
-                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                        {/* Coluna do Mapa - 2/3 */}
-                        <div className="lg:col-span-2">
-                            <Card className="p-0 overflow-hidden h-[500px]">
+            <div className="min-h-screen bg-gradient-to-b from-green-50 to-white pt-2">
+                <PageContainer title="Buscar Caronas" description="Encontre motoristas disponíveis na sua rota" centerTitle={true} maxWidth="full" className="max-w-screen-2xl px-6 py-2">
+                    <div className="py-2">
+                    <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+                        {/* Coluna do Mapa */}
+                            <div className="lg:col-span-3">
+                            <Card className="p-0 overflow-hidden h-[620px] w-full max-w-full relative z-0">
                                 <MapView
                                     origin={originCoords ? { ...originCoords, label: 'Origem' } : null}
                                     destination={destinationCoords ? { ...destinationCoords, label: 'Destino' } : null}
                                     showRoute={!!(originCoords && destinationCoords)}
-                                    className="h-full"
+                                    className="h-full w-full"
                                 />
                             </Card>
                         </div>
-
-                        {/* Coluna de Busca e Resultados - 1/3 */}
-                        <div className="lg:col-span-1 space-y-6">
-                            {/* Formulário de Busca */}
+                        {/* Formulário - coluna 2 */}
+                        <div className="lg:col-span-3">
                             <Card>
                                 <div className="p-6">
-                                    <h2 className="text-2xl font-bold text-gray-900 mb-6">
-                                        Informe sua rota
-                                    </h2>
-                                    
+                                    <h2 className="text-2xl font-semibold text-fatecride-blue mb-4 leading-tight">Informe sua rota</h2>
+
                                     <div className="space-y-4">
-                                        {/* Origem */}
                                         <div>
-                                            <label className="block text-sm font-medium text-gray-700 mb-2">
-                                                Origem
-                                            </label>
+                                            <label className="block text-sm font-medium text-gray-700 mb-2">Origem</label>
                                             <AddressAutocomplete
                                                 value={originInput}
-                                                onChange={(e) => {
-                                                    setOriginInput(e.target.value);
-                                                    setOriginSelected(false); // Reset quando digita
-                                                }}
+                                                onChange={(e) => { setOriginInput(e.target.value); setOriginSelected(false); }}
                                                 onSelect={handleOriginSelect}
                                                 placeholder="Digite o endereço de origem..."
                                             />
                                         </div>
 
-                                        {/* Destino */}
                                         <div>
-                                            <label className="block text-sm font-medium text-gray-700 mb-2">
-                                                Destino
-                                            </label>
+                                            <label className="block text-sm font-medium text-gray-700 mb-2">Destino</label>
                                             <AddressAutocomplete
                                                 value={destinationInput}
-                                                onChange={(e) => {
-                                                    setDestinationInput(e.target.value);
-                                                    setDestinationSelected(false); // Reset quando digita
-                                                }}
+                                                onChange={(e) => { setDestinationInput(e.target.value); setDestinationSelected(false); }}
                                                 onSelect={handleDestinationSelect}
                                                 placeholder="Digite o endereço de destino..."
                                             />
                                         </div>
 
-                                        {/* Botão de Buscar */}
-                                        <Button
-                                            onClick={handleSearch}
-                                            disabled={!originSelected || !destinationSelected || searching}
-                                            className="w-full"
-                                        >
-                                            {searching ? (
-                                                <>
-                                                    <Spinner size="sm" className="mr-2" />
-                                                    Buscando...
-                                                </>
-                                            ) : (
-                                                <>
-                                                    <FiSearch className="mr-2" />
-                                                    Buscar Caronas
-                                                </>
-                                            )}
+                                        <Button onClick={handleSearch} disabled={!originSelected || !destinationSelected || searching} className="w-full">
+                                            {searching ? (<><Spinner size="sm" className="mr-2" />Buscando...</>) : (<><FiSearch className="mr-2" />Buscar Caronas</>) }
                                         </Button>
 
-                                        {/* Aviso se não selecionou */}
                                         {(!originSelected || !destinationSelected) && (
-                                            <p className="text-sm text-amber-600 text-center">
-                                                ⚠️ Selecione origem e destino nas sugestões para buscar
-                                            </p>
+                                            <p className="text-sm text-amber-600 text-center">⚠️ Selecione origem e destino nas sugestões para buscar</p>
                                         )}
                                     </div>
                                 </div>
                             </Card>
+                        </div>
 
-                            {/* Lista de Caronas */}
+                        {/* Resultados - coluna 3 */}
+                        <div className="lg:col-span-3">
                             <Card>
                                 <div className="p-6">
-                                    <h3 className="text-xl font-bold text-gray-900 mb-4">
-                                        Caronas Disponíveis
-                                    </h3>
+                                    <h3 className="text-2xl font-semibold text-fatecride-blue mb-4">Caronas Disponíveis</h3>
 
                                     {searching ? (
-                                        <div className="flex justify-center py-12">
-                                            <Spinner size="lg" />
-                                        </div>
+                                        <div className="flex justify-center py-12"><Spinner size="lg" /></div>
                                     ) : availableRides.length > 0 ? (
-                                        <div className="space-y-4 max-h-[600px] overflow-y-auto pr-2">
+                                        <div className="space-y-4 max-h-[640px] overflow-y-auto pr-2">
                                             {availableRides.map((ride) => (
-                                                <RideCard
-                                                    key={ride.idCarona}
-                                                    ride={ride}
-                                                    onRequest={handleRequestRide}
-                                                    loading={requesting}
-                                                />
+                                                <RideCard key={ride.idCarona} ride={ride} onRequest={handleRequestRide} loading={requesting} />
                                             ))}
                                         </div>
                                     ) : (
-                                        <EmptyState
-                                            icon={FiSearch}
-                                            title="Nenhuma carona encontrada"
-                                            description="Tente buscar com endereços principais da região (ex: Terminal Cotia, Fatec Cotia) ou aguarde novas caronas serem cadastradas."
-                                        />
+                                        <EmptyState icon={FiSearch} title="Nenhuma carona encontrada" description="Tente buscar com endereços principais da região (ex: Terminal Cotia, Fatec Cotia) ou aguarde novas caronas serem cadastradas." />
                                     )}
                                 </div>
                             </Card>
+                        </div>
+
+                        {/* Anúncio - coluna 4 (última) */}
+                        <div className="lg:col-span-3">
+                                <div className="sticky top-16">
+                                <AnuncioViewerCompact className="w-full max-w-sm" />
+                            </div>
                         </div>
                     </div>
                 </div>
             </PageContainer>
         </div>
-        </>
     );
 }

@@ -1,14 +1,15 @@
-import { Navbar } from "@shared/components/layout/Navbar";
+ 
 import { PageContainer } from "@shared/components/layout/PageContainer";
 import { Card } from "@shared/components/ui/Card";
 import { Button } from "@shared/components/ui/Button";
 import { Input } from "@shared/components/ui/Input";
+import { PasswordInput } from "@shared/components/ui/PasswordInput";
 import { useAuthStore } from "@features/auth/stores/authStore";
 import { authService } from "@features/auth/services/authService";
 import { addressService } from "@features/profile/services/addressService";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { toast } from "react-hot-toast";
-import { FiUser, FiMapPin, FiSave, FiX, FiTrash2, FiAlertTriangle } from "react-icons/fi";
+import { FiUser, FiMapPin, FiSave, FiX, FiTrash2, FiAlertTriangle, FiEdit } from "react-icons/fi";
 import { useNavigate } from "react-router-dom";
 
 /**
@@ -39,7 +40,8 @@ export function ProfilePage() {
     email: "",
     foto: "",
     senha: "",
-    confirmarSenha: ""
+    confirmarSenha: "",
+    senhaAtual: ""
   });
   
   // Estado para endereço
@@ -109,7 +111,8 @@ export function ProfilePage() {
         email: userData.email || "",
         foto: userData.foto || "",
         senha: "",
-        confirmarSenha: ""
+        confirmarSenha: "",
+        senhaAtual: ""
       });
       
       // Buscar endereço do endpoint separado GET /address
@@ -319,30 +322,42 @@ export function ProfilePage() {
         }
       }
 
+      // Exigir que o usuário informe a senha atual para confirmar a atualização
+      if (!personalData.senhaAtual) {
+        toast.error('Digite sua senha atual para confirmar a atualização');
+        setLoading(false);
+        return;
+      }
+
       const cleanPhone = personalData.telefone.replace(/\D/g, '');
       
       // Buscar dados completos do usuário para não perder informações
       const currentUserData = await authService.getCurrentUser();
       console.log('📋 Dados atuais completos:', currentUserData);
       
-      // Backend exige TODOS os campos do UserBaseDTO:
-      // nome, sobrenome, email, senha, telefone, foto, userTypeId, genderId, courseId
+      // Preparar payload: enviar a senha atual para confirmação (`senhaAtual`)
+      // e enviar `senha` somente se o usuário informou uma nova senha.
       const updateData = {
         nome: personalData.nome,
         sobrenome: personalData.sobrenome,
         email: currentUserData.email, // Não pode ser alterado
-        // Se nova senha foi informada, usar ela; senão manter a atual
-        senha: personalData.senha || currentUserData.senha,
         telefone: cleanPhone,
         foto: personalData.foto || currentUserData.foto || "",
         userTypeId: currentUserData.userTypeId,
         genderId: currentUserData.genderId,
-        courseId: currentUserData.courseId
+        courseId: currentUserData.courseId,
+        // enviar campo compatível com o backend
+        rawPassword: personalData.senhaAtual
       };
+
+      if (personalData.senha) {
+        updateData.senha = personalData.senha;
+      }
 
       console.log('📤 Enviando para PUT /users:', {
         ...updateData,
-        senha: personalData.senha ? '***NOVA SENHA***' : '***SENHA ATUAL***'
+        senha: personalData.senha ? '***NOVA SENHA***' : '***SEM ALTERAÇÃO DE SENHA***',
+        rawPassword: '***SENHA ATUAL***'
       });
       
       const response = await authService.updateUser(updateData);
@@ -365,7 +380,8 @@ export function ProfilePage() {
       setPersonalData(prev => ({
         ...prev,
         senha: "",
-        confirmarSenha: ""
+        confirmarSenha: "",
+        senhaAtual: ""
       }));
       
       await loadUserData();
@@ -387,6 +403,24 @@ export function ProfilePage() {
   const handleCancelPersonal = () => {
     loadUserData();
     setIsEditingPersonal(false);
+  };
+
+  // Avatar upload handling (preview as data URL)
+  const fileInputRef = useRef(null);
+
+  const handleAvatarUploadClick = () => {
+    if (!isEditingPersonal) return;
+    fileInputRef.current?.click();
+  };
+
+  const handleAvatarChange = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      handlePersonalChange('foto', ev.target.result);
+    };
+    reader.readAsDataURL(file);
   };
 
   const handleSaveAddress = async () => {
@@ -479,213 +513,238 @@ export function ProfilePage() {
   };
 
   return (
-    <>
-      <Navbar showAuthButton={true} />
-      <PageContainer
-        title="Meu Perfil"
-        description="Visualize e edite suas informações pessoais"
-      >
+    <PageContainer
+      title="Meu Perfil"
+      description="Visualize e edite suas informações pessoais"
+      centerTitle
+    >
       <div className="max-w-4xl mx-auto space-y-6">
         
         {/* Card: Informações Pessoais */}
         <Card>
-          <div className="space-y-6">
-            {/* Foto de Perfil */}
-            <div className="flex justify-center">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-center">
+            {/* Coluna esquerda: avatar e ações */}
+            <div className="flex flex-col items-center space-y-4">
               <div className="relative">
                 {personalData.foto ? (
                   <img 
                     src={personalData.foto} 
                     alt="Foto de perfil" 
-                    className="w-32 h-32 rounded-full object-cover border-4 border-blue-100 shadow-lg"
-                    onError={(e) => {
-                      e.target.style.display = 'none';
-                      console.error('❌ Erro ao carregar imagem:', personalData.foto);
-                      console.log('💡 Use URLs diretas de imagem (termina com .jpg, .png, etc.)');
-                      console.log('💡 Exemplo: https://images.unsplash.com/photo-xxx/image.jpg');
-                      e.target.nextElementSibling.style.display = 'flex';
-                    }}
+                    className="w-28 h-28 rounded-full object-cover ring-4 ring-white shadow-md"
                   />
-                ) : null}
-                <div 
-                  className="w-32 h-32 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center shadow-lg text-white text-4xl font-bold"
-                  style={{ display: personalData.foto ? 'none' : 'flex' }}
-                >
-                  {personalData.nome && personalData.sobrenome
-                    ? `${personalData.nome.charAt(0)}${personalData.sobrenome.charAt(0)}`.toUpperCase()
-                    : <FiUser className="w-16 h-16" />
-                  }
-                </div>
-              </div>
-            </div>
-            
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
-                  <FiUser className="w-6 h-6 text-blue-600" />
-                </div>
-                <div>
-                  <h3 className="text-lg font-semibold">Informações Pessoais</h3>
-                  <p className="text-sm text-gray-600">Seus dados cadastrais</p>
-                </div>
-              </div>
-              
-              {!isEditingPersonal ? (
-                <Button onClick={() => setIsEditingPersonal(true)} size="sm">
-                  Editar
-                </Button>
-              ) : (
-                <div className="flex gap-2">
-                  <Button 
-                    onClick={handleSavePersonal} 
-                    disabled={loading}
-                    size="sm"
-                    className="gap-2"
+                ) : (
+                  <div className="w-28 h-28 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center shadow-md text-white text-3xl font-bold">
+                    {personalData.nome && personalData.sobrenome
+                      ? `${personalData.nome.charAt(0)}${personalData.sobrenome.charAt(0)}`.toUpperCase()
+                      : <FiUser className="w-12 h-12" />
+                    }
+                  </div>
+                )}
+
+                <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleAvatarChange} />
+
+                {!isEditingPersonal && (
+                  <button
+                    onClick={() => setIsEditingPersonal(true)}
+                    className="absolute -bottom-1 -right-1 bg-blue-600 hover:bg-blue-700 text-white rounded-full p-2 shadow-sm"
+                    title="Editar perfil"
                   >
-                    <FiSave /> {loading ? 'Salvando...' : 'Salvar'}
-                  </Button>
-                  <Button 
-                    variant="outline" 
-                    onClick={handleCancelPersonal}
-                    disabled={loading}
-                    size="sm"
-                    className="gap-2"
-                  >
-                    <FiX /> Cancelar
-                  </Button>
-                </div>
-              )}
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Nome
-                </label>
-                <Input 
-                  value={personalData.nome} 
-                  onChange={(e) => handlePersonalChange('nome', e.target.value)}
-                  disabled={!isEditingPersonal}
-                  placeholder="Seu nome"
-                />
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Sobrenome
-                </label>
-                <Input 
-                  value={personalData.sobrenome} 
-                  onChange={(e) => handlePersonalChange('sobrenome', e.target.value)}
-                  disabled={!isEditingPersonal}
-                  placeholder="Seu sobrenome"
-                />
+                    <FiEdit className="w-4 h-4" />
+                  </button>
+                )}
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Email
-                </label>
-                <Input 
-                  value={personalData.email} 
-                  disabled
-                  className="bg-gray-50"
-                />
-                <p className="text-xs text-gray-500 mt-1">O email não pode ser alterado</p>
+              <div className="text-center">
+                <p className="text-lg font-semibold">{personalData.nome} {personalData.sobrenome}</p>
+                <p className="text-sm text-gray-500">{personalData.email}</p>
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Telefone
-                </label>
-                <Input 
-                  value={personalData.telefone} 
-                  onChange={(e) => handlePersonalChange('telefone', formatPhone(e.target.value))}
-                  disabled={!isEditingPersonal}
-                  placeholder="(11) 98765-4321"
-                  maxLength={15}
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Tipo de Usuário
-                </label>
-                <Input
-                  value={
-                    user?.tipo === "MOTORISTA" 
-                      ? "Motorista" 
-                      : user?.tipo === "AMBOS" 
-                      ? "Motorista e Passageiro" 
-                      : "Passageiro"
-                  }
-                  disabled
-                  className="bg-gray-50"
-                />
-              </div>
-
-              <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Foto (URL)
-                </label>
-                <Input 
-                  value={personalData.foto} 
-                  onChange={(e) => handlePersonalChange('foto', e.target.value)}
-                  disabled={!isEditingPersonal}
-                  placeholder="https://images.unsplash.com/photo-xxx/image.jpg"
-                  type="url"
-                />
-                <div className="text-xs mt-1 space-y-1">
-                  {personalData.foto ? (
-                    <p className="text-green-600">✓ URL da foto configurada</p>
-                  ) : (
-                    <p className="text-gray-500">Insira a URL direta de uma imagem</p>
-                  )}
-                  {isEditingPersonal && (
-                    <div className="bg-blue-50 border border-blue-200 rounded p-2 mt-2">
-                      <p className="text-blue-700 font-medium">💡 Como obter URL de imagem:</p>
-                      <ul className="text-blue-600 text-xs mt-1 space-y-1 ml-4 list-disc">
-                        <li>No Unsplash: clique com botão direito na imagem → "Copiar endereço da imagem"</li>
-                        <li>A URL deve terminar com .jpg, .png, .webp, etc.</li>
-                        <li>Exemplo correto: https://images.unsplash.com/photo-123/image.jpg</li>
-                        <li>❌ Não use URLs de páginas (sem .jpg no final)</li>
-                      </ul>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Campos de senha - só aparecem se estiver editando */}
               {isEditingPersonal && (
-                <>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Nova Senha (opcional)
-                    </label>
-                    <Input 
-                      type="password"
-                      value={personalData.senha} 
-                      onChange={(e) => handlePersonalChange('senha', e.target.value)}
-                      placeholder="Deixe em branco para manter a atual"
-                      autoComplete="new-password"
-                    />
-                    <p className="text-xs text-gray-500 mt-1">Mínimo 6 caracteres</p>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Confirmar Nova Senha
-                    </label>
-                    <Input 
-                      type="password"
-                      value={personalData.confirmarSenha} 
-                      onChange={(e) => handlePersonalChange('confirmarSenha', e.target.value)}
-                      placeholder="Repita a nova senha"
-                      autoComplete="new-password"
-                    />
-                  </div>
-                </>
+                <div className="flex flex-col w-full gap-2">
+                  <Button onClick={handleAvatarUploadClick} size="sm">Alterar Foto</Button>
+                  <Button variant="outline" size="sm" onClick={() => handlePersonalChange('foto', '')}>Remover Foto</Button>
+                </div>
               )}
+            </div>
+
+            {/* Coluna direita: título, ações e formulário */}
+            <div className="md:col-span-2">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
+                    <FiUser className="w-6 h-6 text-blue-600" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-semibold">Informações Pessoais</h3>
+                    <p className="text-sm text-gray-600">Seus dados cadastrais</p>
+                  </div>
+                </div>
+
+                {!isEditingPersonal ? (
+                  <div className="w-20" />
+                ) : (
+                  <div className="flex gap-2">
+                    <Button 
+                      onClick={handleSavePersonal} 
+                      disabled={loading}
+                      size="sm"
+                      className="gap-2"
+                    >
+                      <FiSave /> {loading ? 'Salvando...' : 'Salvar'}
+                    </Button>
+                    <Button 
+                      variant="outline" 
+                      onClick={handleCancelPersonal}
+                      disabled={loading}
+                      size="sm"
+                      className="gap-2"
+                    >
+                      <FiX /> Cancelar
+                    </Button>
+                  </div>
+                )}
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Nome
+                  </label>
+                  <Input 
+                    value={personalData.nome} 
+                    onChange={(e) => handlePersonalChange('nome', e.target.value)}
+                    disabled={!isEditingPersonal}
+                    placeholder="Seu nome"
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Sobrenome
+                  </label>
+                  <Input 
+                    value={personalData.sobrenome} 
+                    onChange={(e) => handlePersonalChange('sobrenome', e.target.value)}
+                    disabled={!isEditingPersonal}
+                    placeholder="Seu sobrenome"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Email
+                  </label>
+                  <Input 
+                    value={personalData.email} 
+                    disabled
+                    className="bg-gray-50"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">O email não pode ser alterado</p>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Telefone
+                  </label>
+                  <Input 
+                    value={personalData.telefone} 
+                    onChange={(e) => handlePersonalChange('telefone', formatPhone(e.target.value))}
+                    disabled={!isEditingPersonal}
+                    placeholder="(11) 98765-4321"
+                    maxLength={15}
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Tipo de Usuário
+                  </label>
+                  <Input
+                    value={
+                      user?.tipo === "MOTORISTA" 
+                        ? "Motorista" 
+                        : user?.tipo === "AMBOS" 
+                        ? "Motorista e Passageiro" 
+                        : "Passageiro"
+                    }
+                    disabled
+                    className="bg-gray-50"
+                  />
+                </div>
+
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Foto (URL)
+                  </label>
+                  <Input 
+                    value={personalData.foto} 
+                    onChange={(e) => handlePersonalChange('foto', e.target.value)}
+                    disabled={!isEditingPersonal}
+                    placeholder="https://images.unsplash.com/photo-xxx/image.jpg"
+                    type="url"
+                  />
+                  <div className="text-xs mt-1 space-y-1">
+                    {personalData.foto ? (
+                      <p className="text-green-600">✓ URL da foto configurada</p>
+                    ) : (
+                      <p className="text-gray-500">Insira a URL direta de uma imagem</p>
+                    )}
+                    {isEditingPersonal && (
+                      <div className="bg-blue-50 border border-blue-200 rounded p-2 mt-2">
+                        <p className="text-blue-700 font-medium">💡 Como obter URL de imagem:</p>
+                        <ul className="text-blue-600 text-xs mt-1 space-y-1 ml-4 list-disc">
+                          <li>No Unsplash: clique com botão direito na imagem → "Copiar endereço da imagem"</li>
+                          <li>A URL deve terminar com .jpg, .png, .webp, etc.</li>
+                          <li>Exemplo correto: https://images.unsplash.com/photo-123/image.jpg</li>
+                          <li>❌ Não use URLs de páginas (sem .jpg no final)</li>
+                        </ul>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Campos de senha - só aparecem se estiver editando */}
+                {isEditingPersonal && (
+                  <>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Senha atual (obrigatória)
+                      </label>
+                      <PasswordInput
+                        value={personalData.senhaAtual}
+                        onChange={(e) => handlePersonalChange('senhaAtual', e.target.value)}
+                        placeholder="Digite sua senha atual"
+                        autoComplete="current-password"
+                      />
+                      <p className="text-xs text-gray-500 mt-1">Para confirmar as alterações, informe sua senha atual.</p>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Nova Senha (opcional)
+                      </label>
+                      <PasswordInput
+                        value={personalData.senha} 
+                        onChange={(e) => handlePersonalChange('senha', e.target.value)}
+                        placeholder="Deixe em branco para manter a atual"
+                        autoComplete="new-password"
+                      />
+                      <p className="text-xs text-gray-500 mt-1">Mínimo 6 caracteres</p>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Confirmar Nova Senha
+                      </label>
+                      <PasswordInput
+                        value={personalData.confirmarSenha} 
+                        onChange={(e) => handlePersonalChange('confirmarSenha', e.target.value)}
+                        placeholder="Repita a nova senha"
+                        autoComplete="new-password"
+                      />
+                    </div>
+                  </>
+                )}
+              </div>
             </div>
           </div>
         </Card>
@@ -909,7 +968,7 @@ export function ProfilePage() {
 
           <Button
             onClick={() => setShowDeleteModal(true)}
-            className="bg-red-600 hover:bg-red-700 text-white"
+            variant="danger"
           >
             <FiTrash2 className="w-4 h-4 mr-2" />
             Excluir minha conta
@@ -944,14 +1003,16 @@ export function ProfilePage() {
             <div className="flex gap-3">
               <Button
                 onClick={() => setShowDeleteModal(false)}
-                className="flex-1 bg-gray-500 hover:bg-gray-600"
+                variant="outline"
+                className="flex-1"
               >
                 Cancelar
               </Button>
               <Button
                 onClick={handleDeleteAccount}
                 disabled={loading}
-                className="flex-1 bg-red-600 hover:bg-red-700"
+                variant="danger"
+                className="flex-1"
               >
                 {loading ? 'Excluindo...' : 'Sim, excluir conta'}
               </Button>
@@ -960,7 +1021,6 @@ export function ProfilePage() {
         </div>
       )}
     </PageContainer>
-    </>
   );
 }
 

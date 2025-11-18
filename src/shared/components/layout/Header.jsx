@@ -19,7 +19,7 @@ export function Header() {
       <div className="container mx-auto px-4">
         <div className="flex items-center justify-between h-16">
           {/* Logo com gradiente vermelho da FATEC */}
-          <Link to="/" className="flex items-center gap-2">
+          <Link to="/" className="flex items-center gap-2" aria-label="Ir para a página inicial">
             <div className="w-10 h-10 bg-gradient-to-br from-red-600 to-red-700 rounded-lg flex items-center justify-center">
               <span className="text-white font-bold text-xl">F</span>
             </div>
@@ -44,6 +44,7 @@ export function Header() {
                 </div>
                 {/* Botão de logout com confirmação visual em hover */}
                 <button
+                  type="button"
                   onClick={logout}
                   className="flex items-center gap-2 px-3 py-2 text-sm text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                   aria-label="Sair"

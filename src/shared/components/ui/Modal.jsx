@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { FiX } from "react-icons/fi";
 import { cn } from "./cn";
@@ -43,6 +43,46 @@ export function Modal({
     };
   }, [isOpen, onClose]);
 
+  // Focus trap: garante que o foco permaneça dentro do modal enquanto aberto
+  const modalRef = useRef(null);
+  useEffect(() => {
+    if (!isOpen) return;
+    const el = modalRef.current;
+    if (!el) return;
+
+    const focusableSelector = 'a[href], button:not([disabled]), textarea, input, select, [tabindex]:not([tabindex="-1"])';
+    const focusable = Array.from(el.querySelectorAll(focusableSelector)).filter((f) => f.offsetParent !== null);
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+
+    // Focar o primeiro elemento disponível ou no próprio container
+    (first || el).focus();
+
+    const handleKey = (e) => {
+      if (e.key !== 'Tab') return;
+      if (focusable.length === 0) {
+        e.preventDefault();
+        return;
+      }
+      if (e.shiftKey) {
+        // Shift + Tab
+        if (document.activeElement === first) {
+          e.preventDefault();
+          last.focus();
+        }
+      } else {
+        // Tab
+        if (document.activeElement === last) {
+          e.preventDefault();
+          first.focus();
+        }
+      }
+    };
+
+    el.addEventListener('keydown', handleKey);
+    return () => el.removeEventListener('keydown', handleKey);
+  }, [isOpen]);
+
   if (!isOpen) return null;
 
   const sizeStyles = {
@@ -74,6 +114,8 @@ export function Modal({
         role="dialog"
         aria-modal="true"
         aria-labelledby="modal-title"
+        ref={modalRef}
+        tabIndex={-1}
       >
         {/* Header com título e botão de fechar */}
         <div className="flex items-center justify-between p-4 border-b">
@@ -81,6 +123,7 @@ export function Modal({
             {title}
           </h2>
           <button
+            type="button"
             onClick={onClose}
             className="p-1 rounded hover:bg-gray-100 transition-colors"
             aria-label="Fechar modal"

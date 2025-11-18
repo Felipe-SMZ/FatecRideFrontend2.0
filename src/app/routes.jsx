@@ -10,6 +10,11 @@ import { LoginPage } from '@features/auth/pages/LoginPage';
 import { RegisterPage } from '@features/auth/pages/RegisterPage';
 import { SelectUserTypePage } from '@features/auth/pages/SelectUserTypePage';
 import { ForgotPasswordPage } from '@features/auth/pages/ForgotPasswordPage';
+// Páginas de anunciante (renomeadas para evitar filtros)
+import { AnuncianteLogin } from '@features/anuncios/pages/AnuncianteLogin';
+import { AnuncianteRegister } from '@features/anuncios/pages/AnuncianteRegister';
+import { AnuncianteDashboard } from '@features/anuncios/pages/AnuncianteDashboard';
+import { AnuncianteProtectedRoute } from '@features/anuncios/components/AnuncianteProtectedRoute';
 
 // Lazy loading (páginas secundárias)
 const InicioPage = lazy(() => import('../pages/InicioPage').then(m => ({ default: m.InicioPage })));
@@ -17,12 +22,15 @@ const HomePage = lazy(() => import('../pages/HomePage').then(m => ({ default: m.
 const DriverPage = lazy(() => import('@features/rides/pages/DriverPage').then(m => ({ default: m.DriverPage })));
 const PassengerPage = lazy(() => import('@features/rides/pages/PassengerPage').then(m => ({ default: m.PassengerPage })));
 const ActiveRidesPage = lazy(() => import('@features/rides/pages/ActiveRidesPage').then(m => ({ default: m.ActiveRidesPage })));
+const ActiveRequestsPage = lazy(() => import('@features/rides/pages/ActiveRequestsPage').then(m => ({ default: m.ActiveRequestsPage })));
 const PassengerRidesPage = lazy(() => import('@features/rides/pages/PassengerRidesPage').then(m => ({ default: m.PassengerRidesPage })));
 const RideHistoryPage = lazy(() => import('@features/rides/pages/RideHistoryPage').then(m => ({ default: m.RideHistoryPage })));
 const ProfilePage = lazy(() => import('@features/profile/pages/ProfilePage').then(m => ({ default: m.ProfilePage })));
 const VehiclesPage = lazy(() => import('@features/vehicles/pages/VehiclesPage').then(m => ({ default: m.VehiclesPage })));
 const AddressRegisterPage = lazy(() => import('@features/profile/pages/AddressRegisterPage').then(m => ({ default: m.AddressRegisterPage })));
 const VehicleRegisterPage = lazy(() => import('@features/vehicles/pages/VehicleRegisterPage').then(m => ({ default: m.VehicleRegisterPage })));
+const ConversationsPage = lazy(() => import('@features/chat/pages/ConversationsPage').then(m => ({ default: m.ConversationsPage })));
+const ChatPage = lazy(() => import('@features/chat/pages/ChatPage').then(m => ({ default: m.ChatPage })));
 
 export function AppRoutes() {
     // Monitorar expiração do token globalmente (dentro do Router)
@@ -70,6 +78,11 @@ export function AppRoutes() {
                         <ActiveRidesPage />
                     </ProtectedRoute>
                 } />
+                <Route path="/solicitacoes-ativas" element={
+                    <ProtectedRoute>
+                        <ActiveRequestsPage />
+                    </ProtectedRoute>
+                } />
                 <Route path="/minhas-solicitacoes" element={
                     <ProtectedRoute>
                         <PassengerRidesPage />
@@ -99,6 +112,25 @@ export function AppRoutes() {
                     <ProtectedRoute>
                         <ProfilePage />
                     </ProtectedRoute>
+                } />
+                <Route path="/mensagens" element={
+                    <ProtectedRoute>
+                        <ConversationsPage />
+                    </ProtectedRoute>
+                } />
+                <Route path="/chat/:id_solicitacao" element={
+                    <ProtectedRoute>
+                        <ChatPage />
+                    </ProtectedRoute>
+                } />
+
+                {/* Rotas para anunciantes (separadas do fluxo de usuário comum) */}
+                <Route path="/anunciante/login" element={<AnuncianteLogin />} />
+                <Route path="/anunciante/register" element={<AnuncianteRegister />} />
+                <Route path="/anunciante" element={
+                    <AnuncianteProtectedRoute>
+                        <AnuncianteDashboard />
+                    </AnuncianteProtectedRoute>
                 } />
 
                 {/* Redirect para inicio */}

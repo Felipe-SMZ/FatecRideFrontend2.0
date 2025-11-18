@@ -4,6 +4,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Input } from "@shared/components/ui/Input";
+import { PasswordInput } from "@shared/components/ui/PasswordInput";
 import { Button } from "@shared/components/ui/Button";
 import { Alert } from "@shared/components/ui/Alert";
 import { Logo } from "@shared/components/ui/Logo";
@@ -33,10 +34,20 @@ export function LoginPage() {
       setLoading(true);
       setError("");
       
+      console.log('🔐 LoginPage: Iniciando login...');
       await login(data.email, data.senha);
+      
+      console.log('✅ Login concluído!');
+      console.log('📊 Estado após login:', {
+        isAuthenticated: useAuthStore.getState().isAuthenticated,
+        user: useAuthStore.getState().user,
+        token: useAuthStore.getState().token ? 'Presente' : 'Ausente'
+      });
+      
+      console.log('🚀 Navegando para /inicio...');
       navigate("/inicio", { replace: true });
     } catch (err) {
-      console.error('Erro no login:', err);
+      console.error('❌ Erro no login:', err);
       setError(err.response?.data?.message || "Erro ao fazer login");
     } finally {
       setLoading(false);
@@ -99,9 +110,8 @@ export function LoginPage() {
                 {...register("email")}
               />
 
-              <Input
+              <PasswordInput
                 label="Senha"
-                type="password"
                 placeholder="••••••••"
                 error={errors.senha?.message}
                 {...register("senha")}
@@ -138,15 +148,23 @@ export function LoginPage() {
             </div>
 
             {/* Botão criar conta */}
-            <Link to="/select-user-type" className="block">
-              <Button 
-                type="button" 
-                fullWidth 
-                className="bg-fatecride-blue hover:bg-fatecride-blue-dark transition-colors"
-              >
-                Criar conta
-              </Button>
-            </Link>
+            <div className="space-y-3">
+              <Link to="/select-user-type" className="block">
+                <Button 
+                  type="button" 
+                  fullWidth 
+                  className="bg-fatecride-blue hover:bg-fatecride-blue-dark transition-colors"
+                >
+                  Criar conta
+                </Button>
+              </Link>
+
+              <div className="text-center">
+                <Link to="/anunciante/login" className="inline-block">
+                  <Button type="button" variant="secondary">Área do Anunciante</Button>
+                </Link>
+              </div>
+            </div>
           </div>
         </div>
       </div>

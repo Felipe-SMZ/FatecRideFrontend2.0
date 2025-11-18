@@ -1,8 +1,10 @@
 import { Link } from "react-router-dom";
-import { FiMapPin, FiTruck, FiUser, FiClock } from "react-icons/fi";
+import { FiMapPin, FiUser, FiClock } from "react-icons/fi";
+import { FaCar } from 'react-icons/fa';
 import { PageContainer } from "@shared/components/layout/PageContainer";
 import { Card } from "@shared/components/ui/Card";
 import { useAuthStore } from "@features/auth/stores/authStore";
+import { AnuncioViewerCompact } from '@features/anuncios/components/AnuncioViewer';
 
 /**
  * HomePage - Dashboard principal pós-login
@@ -31,7 +33,7 @@ export function HomePage() {
     },
     {
       to: "/oferecer-carona",
-      icon: FiTruck,
+      icon: FaCar,
       title: "Oferecer carona",
       description: "Cadastre uma nova carona",
       color: "green",
@@ -39,7 +41,7 @@ export function HomePage() {
     },
     {
       to: "/meus-veiculos",
-      icon: FiTruck,
+      icon: FaCar,
       title: "Meus veículos",
       description: "Gerencie seus veículos",
       color: "purple",
@@ -76,6 +78,9 @@ export function HomePage() {
           : "Encontre caronas disponíveis"
       }
     >
+      <div className="mb-6 max-w-4xl mx-auto px-4">
+        <AnuncioViewerCompact className="w-full rounded-lg overflow-hidden" />
+      </div>
       {/* Grid responsivo: 1 col mobile, 2 tablet, 3 desktop */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {visibleItems.map((item) => {

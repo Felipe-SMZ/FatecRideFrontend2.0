@@ -1,6 +1,7 @@
 import { Card } from '@shared/components/ui/Card';
 import { Button } from '@shared/components/ui/Button';
-import { FiUser, FiMapPin, FiTruck, FiUsers } from 'react-icons/fi';
+import { FiUser, FiMapPin, FiUsers } from 'react-icons/fi';
+import { FaCar } from 'react-icons/fa';
 
 /**
  * RideCard - Card para exibir informações de carona disponível
@@ -87,7 +88,7 @@ export function RideCard({
 
           {/* Veículo */}
           <div className="flex items-start gap-3">
-            <FiTruck className="w-5 h-5 text-gray-600 mt-0.5 flex-shrink-0" />
+            <FaCar className="w-5 h-5 text-gray-600 mt-0.5 flex-shrink-0" />
             <div>
               <p className="text-sm font-semibold text-gray-700">Veículo</p>
               <p className="text-gray-900">

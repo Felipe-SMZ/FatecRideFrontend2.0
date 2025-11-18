@@ -17,6 +17,22 @@ export default defineConfig({
   },
   server: {
     port: 3000,
-    open: true
+    open: true,
+    proxy: {
+      // Encaminha chamadas ao serviço de mensagens para evitar CORS durante o desenvolvimento
+      '/api/messages': {
+        target: 'http://localhost:9000',
+        changeOrigin: true,
+        secure: false,
+        rewrite: (path) => path.replace(/^\/api\/messages/, '/api/messages')
+      },
+      // Proxy para WebSocket: o cliente conecta em ws://localhost:3000/socket e o Vite proxya para o servidor WS em 9000
+      '/socket': {
+        target: 'ws://localhost:9000',
+        ws: true,
+        changeOrigin: true,
+        secure: false
+      }
+    }
   }
 })

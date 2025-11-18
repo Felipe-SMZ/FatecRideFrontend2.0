@@ -61,9 +61,9 @@ export function useVehicles() {
     createVehicle: createMutation.mutateAsync,
     updateVehicle: updateMutation.mutateAsync,
     deleteVehicle: deleteMutation.mutateAsync,
-    isCreating: createMutation.isPending,
-    isUpdating: updateMutation.isPending,
-    isDeleting: deleteMutation.isPending,
+    isCreating: createMutation.isLoading,
+    isUpdating: updateMutation.isLoading,
+    isDeleting: deleteMutation.isLoading,
   };
 }
 

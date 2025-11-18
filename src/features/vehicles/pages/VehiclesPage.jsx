@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { FiPlus, FiEdit2, FiTrash2, FiTruck } from "react-icons/fi";
-import { Navbar } from "@shared/components/layout/Navbar";
+import { HiPlus, HiPencil, HiTrash } from "react-icons/hi";
+import { FaCar } from 'react-icons/fa';
 import { PageContainer } from "@shared/components/layout/PageContainer";
 import { Card } from "@shared/components/ui/Card";
 import { Button } from "@shared/components/ui/Button";
@@ -92,88 +92,90 @@ export function VehiclesPage() {
   }
 
   return (
-    <>
-      <Navbar showAuthButton={true} />
+    <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white pt-2">
       <PageContainer
         title="Meus Veículos"
         description="Gerencie os veículos cadastrados para oferecer caronas"
+        centerTitle={true}
+        maxWidth="full"
+        className="max-w-screen-2xl px-6 py-2"
       >
-      {/* Botão de adicionar novo veículo */}
-      <div className="mb-6">
+      {/* Botão de adicionar novo veículo (mantém apenas ação, título vem do PageContainer) */}
+      <div className="mb-6 flex items-center justify-end">
         <Button
           onClick={() => {
             setEditingVehicle(null);
             setModalOpen(true);
           }}
-          className="gap-2"
+          className="gap-2 px-4 py-2"
         >
-          <FiPlus /> Adicionar veículo
+          <HiPlus className="w-5 h-5" />
+          <span>Adicionar veículo</span>
         </Button>
       </div>
 
       {/* Lista de veículos ou empty state */}
       {vehicles.length === 0 ? (
         <EmptyState
-          icon={FiTruck}
+          icon={FaCar}
           title="Nenhum veículo cadastrado"
           description="Adicione um veículo para começar a oferecer caronas"
           action={
             <Button onClick={() => setModalOpen(true)} className="gap-2">
-              <FiPlus /> Adicionar primeiro veículo
+              <HiPlus /> Adicionar primeiro veículo
             </Button>
           }
         />
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-8">
           {vehicles.map((vehicle) => (
-            <Card key={vehicle.id} className="flex flex-col">
-              {/* Cabeçalho do card com modelo e ações */}
-              <div className="flex items-start justify-between mb-4">
-                <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
-                    <FiTruck className="w-6 h-6 text-blue-600" />
+            <Card key={vehicle.id} className="flex flex-col hover:shadow-lg transform hover:-translate-y-1 transition p-8 min-h-[220px]">
+              <div className="relative">
+                <div className="absolute right-3 top-3 flex items-center gap-2">
+                  <button
+                    onClick={() => handleEdit(vehicle)}
+                    aria-label={`Editar ${vehicle.modelo}`}
+                    title="Editar"
+                    className="inline-flex items-center justify-center w-10 h-10 rounded-full bg-white border border-gray-200 shadow-sm hover:bg-gray-50"
+                  >
+                    <HiPencil className="w-5 h-5 text-gray-700" />
+                  </button>
+                  <button
+                    onClick={() => setDeleteConfirm(vehicle)}
+                    aria-label={`Excluir ${vehicle.modelo}`}
+                    title="Excluir"
+                    className="inline-flex items-center justify-center w-10 h-10 rounded-full bg-white border border-gray-200 shadow-sm hover:bg-red-50"
+                  >
+                    <HiTrash className="w-5 h-5 text-red-600" />
+                  </button>
+                </div>
+
+                <div className="flex items-center gap-3 p-4">
+                  <div className="w-12 h-12 bg-gradient-to-br from-gray-100 to-gray-50 rounded-lg flex items-center justify-center">
+                    <FaCar className="w-6 h-6 text-gray-700" />
                   </div>
                   <div>
                     <h3 className="font-semibold text-lg">{vehicle.modelo}</h3>
-                    <p className="text-sm text-gray-600 uppercase">{vehicle.placa}</p>
+                    <p className="text-sm text-gray-500 uppercase">{vehicle.placa}</p>
                   </div>
                 </div>
               </div>
 
-              {/* Informações do veículo */}
-              <div className="space-y-2 flex-1">
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-600">Cor:</span>
-                  <span className="font-medium">{vehicle.cor}</span>
+              <div className="px-4 pb-4 pt-2 flex-1">
+                <div className="grid grid-cols-2 gap-2 text-sm text-gray-600">
+                  <div>
+                    <div className="text-xs text-gray-500">Cor</div>
+                    <div className="font-medium text-gray-800">{vehicle.cor || '—'}</div>
+                  </div>
+                  <div>
+                    <div className="text-xs text-gray-500">Ano</div>
+                    <div className="font-medium text-gray-800">{vehicle.ano || '—'}</div>
+                  </div>
                 </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-600">Ano:</span>
-                  <span className="font-medium">{vehicle.ano}</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-600">Capacidade:</span>
-                  <Badge variant="primary">{vehicle.capacidade} passageiros</Badge>
-                </div>
-              </div>
 
-              {/* Botões de ação */}
-              <div className="flex gap-2 mt-4 pt-4 border-t">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => handleEdit(vehicle)}
-                  className="flex-1 gap-2"
-                >
-                  <FiEdit2 className="w-4 h-4" /> Editar
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setDeleteConfirm(vehicle)}
-                  className="flex-1 gap-2 text-red-600 hover:bg-red-50"
-                >
-                  <FiTrash2 className="w-4 h-4" /> Excluir
-                </Button>
+                <div className="mt-4">
+                  <Badge variant="primary">{vehicle.vagas_disponiveis ?? vehicle.capacidade ?? '—'} passageiros</Badge>
+                </div>
               </div>
             </Card>
           ))}
@@ -227,15 +229,15 @@ export function VehiclesPage() {
             <Button
               onClick={handleDelete}
               disabled={isDeleting}
-              className="bg-red-600 hover:bg-red-700"
+              variant="danger"
             >
               {isDeleting ? "Excluindo..." : "Excluir"}
             </Button>
           </div>
         </div>
       </Modal>
-    </PageContainer>
-    </>
+      </PageContainer>
+    </div>
   );
 }
 

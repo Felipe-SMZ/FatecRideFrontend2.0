@@ -1,5 +1,6 @@
 import { Navigate } from "react-router-dom";
 import { useAuthStore } from "../stores/authStore";
+import { Navbar } from '@shared/components/layout/Navbar';
 
 /**
  * ProtectedRoute - Wrapper para rotas que exigem autenticação
@@ -37,18 +38,21 @@ export function ProtectedRoute({ children, requiredRole }) {
   // Nota: user.tipo pode ser 'MOTORISTA', 'PASSAGEIRO' ou 'AMBOS'
   if (requiredRole) {
     const userType = user?.tipo;
-    
-    // Se o tipo é AMBOS, permite acesso a qualquer rota
-    if (userType === 'AMBOS') {
-      return children;
-    }
-    
-    // Caso contrário, verifica se o tipo corresponde ao requerido
-    if (userType !== requiredRole) {
+
+    // Permite acesso se o usuário tem o role requerido ou for 'AMBOS'.
+    // Caso contrário, redireciona para a tela inicial.
+    if (userType !== requiredRole && userType !== 'AMBOS') {
       return <Navigate to="/inicio" replace />;
     }
   }
 
-  // Tudo certo, renderiza o conteúdo protegido
-  return children;
+  // Tudo certo, renderiza o conteúdo protegido com a Navbar
+  return (
+    <>
+      <Navbar showAuthButton={true} />
+      <main className="pt-20">
+        {children}
+      </main>
+    </>
+  );
 }

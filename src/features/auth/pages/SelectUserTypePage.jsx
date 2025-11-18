@@ -2,7 +2,8 @@ import { useNavigate } from 'react-router-dom';
 import { Card } from '@shared/components/ui/Card';
 import { Button } from '@shared/components/ui/Button';
 import { Logo } from '@shared/components/ui/Logo';
-import { FiUser, FiTruck, FiUsers } from 'react-icons/fi';
+import { FiUser, FiUsers } from 'react-icons/fi';
+import { FaCar } from 'react-icons/fa';
 
 /**
  * SelectUserTypePage - Página de seleção de tipo de usuário
@@ -31,7 +32,7 @@ const USER_TYPES = [
     id: 2,
     name: 'Motorista',
     description: 'Ofereço caronas aos colegas',
-    icon: FiTruck,
+    icon: FaCar,
     color: 'from-fatecride-blue to-fatecride-blue-dark',
     hoverColor: 'hover:from-fatecride-blue-dark hover:to-fatecride-blue-darker'
   },

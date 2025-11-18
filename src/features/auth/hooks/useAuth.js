@@ -17,7 +17,13 @@ export function useLogin() {
             navigate('/inicio');
         },
         onError: (error) => {
-            toast.error('Email ou senha inválidos');
+            // Mostrar mensagem específica do backend, se disponível
+            const backendMessage = error?.response?.data?.message || error?.message;
+            if (backendMessage) {
+                toast.error(backendMessage);
+            } else {
+                toast.error('Email ou senha inválidos');
+            }
         }
     });
 }

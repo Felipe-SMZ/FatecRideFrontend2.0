@@ -9,6 +9,7 @@ export const useAuthStore = create(
             // State
             user: null,
             token: null,
+            messagesToken: null,
             isAuthenticated: false,
             isLoading: false,
 
@@ -17,94 +18,58 @@ export const useAuthStore = create(
                 set({ isLoading: true });
                 try {
                     const response = await authService.login(email, senha);
+                    console.log('🔍 authStore - Resposta completa do backend:', response);
+                    console.log('📋 authStore - userTypeId recebido:', response.userTypeId, '| Tipo:', typeof response.userTypeId);
+                    
                     const token = response.token;
                     
-                    // Salvar token imediatamente para usar na próxima requisição
-                    localStorage.setItem('token', token);
+                    // Salvar token no Zustand para o interceptor axios funcionar
+                    set({ token });
                     
-                    // Buscar dados completos do usuário
-                    try {
-                        console.log('📡 Login: Buscando dados completos do usuário...');
-                        const userDataResponse = await authService.getCurrentUser();
-                        console.log('✅ Login: Dados recebidos:', userDataResponse);
-                        
-                        // Mapear userTypeId para tipo string
-                        let tipo = 'PASSAGEIRO'; // Default
-                        if (userDataResponse.userTypeId === 1) {
-                            tipo = 'MOTORISTA';
-                        } else if (userDataResponse.userTypeId === 2) {
-                            tipo = 'PASSAGEIRO';
-                        } else if (userDataResponse.userTypeId === 3) {
-                            tipo = 'AMBOS';
-                        } else if (userDataResponse.tipo) {
-                            // Se vier diretamente como string, usar
-                            tipo = userDataResponse.tipo;
-                        }
-                        
-                        console.log(`🔧 Login: userTypeId=${userDataResponse.userTypeId} → tipo="${tipo}"`);
-                        
-                        const user = {
-                            name: userDataResponse.nome || response.name,
-                            email: email,
-                            tipo: tipo,
-                            id: userDataResponse.id,
-                            userTypeId: userDataResponse.userTypeId,
-                            foto: userDataResponse.foto || null
-                        };
-                        
-                        set({
-                            user,
-                            token,
-                            isAuthenticated: true,
-                            isLoading: false
-                        });
-                    } catch (userError) {
-                        // Se falhar ao buscar dados completos, inferir tipo pelo email
-                        console.warn('❌ Login: Erro ao buscar dados do usuário:', userError);
-                        console.warn('❌ Status:', userError?.response?.status);
-                        
-                        // Inferir tipo pelo padrão do email (workaround temporário)
-                        let inferredTipo = 'PASSAGEIRO'; // Default
-                        if (email.includes('motorista') || email.startsWith('fm')) {
-                            inferredTipo = 'MOTORISTA';
-                        } else if (email.includes('passageiro') || email.startsWith('fp')) {
-                            inferredTipo = 'PASSAGEIRO';
-                        } else if (email.includes('ambos') || email.startsWith('fa')) {
-                            inferredTipo = 'AMBOS';
-                        }
-                        
-                        console.log(`🔧 Login: Tipo inferido: ${inferredTipo} (baseado no email)`);
-                        
-                        const user = {
-                            name: response.name,
-                            email: email,
-                            tipo: inferredTipo,
-                            userTypeId: inferredTipo === 'MOTORISTA' ? 1 : inferredTipo === 'PASSAGEIRO' ? 2 : 3
-                        };
-                        
-                        console.log('👤 User object criado:', user);
-                        
-                        set({
-                            user,
-                            token,
-                            isAuthenticated: true,
-                            isLoading: false
-                        });
+                    // Backend agora retorna id e userTypeId diretamente no login
+                    // Mapear userTypeId para tipo string (Backend: 1=PASSAGEIRO, 2=MOTORISTA, 3=AMBOS)
+                    let tipo = 'PASSAGEIRO'; // Default
+                    if (response.userTypeId === 1) {
+                        tipo = 'PASSAGEIRO';
+                    } else if (response.userTypeId === 2) {
+                        tipo = 'MOTORISTA';
+                    } else if (response.userTypeId === 3) {
+                        tipo = 'AMBOS';
                     }
+                    
+                    console.log('🎭 authStore - Tipo mapeado:', tipo, '(userTypeId:', response.userTypeId, ')');
+                    
+                    const user = {
+                        name: response.name,
+                        email: email,
+                        tipo: tipo,
+                        id: response.id,
+                        userTypeId: response.userTypeId,
+                        foto: null // Foto virá do GET /users se necessário
+                    };
+                    
+                    set({
+                        user,
+                        token,
+                        isAuthenticated: true,
+                        isLoading: false
+                    });
                     
                     return response;
                 } catch (error) {
                     set({ isLoading: false });
-                    localStorage.removeItem('token');
                     throw error;
                 }
             },
 
-            setAuth: (user, token) => set({
+            setAuth: (user, token, messagesToken = null) => set({
                 user,
                 token,
+                messagesToken,
                 isAuthenticated: true
             }),
+
+            setMessagesToken: (messagesToken) => set({ messagesToken }),
 
             loadUserData: async () => {
                 try {
@@ -184,6 +149,7 @@ export const useAuthStore = create(
                 set({
                     user: null,
                     token: null,
+                    messagesToken: null,
                     isAuthenticated: false
                 });
                 localStorage.removeItem('token');
@@ -193,7 +159,8 @@ export const useAuthStore = create(
 
             // Getters
             getUserType: () => get().user?.userTypeId,
-            hasVehicle: () => get().user?.hasVehicle || false
+            hasVehicle: () => get().user?.hasVehicle || false,
+            getMessagesToken: () => get().messagesToken
         }),
         {
             name: 'fatecride-auth',
@@ -203,6 +170,7 @@ export const useAuthStore = create(
                 user: state.user,
                 isAuthenticated: state.isAuthenticated,
                 token: state.token, // Precisamos do token para as requisições
+                messagesToken: state.messagesToken
             })
         }
     )

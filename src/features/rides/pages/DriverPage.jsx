@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
-import { Navbar } from '@shared/components/layout/Navbar';
+ 
 import { PageContainer } from '@shared/components/layout/PageContainer';
 import { Card } from '@shared/components/ui/Card';
 import { Button } from '@shared/components/ui/Button';
@@ -12,6 +12,8 @@ import { AddressAutocomplete } from '@shared/components/ui/AddressAutocomplete';
 import { MapView } from '@shared/components/map/MapView';
 import { AddressCard } from '@shared/components/cards/AddressCard';
 import { FiMapPin } from 'react-icons/fi';
+import { vehiclesService } from '@features/vehicles/services/vehiclesService';
+import { AnuncioViewerCompact } from '@features/anuncios/components/AnuncioViewer';
 
 /**
  * DriverPage - Página de criação de carona (Motorista)
@@ -49,41 +51,28 @@ export function DriverPage() {
     useEffect(() => {
         const fetchVehicles = async () => {
             try {
-                const token = localStorage.getItem('token');
-                const response = await fetch('http://localhost:8080/veiculos', {
-                    headers: { Authorization: `Bearer ${token}` }
-                });
-                
-                if (!response.ok) {
-                    const errorText = await response.text();
-                    console.error('❌ Erro ao buscar veículos:', response.status, errorText);
-                    
-                    // Se não tem veículo, redireciona para cadastro
-                    if (response.status === 404 || response.status === 500) {
-                        toast.error('Você precisa cadastrar um veículo primeiro', { duration: 5000 });
-                        setTimeout(() => navigate('/cadastrar-veiculo'), 2000);
-                        return;
-                    }
-                    throw new Error('Erro ao buscar veículos');
-                }
-                
-                const data = await response.json();
-                console.log('🚗 Veículos carregados:', data);
-                
-                // Se array está vazio
+                const data = await vehiclesService.getAll();
+                console.log('🚗 Veículos carregados (service):', data);
+
                 if (!data || data.length === 0) {
                     toast.error('Você precisa cadastrar um veículo primeiro', { duration: 5000 });
                     setTimeout(() => navigate('/cadastrar-veiculo'), 2000);
                     return;
                 }
-                
+
                 setVehicles(data);
-                
+
                 if (data.length > 0) {
                     setVehicleId(data[0].id || data[0].id_veiculo || data[0].idVeiculo);
                 }
             } catch (error) {
-                console.error('❌ Exceção ao buscar veículos:', error);
+                console.error('❌ Exceção ao buscar veículos (service):', error);
+                // Se backend retornou 403, indicar que usuário não tem permissão
+                const status = error?.response?.status || error?.status;
+                if (status === 403) {
+                    toast.error('Você não tem permissão para ver veículos', { duration: 5000 });
+                    return;
+                }
                 toast.error('Erro ao carregar veículos');
             }
         };
@@ -127,8 +116,6 @@ export function DriverPage() {
 
         try {
             setCreatingRide(true);
-            const token = localStorage.getItem('token');
-
             const payload = {
                 originDTO: originAddress,
                 destinationDTO: destinationAddress,
@@ -136,19 +123,8 @@ export function DriverPage() {
                 id_veiculo: vehicleId
             };
 
-            const response = await fetch('http://localhost:8080/rides', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    Authorization: `Bearer ${token}`
-                },
-                body: JSON.stringify(payload)
-            });
-
-            if (!response.ok) {
-                const errorText = await response.text();
-                throw new Error(errorText || 'Erro ao criar carona');
-            }
+            // Usar service para garantir Authorization via interceptor
+            await (await import('@features/rides/services/ridesService')).ridesService.createRide(payload);
 
             toast.success('Carona criada com sucesso!');
             navigate('/inicio');
@@ -161,30 +137,27 @@ export function DriverPage() {
     };
 
     return (
-        <>
-            <Navbar showAuthButton={true} />
-            <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white">
-                <PageContainer>
+        <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white pt-2">
+            <PageContainer centerTitle={true} maxWidth="full" className="max-w-screen-2xl px-6 py-2">
                     <div className="py-6">
-                        <h1 className="text-3xl font-bold text-gray-900 mb-6">
+                        <h1 className="text-3xl font-bold text-fatecride-blue mb-6 text-center">
                             Oferecer Carona 🚗
                         </h1>
-
-                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                        {/* Coluna do Mapa - 2/3 */}
-                        <div className="lg:col-span-2">
-                            <Card className="p-0 overflow-hidden h-[500px]">
+                        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                        {/* Coluna do Mapa */}
+                        <div className="lg:col-span-4 flex justify-center">
+                            <Card className="p-0 overflow-hidden h-[520px] w-[520px] max-w-full relative z-0">
                                 <MapView
                                     origin={originCoords ? { ...originCoords, label: 'Origem' } : null}
                                     destination={destinationCoords ? { ...destinationCoords, label: 'Destino' } : null}
                                     showRoute={!!(originCoords && destinationCoords)}
-                                    className="h-full"
+                                    className="h-full w-full"
                                 />
                             </Card>
 
-                            {/* Cards de Endereço */}
+                            {/* Pequena pré-visualização de endereços abaixo do mapa (mobile) */}
                             {(originAddress || destinationAddress) && (
-                                <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div className="mt-4 md:mt-6 grid grid-cols-1 gap-4 lg:hidden">
                                     {originAddress && (
                                         <AddressCard
                                             title="Origem"
@@ -203,13 +176,11 @@ export function DriverPage() {
                             )}
                         </div>
 
-                        {/* Coluna do Formulário - 1/3 */}
-                        <div className="lg:col-span-1">
+                        {/* Coluna do Formulário */}
+                        <div className="lg:col-span-4">
                             <Card>
                                 <div className="p-6">
-                                    <h2 className="text-2xl font-bold text-gray-900 mb-6">
-                                        Para onde vamos?
-                                    </h2>
+                                    <h2 className="text-2xl font-semibold text-fatecride-blue mb-4 leading-tight">Para onde vamos?</h2>
 
                                     <div className="space-y-4">
                                         {/* Origem com Autocomplete */}
@@ -281,10 +252,16 @@ export function DriverPage() {
                                 </div>
                             </Card>
                         </div>
+
+                        {/* Coluna do Anúncio */}
+                        <div className="lg:col-span-4">
+                            <div className="sticky top-16">
+                                <AnuncioViewerCompact className="w-full rounded-lg overflow-hidden" />
+                            </div>
+                        </div>
                     </div>
                 </div>
             </PageContainer>
         </div>
-        </>
     );
 }

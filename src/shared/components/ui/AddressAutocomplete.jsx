@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { FiMapPin, FiLoader } from 'react-icons/fi';
+import api from '@shared/lib/api';
 
 /**
  * AddressAutocomplete - Campo de busca com sugestões do OpenStreetMap
@@ -68,32 +69,26 @@ export function AddressAutocomplete({
     const searchAddress = async (query) => {
         try {
             setLoading(true);
-            const token = localStorage.getItem('token');
-            
-            // Busca através do backend (resolve CORS)
-            const response = await fetch(
-                `http://localhost:8080/local?local=${encodeURIComponent(query)}`,
-                {
-                    headers: {
-                        'Authorization': `Bearer ${token}`,
-                        'Accept': 'application/json'
-                    }
-                }
-            );
 
-            if (response.ok) {
-                const data = await response.json();
-                console.log('🗺️ Dados do OSM:', data);
-                // Backend retorna apenas 1 resultado, vamos criar array
+            // Usar axios `api` para que o interceptor injete Authorization automaticamente
+            const { data, status } = await api.get('/local', { params: { local: query } });
+
+            if (status === 200 && data) {
+                console.log('🗺️ Dados do OSM (via api):', data);
                 setSuggestions([data]);
                 setShowSuggestions(true);
             } else {
-                console.warn('⚠️ Endereço não encontrado');
+                console.warn('⚠️ Endereço não encontrado (status:', status, ')');
                 setSuggestions([]);
                 setShowSuggestions(false);
             }
         } catch (error) {
-            console.error('Erro ao buscar sugestões:', error);
+            const status = error?.response?.status || error?.status;
+            if (status === 403) {
+                console.warn('⚠️ Autorização negada ao buscar endereços (403)');
+            } else {
+                console.error('Erro ao buscar sugestões:', error);
+            }
             setSuggestions([]);
             setShowSuggestions(false);
         } finally {
