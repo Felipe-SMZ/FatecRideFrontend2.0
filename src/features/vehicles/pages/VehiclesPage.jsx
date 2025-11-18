@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { HiPlus, HiPencil, HiTrash, HiTruck } from "react-icons/hi";
+import { HiPlus, HiPencil, HiTrash, HiUserGroup } from "react-icons/hi";
+import { MdDriveEta } from 'react-icons/md';
 import { PageContainer } from "@shared/components/layout/PageContainer";
 import { Card } from "@shared/components/ui/Card";
 import { Button } from "@shared/components/ui/Button";
@@ -97,34 +98,28 @@ export function VehiclesPage() {
         description="Gerencie os veículos cadastrados para oferecer caronas"
       >
       {/* Botão de adicionar novo veículo */}
-      <div className="mb-6 flex items-center justify-between">
-        <div>
-          <h2 className="text-xl font-semibold">Meus Veículos</h2>
-          <p className="text-sm text-gray-500">Gerencie veículos que você usa para oferecer caronas</p>
-        </div>
-        <div>
-          <Button
-            onClick={() => {
-              setEditingVehicle(null);
-              setModalOpen(true);
-            }}
-            className="gap-2 px-4 py-2"
-          >
-            <HiPlus className="w-5 h-5" />
-            <span>Adicionar veículo</span>
-          </Button>
-        </div>
+      <div className="mb-6 flex items-center justify-end">
+        <Button
+          onClick={() => {
+            setEditingVehicle(null);
+            setModalOpen(true);
+          }}
+          className="gap-2 px-4 py-2"
+        >
+          <HiPlus className="w-5 h-5" />
+          <span>Adicionar veículo</span>
+        </Button>
       </div>
 
       {/* Lista de veículos ou empty state */}
       {vehicles.length === 0 ? (
         <EmptyState
-          icon={FiTruck}
+          icon={MdDriveEta}
           title="Nenhum veículo cadastrado"
           description="Adicione um veículo para começar a oferecer caronas"
           action={
             <Button onClick={() => setModalOpen(true)} className="gap-2">
-              <FiPlus /> Adicionar primeiro veículo
+              <HiPlus className="w-4 h-4" /> Adicionar primeiro veículo
             </Button>
           }
         />
@@ -154,11 +149,11 @@ export function VehiclesPage() {
 
                 <div className="flex items-center gap-3 p-4">
                   <div className="w-12 h-12 bg-gradient-to-br from-gray-100 to-gray-50 rounded-lg flex items-center justify-center">
-                    <HiTruck className="w-6 h-6 text-gray-700" />
+                    <MdDriveEta className="w-6 h-6 text-gray-700" />
                   </div>
                   <div>
-                    <h3 className="font-semibold text-lg">{vehicle.modelo}</h3>
-                    <p className="text-sm text-gray-500 uppercase">{vehicle.placa}</p>
+                    <h3 className="font-semibold text-lg text-gray-900">{vehicle.modelo}</h3>
+                    <p className="text-sm text-gray-600 uppercase tracking-wider">{vehicle.placa}</p>
                   </div>
                 </div>
               </div>
@@ -167,16 +162,20 @@ export function VehiclesPage() {
                 <div className="grid grid-cols-2 gap-2 text-sm text-gray-600">
                   <div>
                     <div className="text-xs text-gray-500">Cor</div>
-                    <div className="font-medium text-gray-800">{vehicle.cor || '—'}</div>
+                    <div className="font-medium text-base text-gray-800">{vehicle.cor || '—'}</div>
                   </div>
                   <div>
                     <div className="text-xs text-gray-500">Ano</div>
-                    <div className="font-medium text-gray-800">{vehicle.ano || '—'}</div>
+                    <div className="font-medium text-base text-gray-800">{vehicle.ano || '—'}</div>
                   </div>
                 </div>
 
-                <div className="mt-4">
-                  <Badge variant="primary">{vehicle.capacidade} passageiros</Badge>
+                <div className="mt-4 flex items-center gap-2">
+                  <Badge variant="primary" size="lg" className="flex items-center gap-2">
+                    <HiUserGroup className="w-4 h-4 text-blue-700" />
+                    <span className="font-semibold">{vehicle.vagas_disponiveis ?? '—'}</span>
+                    <span className="text-xs text-blue-800">passageiros</span>
+                  </Badge>
                 </div>
               </div>
             </Card>
