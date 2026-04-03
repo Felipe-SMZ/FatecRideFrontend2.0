@@ -1,6 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
 import { FiMapPin, FiLoader } from 'react-icons/fi';
-import api from '@shared/lib/api';
 
 /**
  * AddressAutocomplete - Campo de busca com sugestões do OpenStreetMap
@@ -25,6 +24,7 @@ export function AddressAutocomplete({
     const [showSuggestions, setShowSuggestions] = useState(false);
     const wrapperRef = useRef(null);
     const timeoutRef = useRef(null);
+    const justSelectedRef = useRef(false);
 
     // Fecha sugestões ao clicar fora
     useEffect(() => {
@@ -42,6 +42,12 @@ export function AddressAutocomplete({
         // Limpa timeout anterior
         if (timeoutRef.current) {
             clearTimeout(timeoutRef.current);
+        }
+
+        // Se uma sugestão foi recentemente selecionada, não faz nova busca
+        if (justSelectedRef.current) {
+            justSelectedRef.current = false;
+            return;
         }
 
         // Se não tem valor, limpa sugestões
@@ -64,31 +70,45 @@ export function AddressAutocomplete({
     }, [value]);
 
     /**
-     * Busca endereços no OpenStreetMap via backend
+     * Busca endereços no OpenStreetMap via API Nominatim
+     * Retorna múltiplas sugestões (até 5)
      */
     const searchAddress = async (query) => {
         try {
             setLoading(true);
 
-            // Usar axios `api` para que o interceptor injete Authorization automaticamente
-            const { data, status } = await api.get('/local', { params: { local: query } });
+            // Chamar Nominatim diretamente para obter múltiplas sugestões
+            // Parâmetros:
+            // - q: query de busca
+            // - limit: número máximo de resultados (5)
+            // - format: json
+            // - addressdetails: 1 (para obter detalhes do endereço)
+            const response = await fetch(
+                `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&limit=5&format=json&addressdetails=1&countrycodes=br`,
+                {
+                    headers: {
+                        'Accept': 'application/json'
+                    }
+                }
+            );
 
-            if (status === 200 && data) {
-                console.log('🗺️ Dados do OSM (via api):', data);
-                setSuggestions([data]);
+            if (!response.ok) {
+                throw new Error(`Erro na API: ${response.status}`);
+            }
+
+            const data = await response.json();
+
+            if (data && Array.isArray(data) && data.length > 0) {
+                console.log('🗺️ Sugestões do Nominatim:', data);
+                setSuggestions(data);
                 setShowSuggestions(true);
             } else {
-                console.warn('⚠️ Endereço não encontrado (status:', status, ')');
+                console.warn('⚠️ Nenhum endereço encontrado para:', query);
                 setSuggestions([]);
                 setShowSuggestions(false);
             }
         } catch (error) {
-            const status = error?.response?.status || error?.status;
-            if (status === 403) {
-                console.warn('⚠️ Autorização negada ao buscar endereços (403)');
-            } else {
-                console.error('Erro ao buscar sugestões:', error);
-            }
+            console.error('❌ Erro ao buscar sugestões:', error);
             setSuggestions([]);
             setShowSuggestions(false);
         } finally {
@@ -183,9 +203,13 @@ export function AddressAutocomplete({
      * Quando usuário seleciona uma sugestão
      */
     const handleSelectSuggestion = (suggestion) => {
+        // Marcar que uma sugestão foi selecionada para evitar nova busca
+        justSelectedRef.current = true;
+        
         const formatted = formatDisplayName(suggestion);
         onChange({ target: { value: formatted } });
         setShowSuggestions(false);
+        setSuggestions([]);
         
         // Chama callback com os dados completos
         if (onSelect) {
