@@ -4,6 +4,7 @@ import { persist, createJSONStorage } from 'zustand/middleware';
 import { authService } from '../services/authService';
 import notificationsService from '@shared/services/notificationsService';
 import { toast } from 'react-hot-toast';
+import api from '@shared/lib/api';
 
 export const useAuthStore = create(
     persist(
@@ -147,18 +148,28 @@ export const useAuthStore = create(
                 user: { ...state.user, ...userData }
             })),
 
-            logout: () => {
+            logout: async () => {
+                // Tentar notificar o backend para remover o emitter antes de limpar o token
+                try {
+                    await api.post('/notificacoes/desconectar');
+                    console.log('notifications: notificado backend sobre desconexão');
+                } catch (err) {
+                    console.warn('Falha ao notificar backend sobre desconexão (pode já ter desconectado):', err?.message || err);
+                }
+
+                try {
+                    notificationsService.disconnect(true);
+                    toast.success('Notificações desconectadas');
+                } catch (e) { console.warn('Falha ao desconectar notificationsService', e); }
+
                 set({
                     user: null,
                     token: null,
                     messagesToken: null,
                     isAuthenticated: false
                 });
+
                 localStorage.removeItem('token');
-                try {
-                    notificationsService.disconnect(true);
-                    toast.success('Notificações desconectadas');
-                } catch (e) { console.warn('Falha ao desconectar notificationsService', e); }
             },
 
             setLoading: (isLoading) => set({ isLoading }),
