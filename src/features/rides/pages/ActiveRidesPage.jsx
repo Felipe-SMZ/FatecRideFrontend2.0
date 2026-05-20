@@ -35,6 +35,7 @@ export function ActiveRidesPage() {
   const [processingId, setProcessingId] = useState(null);
   const [openChat, setOpenChat] = useState(null);
   const [activeTab, setActiveTab] = useState('driver'); // 'driver' ou 'passenger'
+  const [newRequestAlert, setNewRequestAlert] = useState(null);
 
   // Verificar tipo de usuário (memoizar para evitar recalcular)
   const userTipo = user?.tipo;
@@ -78,6 +79,21 @@ export function ActiveRidesPage() {
 
     const onNova = (payload) => {
       console.log('SSE nova_solicitacao recebido em ActiveRidesPage:', payload);
+      // Mostrar notificação ao motorista
+      try {
+        const name = payload?.passageiroNome || payload?.passageiro_nome || payload?.passageiro || 'Passageiro';
+        const dist = payload?.distanciaOrigemKm ?? payload?.distancia_origem_km ?? null;
+        if (dist != null) {
+          toast.info(`Nova solicitação de ${name} — ${dist} km`);
+        } else {
+          toast.info(`Nova solicitação de ${name}`);
+        }
+      } catch (e) { console.warn('Erro ao mostrar toast nova_solicitacao', e); }
+
+      // destacar visualmente por alguns segundos
+      setNewRequestAlert(payload);
+      setTimeout(() => setNewRequestAlert(null), 8000);
+
       // Refetch completo
       fetchActiveRides();
     };
