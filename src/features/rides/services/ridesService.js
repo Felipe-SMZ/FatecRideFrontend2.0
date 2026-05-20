@@ -24,6 +24,18 @@ const ridesService = {
     return data;
   },
 
+  // Iniciar fluxo automático para uma solicitação existente
+  startAutomaticFlow: async ({ solicitacaoId, latitudeOrigem, longitudeOrigem, latitudeDestino, longitudeDestino } = {}) => {
+    const body = { solicitacaoId };
+    if (latitudeOrigem !== undefined && latitudeOrigem !== null) body.latitudeOrigem = latitudeOrigem;
+    if (longitudeOrigem !== undefined && longitudeOrigem !== null) body.longitudeOrigem = longitudeOrigem;
+    if (latitudeDestino !== undefined && latitudeDestino !== null) body.latitudeDestino = latitudeDestino;
+    if (longitudeDestino !== undefined && longitudeDestino !== null) body.longitudeDestino = longitudeDestino;
+
+    const { data } = await api.post('/solicitacao/automatico/iniciar', body);
+    return data;
+  },
+
   // Histórico de motorista
   getHistory: async (pagina = 0, itens = 50) => {
     const { data } = await api.get('/rides/history', { params: { pagina, itens } });

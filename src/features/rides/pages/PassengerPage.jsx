@@ -144,9 +144,28 @@ export function PassengerPage() {
                     destinationDTO: destinationAddress
                 };
 
-                await ridesService.requestRide(payload);
+                const created = await ridesService.requestRide(payload);
 
-                toast.success('Solicitação enviada com sucesso!');
+                // Tenta iniciar o fluxo automático para a solicitação criada
+                try {
+                    const solicitacaoId = created?.id ?? created?.id_solicitacao ?? created?.idSolicitacao ?? null;
+                    if (solicitacaoId) {
+                        await ridesService.startAutomaticFlow({
+                            solicitacaoId,
+                            latitudeOrigem: originCoords?.lat,
+                            longitudeOrigem: originCoords?.lng,
+                            latitudeDestino: destinationCoords?.lat,
+                            longitudeDestino: destinationCoords?.lng
+                        });
+                        toast.success('Solicitação enviada e fluxo automático iniciado!');
+                    } else {
+                        toast.success('Solicitação enviada com sucesso!');
+                    }
+                } catch (errAuto) {
+                    console.error('Erro ao iniciar fluxo automático:', errAuto);
+                    toast('Solicitação criada, mas falha ao iniciar fluxo automático. Você pode tentar novamente manualmente.', { duration: 6000 });
+                }
+
                 navigate('/inicio');
             } catch (error) {
                 console.error('Erro ao solicitar carona (service):', error);
