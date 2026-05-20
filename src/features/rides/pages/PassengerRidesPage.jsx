@@ -82,6 +82,14 @@ export function PassengerRidesPage() {
 
         const uniqueRequests = Array.from(map.values()).map(normalizeRequest);
         console.log(`✅ ${uniqueRequests.length} solicitações únicas (${requestsArray.length} total)`);
+        console.log('Debug - Primeiros 3 requests:', uniqueRequests.slice(0, 3).map(r => ({
+          id: r.id,
+          status: r.status,
+          statusLower: r.status?.toLowerCase(),
+          origem: r.origem,
+          destino: r.destino,
+          nome_motorista: r.nome_motorista
+        })));
         setRequests(uniqueRequests);
       } catch (err) {
         console.warn('⚠️ Falha ao buscar histórico do passageiro', err);
@@ -122,9 +130,10 @@ export function PassengerRidesPage() {
       'recusada': { text: 'Recusada', class: 'bg-red-100 text-red-800' },
       'cancelada': { text: 'Cancelada', class: 'bg-gray-100 text-gray-800' },
       'concluida': { text: 'Concluída', class: 'bg-blue-100 text-blue-800' },
+      'ativa': { text: 'Ativa', class: 'bg-green-100 text-green-800' },
     };
     
-    const statusKey = status?.toLowerCase() || 'pendente';
+    const statusKey = status?.toLowerCase()?.trim() || 'pendente';
     const config = statusMap[statusKey] || statusMap['pendente'];
     
     return (
@@ -132,6 +141,13 @@ export function PassengerRidesPage() {
         {config.text}
       </span>
     );
+  };
+
+  // Verificar se solicitação pode ser cancelada
+  const canCancelRequest = (status) => {
+    if (!status) return false;
+    const statusLower = status.toLowerCase().trim();
+    return ['pendente', 'ativa'].includes(statusLower);
   };
 
   if (loading) {
@@ -222,7 +238,7 @@ export function PassengerRidesPage() {
 
                   {/* Ações */}
                   <div className="ml-6 flex gap-2">
-                    {['pendente', 'ativa'].includes(request.status?.toLowerCase()) && (
+                    {canCancelRequest(request.status) && (
                       <Button
                         onClick={() => setCancelConfirm(request.id)}
                         disabled={cancelingId === request.id || cancelConfirm === request.id}
