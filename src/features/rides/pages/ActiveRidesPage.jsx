@@ -10,6 +10,7 @@ import { Spinner } from '@shared/components/ui/Spinner';
 import { useAuthStore } from '@features/auth/stores/authStore';
 import { SimpleChatModal } from '@features/chat/components/SimpleChatModal';
 import { sendRideAcceptedMessage } from '@features/chat/services/autoMessageService';
+import notificationsService from '@shared/services/notificationsService';
 
 /**
  * ActiveRidesPage - Página de gerenciamento de caronas ativas
@@ -69,6 +70,24 @@ export function ActiveRidesPage() {
       setRides([]);
     }
   }, [userTipo, activeTab]); // Apenas tipo e aba
+
+  // Subscribes SSE events para atualizar automaticamente
+  useEffect(() => {
+    // Só interessam eventos para motorista quando estiver na aba driver
+    if (!(isDriver || isBoth) || activeTab !== 'driver') return;
+
+    const onNova = (payload) => {
+      console.log('SSE nova_solicitacao recebido em ActiveRidesPage:', payload);
+      // Refetch completo
+      fetchActiveRides();
+    };
+
+    const offNova = notificationsService.on('nova_solicitacao', onNova);
+
+    return () => {
+      offNova();
+    };
+  }, [isDriver, isBoth, activeTab, user?.id]);
 
   const fetchActiveRides = async () => {
     console.log('\n🚀 INICIANDO fetchActiveRides');

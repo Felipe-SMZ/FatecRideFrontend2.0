@@ -11,6 +11,7 @@ import { useAuthStore } from '@features/auth/stores/authStore';
 import SimpleChatModal from '@features/chat/components/SimpleChatModal';
 import { ridesService } from '@features/rides/services/ridesService';
 import { normalizeRequest } from '@shared/utils/normalizeRequest';
+import notificationsService from '@shared/services/notificationsService';
 
 export function PassengerRidesPage() {
   const navigate = useNavigate();
@@ -36,6 +37,34 @@ export function PassengerRidesPage() {
       fetchMyRequests();
     }
   }, [user?.tipo, user?.id]);
+
+  // Subscribes SSE events para atualizar requests do passageiro
+  useEffect(() => {
+    if (!(isPassenger || isBoth)) return;
+
+    const onAceita = (payload) => {
+      console.log('SSE solicitacao_aceita recebido em PassengerRidesPage:', payload);
+      fetchMyRequests();
+    };
+
+    const onNenhum = (payload) => {
+      console.log('SSE nenhum_motorista recebido em PassengerRidesPage:', payload);
+      fetchMyRequests();
+    };
+
+    const onFalha = (payload) => {
+      console.log('SSE falha_final recebido em PassengerRidesPage:', payload);
+      fetchMyRequests();
+    };
+
+    const off1 = notificationsService.on('solicitacao_aceita', onAceita);
+    const off2 = notificationsService.on('nenhum_motorista', onNenhum);
+    const off3 = notificationsService.on('falha_final', onFalha);
+
+    return () => {
+      off1(); off2(); off3();
+    };
+  }, [isPassenger, isBoth, user?.id]);
 
   const fetchMyRequests = async () => {
     try {
