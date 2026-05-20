@@ -7,7 +7,6 @@ import { PageContainer } from '@shared/components/layout/PageContainer';
 import { Card } from '@shared/components/ui/Card';
 import { MapView } from '@shared/components/map/MapView';
 import { ridesService } from '@features/rides/services/ridesService';
-import { useAuthStore } from '@features/auth/stores/authStore';
 import { RideCard } from '@shared/components/cards/RideCard';
 import { EmptyState } from '@shared/components/ui/EmptyState';
 import { Spinner } from '@shared/components/ui/Spinner';
@@ -47,10 +46,6 @@ export function PassengerPage() {
     const [availableRides, setAvailableRides] = useState([]);
     const [searching, setSearching] = useState(false);
     const [requesting, setRequesting] = useState(false);
-    const [pendingRequests, setPendingRequests] = useState([]);
-    const [cancelingId, setCancelingId] = useState(null);
-
-    const { user } = useAuthStore();
 
     /**
      * Handler quando origem é selecionada
@@ -109,38 +104,6 @@ export function PassengerPage() {
             setRequesting(false);
         }
     }
-
-    // Fetch pending requests do passageiro para mostrar botão de cancelar rápido
-    const fetchPendingRequests = async () => {
-        try {
-            const data = await ridesService.getPending(0, 10);
-            let arr = Array.isArray(data) ? data : (data?.content || []);
-            if (data && typeof data === 'object' && !Array.isArray(data) && !data.content) arr = [data];
-            setPendingRequests(arr.map(r => r));
-        } catch (err) {
-            console.warn('Falha ao buscar pending requests:', err);
-            setPendingRequests([]);
-        }
-    };
-
-    const handleCancelPending = async (requestId) => {
-        try {
-            setCancelingId(requestId);
-            await ridesService.cancelRequest(requestId);
-            toast.success('Solicitação cancelada');
-            await fetchPendingRequests();
-        } catch (err) {
-            console.error('Erro ao cancelar pending:', err);
-            toast.error('Erro ao cancelar solicitação');
-        } finally {
-            setCancelingId(null);
-        }
-    };
-
-    // Atualizar pending quando usuário mudar ou após criar solicitação
-    useEffect(() => {
-        if (user?.tipo === 'PASSAGEIRO' || user?.tipo === 'AMBOS') fetchPendingRequests();
-    }, [user?.id, user?.tipo]);
 
     /**
      * Handler quando destino é selecionado
@@ -265,22 +228,6 @@ export function PassengerPage() {
             <div className="min-h-screen bg-gradient-to-b from-green-50 to-white pt-2">
                 <PageContainer title="Buscar Caronas" description="Encontre motoristas disponíveis na sua rota" centerTitle={true} maxWidth="full" className="max-w-screen-2xl px-6 py-2">
                     <div className="py-2">
-                    {/* Seção rápida: Solicitação pendente do passageiro */}
-                    {user?.tipo === 'PASSAGEIRO' && pendingRequests.length > 0 && (
-                        <Card className="mb-4">
-                            <div className="p-4 flex items-center justify-between">
-                                <div>
-                                    <div className="text-sm text-gray-600">Você possui solicitações pendentes</div>
-                                    <div className="font-medium">Solicitação #{pendingRequests[0].id_solicitacao || pendingRequests[0].id}</div>
-                                </div>
-                                <div>
-                                    <Button variant="outline" onClick={() => handleCancelPending(pendingRequests[0].id || pendingRequests[0].id_solicitacao)} disabled={cancelingId === (pendingRequests[0].id || pendingRequests[0].id_solicitacao)}>
-                                        {cancelingId === (pendingRequests[0].id || pendingRequests[0].id_solicitacao) ? 'Cancelando...' : 'Cancelar solicitação'}
-                                    </Button>
-                                </div>
-                            </div>
-                        </Card>
-                    )}
                     <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
                         {/* Coluna do Mapa */}
                             <div className="lg:col-span-3">
