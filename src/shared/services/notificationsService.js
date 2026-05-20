@@ -1,5 +1,6 @@
 import { toast } from 'react-hot-toast';
 import { ridesService } from '@features/rides/services/ridesService';
+import { useAuthStore } from '@features/auth/stores/authStore';
 
 class NotificationsService {
   constructor() {
@@ -10,6 +11,7 @@ class NotificationsService {
     if (typeof window !== 'undefined' && import.meta.env.DEV) {
       try { window.__notificationsService = this; } catch (e) { }
     }
+    this._lastToken = null;
   }
 
   getBaseUrl() {
@@ -27,6 +29,9 @@ class NotificationsService {
       console.warn('notificationsService.connect: token ausente');
       return;
     }
+
+    // guardar token atual para reconexões automáticas
+    this._lastToken = token;
 
     if (this.es) {
       console.log('notificationsService: EventSource já conectado');
@@ -85,11 +90,30 @@ class NotificationsService {
 
   scheduleReconnect(token) {
     if (this.reconnectTimer) return;
-    console.log(`notificationsService: agendando reconexão em ${this.retryDelay}ms`);
-    this.reconnectTimer = setTimeout(() => {
-      this.reconnectTimer = null;
-      this.connect(token);
-    }, this.retryDelay);
+
+    // Não tentar reconectar se o usuário não estiver autenticado
+    try {
+      const authState = useAuthStore.getState();
+      const isAuth = !!authState?.isAuthenticated;
+      const liveToken = authState?.token || this._lastToken;
+      if (!isAuth || !liveToken) {
+        console.log('notificationsService: usuário não autenticado, pulando reconexão');
+        return;
+      }
+      console.log(`notificationsService: agendando reconexão em ${this.retryDelay}ms`);
+      this.reconnectTimer = setTimeout(() => {
+        this.reconnectTimer = null;
+        // usar token mais recente (pode ter sido renovado)
+        const currentToken = useAuthStore.getState()?.token || this._lastToken;
+        if (useAuthStore.getState()?.isAuthenticated && currentToken) {
+          this.connect(currentToken);
+        } else {
+          console.log('notificationsService: não reconectando pois usuário deslogou');
+        }
+      }, this.retryDelay);
+    } catch (err) {
+      console.warn('notificationsService.scheduleReconnect checagem auth falhou', err);
+    }
   }
 
   cleanupEventSource() {
@@ -110,6 +134,9 @@ class NotificationsService {
     if (clearListeners) {
       try { this.listeners.clear(); } catch (e) { }
     }
+
+    // limpar token salvo para evitar reconexões posteriores
+    this._lastToken = null;
 
     console.log('notificationsService: desconectado');
   }
