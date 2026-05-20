@@ -45,7 +45,12 @@ export function ActiveRidesPage() {
   const isBoth = userTipo === 'AMBOS';
 
   // Página simplificada para testes: logs reduzidos
-  console.debug('ActiveRidesPage mounted');
+  console.debug('🏠 ActiveRidesPage mounted', {
+    userId: user?.id,
+    userTipo: user?.tipo,
+    userName: user?.nome,
+    timestamp: new Date().toISOString()
+  });
 
   // REMOVIDO: Redirect automático - passageiro também pode ver esta página
 
@@ -65,8 +70,12 @@ export function ActiveRidesPage() {
     // Só interessam eventos para motorista quando estiver na aba driver
     if (!(isDriver || isBoth) || activeTab !== 'driver') return;
 
+    console.log('🔔 ActiveRidesPage: subscribing SSE nova_solicitacao event');
+
     const onNova = (payload) => {
-      console.log('SSE nova_solicitacao recebido em ActiveRidesPage:', payload);
+      console.log('📢 SSE nova_solicitacao recebido em ActiveRidesPage:', payload, {
+        timestamp: new Date().toISOString()
+      });
       // Mostrar notificação ao motorista
       try {
         const name = payload?.passageiroNome || payload?.passageiro_nome || payload?.passageiro || 'Passageiro';
@@ -83,12 +92,14 @@ export function ActiveRidesPage() {
       setTimeout(() => setNewRequestAlert(null), 8000);
 
       // Refetch completo
+      console.log('🔄 Refetchando caronas ativas após nova_solicitacao');
       fetchActiveRides();
     };
 
     const offNova = notificationsService.on('nova_solicitacao', onNova);
 
     return () => {
+      console.log('🔌 Dessubscrevendo SSE nova_solicitacao');
       offNova();
     };
   }, [isDriver, isBoth, activeTab, user?.id]);
@@ -96,6 +107,7 @@ export function ActiveRidesPage() {
   const fetchActiveRides = async () => {
     try {
       setLoading(true);
+      console.log('📡 fetchActiveRides iniciado para usuário:', user?.id);
 
       if (!token) {
         toast.error('Sessão expirada. Faça login novamente.');

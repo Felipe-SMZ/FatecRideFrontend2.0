@@ -42,17 +42,26 @@ class NotificationsService {
     const url = `${base}/notificacoes/stream?token=${encodeURIComponent(token)}`;
 
     try {
-      console.log('notificationsService.connect ->', url);
+      console.log('🔗 notificationsService.connect -> iniciando conexão SSE', { url });
       this.es = new EventSource(url);
 
       this.es.onopen = () => {
-        console.log('✅ SSE conectado');
+        console.log('✅ SSE CONECTADO com sucesso!', {
+          url,
+          timestamp: new Date().toISOString(),
+          readyState: this.es.readyState
+        });
         this.emit('conexao_estabelecida', 'Conexão SSE estabelecida com sucesso');
         toast.success('Conexão com servidor de notificações estabelecida');
       };
 
       this.es.onerror = (err) => {
-        console.error('⚠️ SSE error', err);
+        console.error('❌ SSE ERROR:', {
+          error: err,
+          readyState: this.es?.readyState,
+          url,
+          timestamp: new Date().toISOString()
+        });
         this.cleanupEventSource();
         this.scheduleReconnect(token);
       };
@@ -64,7 +73,11 @@ class NotificationsService {
             const data = (e && e.data) ? (() => {
               try { return JSON.parse(e.data); } catch (err) { return e.data; }
             })() : null;
-            console.log(`🔔 SSE event ${evt}:`, data);
+            console.log(`📢 SSE EVENT RECEBIDO: ${evt}`, {
+              event: evt,
+              data,
+              timestamp: new Date().toISOString()
+            });
             if (evt === 'nova_solicitacao' && data) {
               try {
                 const id = data.solicitacaoId ?? data.id_solicitacao ?? data.id;
