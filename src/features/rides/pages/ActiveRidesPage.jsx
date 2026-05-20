@@ -11,6 +11,7 @@ import { useAuthStore } from '@features/auth/stores/authStore';
 import { SimpleChatModal } from '@features/chat/components/SimpleChatModal';
 import { sendRideAcceptedMessage } from '@features/chat/services/autoMessageService';
 import notificationsService from '@shared/services/notificationsService';
+import { ridesService } from '@features/rides/services/ridesService';
 
 /**
  * ActiveRidesPage - Página de gerenciamento de caronas ativas
@@ -192,7 +193,26 @@ export function ActiveRidesPage() {
     
     try {
       setProcessingId(requestId);
-      
+
+      // Se houver evento SSE recente com filaId, usar endpoint automático
+      const filaId = newRequestAlert?.filaId ?? newRequestAlert?.fila_id ?? null;
+      const novaSolicId = newRequestAlert?.solicitacaoId ?? newRequestAlert?.id_solicitacao ?? newRequestAlert?.id ?? null;
+
+      if (filaId && novaSolicId && Number(novaSolicId) === Number(requestId)) {
+        try {
+          await ridesService.acceptAutomaticByFila(filaId, requestId);
+          toast.success('Solicitação aceita (fluxo automático)!');
+          await fetchActiveRides();
+
+          setOpenChat({ requestId: requestId, otherUserName: passageiroNome, receiverId: passageiroId });
+          sendRideAcceptedMessage(requestId, user?.name, passageiroNome, 'Origem', 'Destino');
+          return;
+        } catch (errAuto) {
+          console.warn('Falha ao aceitar via fluxo automático:', errAuto);
+          // continuar para tentar endpoint legacy
+        }
+      }
+
       const response = await fetch(`http://localhost:8080/rides/${requestId}/acept`, {
         method: 'PUT',
         headers: {
@@ -201,19 +221,12 @@ export function ActiveRidesPage() {
         },
         body: JSON.stringify({ idCarona: rideId })
       });
-      
+
       if (response.ok) {
         toast.success('Solicitação aceita!');
         await fetchActiveRides();
-        
-        // Abrir chat simples
-        setOpenChat({
-          requestId: requestId,
-          otherUserName: passageiroNome,
-          receiverId: passageiroId
-        });
-        
-        // Enviar mensagem automática
+
+        setOpenChat({ requestId: requestId, otherUserName: passageiroNome, receiverId: passageiroId });
         sendRideAcceptedMessage(requestId, user?.name, passageiroNome, 'Origem', 'Destino');
       } else {
         toast.error('Erro ao aceitar solicitação');
@@ -231,7 +244,22 @@ export function ActiveRidesPage() {
     
     try {
       setProcessingId(requestId);
-      
+      // Se houver fila do fluxo automático para essa solicitação, usar endpoint automático de recusa
+      const filaId = newRequestAlert?.filaId ?? newRequestAlert?.fila_id ?? null;
+      const novaSolicId = newRequestAlert?.solicitacaoId ?? newRequestAlert?.id_solicitacao ?? newRequestAlert?.id ?? null;
+
+      if (filaId && novaSolicId && Number(novaSolicId) === Number(requestId)) {
+        try {
+          await ridesService.rejectAutomaticByFila(filaId, requestId);
+          toast.success('Solicitação recusada (fluxo automático)');
+          await fetchActiveRides();
+          return;
+        } catch (errAuto) {
+          console.warn('Falha ao recusar via fluxo automático:', errAuto);
+          // fallback para endpoint legacy
+        }
+      }
+
       const response = await fetch(`http://localhost:8080/solicitacao/cancelar/${requestId}`, {
         method: 'PUT',
         headers: {

@@ -36,6 +36,18 @@ const ridesService = {
     return data;
   },
 
+  // Aceitar solicitação usando o fluxo automático com filaId
+  acceptAutomaticByFila: async (filaId, solicitacaoId) => {
+    const { data } = await api.post(`/solicitacao/automatico/${filaId}/aceitar/${solicitacaoId}`);
+    return data;
+  },
+
+  // Recusar solicitação usando o fluxo automático com filaId
+  rejectAutomaticByFila: async (filaId, solicitacaoId) => {
+    const { data } = await api.post(`/solicitacao/automatico/${filaId}/recusar/${solicitacaoId}`);
+    return data;
+  },
+
   // Histórico de motorista
   getHistory: async (pagina = 0, itens = 50) => {
     const { data } = await api.get('/rides/history', { params: { pagina, itens } });
