@@ -20,6 +20,7 @@ export function PassengerRidesPage() {
   const [loading, setLoading] = useState(true);
   const [cancelingId, setCancelingId] = useState(null);
   const [openChat, setOpenChat] = useState(null);
+  const [cancelConfirm, setCancelConfirm] = useState(null);
 
   const isPassenger = user?.tipo === 'PASSAGEIRO';
   const isBoth = user?.tipo === 'AMBOS';
@@ -100,6 +101,7 @@ export function PassengerRidesPage() {
       try {
         await ridesService.cancelRequest(requestId);
         toast.success('Solicitação cancelada com sucesso!');
+        setCancelConfirm(null);
         await fetchMyRequests();
       } catch (err) {
         console.error('Erro ao cancelar solicitação (service):', err);
@@ -222,9 +224,8 @@ export function PassengerRidesPage() {
                   <div className="ml-6 flex gap-2">
                     {['pendente', 'ativa'].includes(request.status?.toLowerCase()) && (
                       <Button
-                        onClick={() => handleCancelRequest(request.id)}
-                        loading={cancelingId === request.id}
-                        disabled={cancelingId === request.id}
+                        onClick={() => setCancelConfirm(request.id)}
+                        disabled={cancelingId === request.id || cancelConfirm === request.id}
                         className="bg-red-500 hover:bg-red-600 text-white text-sm"
                       >
                         Cancelar
@@ -254,6 +255,37 @@ export function PassengerRidesPage() {
           otherUserName={openChat.otherUserName}
           onClose={() => setOpenChat(null)}
         />
+      )}
+
+      {/* Modal de confirmação de cancelamento */}
+      {cancelConfirm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <Card className="max-w-sm w-full">
+            <div className="p-6">
+              <h2 className="text-lg font-bold text-gray-900 mb-2">Cancelar Solicitação?</h2>
+              <p className="text-gray-600 text-sm mb-6">
+                Tem certeza que deseja cancelar esta solicitação? Esta ação não pode ser desfeita.
+              </p>
+              <div className="flex gap-3 justify-end">
+                <Button
+                  onClick={() => setCancelConfirm(null)}
+                  disabled={cancelingId === cancelConfirm}
+                  className="bg-gray-300 hover:bg-gray-400 text-gray-900 text-sm"
+                >
+                  Manter
+                </Button>
+                <Button
+                  onClick={() => handleCancelRequest(cancelConfirm)}
+                  loading={cancelingId === cancelConfirm}
+                  disabled={cancelingId === cancelConfirm}
+                  className="bg-red-600 hover:bg-red-700 text-white text-sm"
+                >
+                  Cancelar Solicitação
+                </Button>
+              </div>
+            </div>
+          </Card>
+        </div>
       )}
     </div>
   );
