@@ -26,13 +26,19 @@ import { AnuncioViewerCompact } from '@features/anuncios/components/AnuncioViewe
 export function PassengerPage() {
     const navigate = useNavigate();
     
-    // Estados de seleção
+    // Estados de texto (para o input)
+    const [originInput, setOriginInput] = useState('');
+    const [destinationInput, setDestinationInput] = useState('');
+    
+    // Estados de seleção (para rastrear se foi selecionado do autocomplete)
+    const [originSelected, setOriginSelected] = useState(false);
+    const [destinationSelected, setDestinationSelected] = useState(false);
+    
+    // Estados de dados (coordenadas e endereço completo)
     const [originCoords, setOriginCoords] = useState(null);
     const [destinationCoords, setDestinationCoords] = useState(null);
     const [originAddress, setOriginAddress] = useState(null);
     const [destinationAddress, setDestinationAddress] = useState(null);
-    const [originSelected, setOriginSelected] = useState(false);
-    const [destinationSelected, setDestinationSelected] = useState(false);
     
     // Estados de loading
     const [requesting, setRequesting] = useState(false);
@@ -156,8 +162,11 @@ export function PassengerPage() {
                                                 📍 Ponto de Partida
                                             </label>
                                             <AddressAutocomplete
-                                                value={originAddress?.endereco || ''}
-                                                onChange={(e) => { setOriginSelected(false); }}
+                                                value={originInput}
+                                                onChange={(e) => {
+                                                    setOriginInput(e.target.value);
+                                                    setOriginSelected(false);
+                                                }}
                                                 onSelect={handleOriginSelect}
                                                 placeholder="Digite o endereço de origem..."
                                                 disabled={requesting}
@@ -170,8 +179,11 @@ export function PassengerPage() {
                                                 🎯 Destino
                                             </label>
                                             <AddressAutocomplete
-                                                value={destinationAddress?.endereco || ''}
-                                                onChange={(e) => { setDestinationSelected(false); }}
+                                                value={destinationInput}
+                                                onChange={(e) => {
+                                                    setDestinationInput(e.target.value);
+                                                    setDestinationSelected(false);
+                                                }}
                                                 onSelect={handleDestinationSelect}
                                                 placeholder="Digite o endereço de destino..."
                                                 disabled={requesting}
