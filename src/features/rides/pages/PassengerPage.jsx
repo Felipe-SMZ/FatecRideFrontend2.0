@@ -58,6 +58,54 @@ export function PassengerPage() {
     };
 
     /**
+     * Criar solicitação sem vincular a uma carona específica e iniciar o fluxo automático
+     */
+    async function handleCreateAutomaticRequest() {
+        if (!originAddress || !destinationAddress) {
+            toast.error('Dados de endereço incompletos');
+            return;
+        }
+
+        try {
+            setRequesting(true);
+
+            const payload = {
+                originDTO: originAddress,
+                destinationDTO: destinationAddress
+            };
+
+            const created = await ridesService.requestRide(payload);
+
+            const solicitacaoId = created?.id ?? created?.id_solicitacao ?? created?.idSolicitacao ?? null;
+            try {
+                if (solicitacaoId) {
+                    await ridesService.startAutomaticFlow({
+                        solicitacaoId,
+                        latitudeOrigem: originCoords?.lat,
+                        longitudeOrigem: originCoords?.lng,
+                        latitudeDestino: destinationCoords?.lat,
+                        longitudeDestino: destinationCoords?.lng
+                    });
+                    toast.success('Solicitação criada e fluxo automático iniciado!');
+                } else {
+                    toast.success('Solicitação criada!');
+                }
+            } catch (errAuto) {
+                console.error('Erro ao iniciar fluxo automático:', errAuto);
+                toast('Solicitação criada, mas falha ao iniciar fluxo automático.', { duration: 6000 });
+            }
+
+            navigate('/inicio');
+        } catch (error) {
+            console.error('Erro ao criar solicitação automática:', error);
+            const backendMessage = error?.response?.data?.message || error?.message;
+            toast.error(backendMessage || 'Erro ao criar solicitação');
+        } finally {
+            setRequesting(false);
+        }
+    }
+
+    /**
      * Handler quando destino é selecionado
      */
     const handleDestinationSelect = (data) => {
@@ -221,6 +269,10 @@ export function PassengerPage() {
 
                                         <Button onClick={handleSearch} disabled={!originSelected || !destinationSelected || searching} className="w-full">
                                             {searching ? (<><Spinner size="sm" className="mr-2" />Buscando...</>) : (<><FiSearch className="mr-2" />Buscar Caronas</>) }
+                                        </Button>
+
+                                        <Button onClick={handleCreateAutomaticRequest} disabled={!originSelected || !destinationSelected || requesting} className="w-full mt-3 bg-fatecride-blue">
+                                            {requesting ? (<><Spinner size="sm" className="mr-2" />Enviando...</>) : ('Solicitar Automaticamente')}
                                         </Button>
 
                                         {(!originSelected || !destinationSelected) && (
