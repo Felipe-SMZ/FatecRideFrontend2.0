@@ -7,6 +7,9 @@ class NotificationsService {
     this.listeners = new Map(); // eventName -> Set of handlers
     this.reconnectTimer = null;
     this.retryDelay = 3000;
+    if (typeof window !== 'undefined' && import.meta.env.DEV) {
+      try { window.__notificationsService = this; } catch (e) { }
+    }
   }
 
   getBaseUrl() {
@@ -95,11 +98,27 @@ class NotificationsService {
     this.es = null;
   }
 
-  disconnect() {
+  disconnect(clearListeners = false) {
     if (this.reconnectTimer) { clearTimeout(this.reconnectTimer); this.reconnectTimer = null; }
+
+    if (this.es) {
+      try { console.log('notificationsService.disconnect - closing EventSource, readyState=', this.es.readyState); } catch (e) { }
+    }
+
     this.cleanupEventSource();
+
+    if (clearListeners) {
+      try { this.listeners.clear(); } catch (e) { }
+    }
+
     console.log('notificationsService: desconectado');
   }
+
+  isConnected() {
+    try { return !!(this.es && this.es.readyState === 1); } catch (e) { return false; }
+  }
+
+  getEventSource() { return this.es; }
 
   on(eventName, handler) {
     if (!this.listeners.has(eventName)) this.listeners.set(eventName, new Set());

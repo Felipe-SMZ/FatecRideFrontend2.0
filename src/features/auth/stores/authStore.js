@@ -154,7 +154,7 @@ export const useAuthStore = create(
                     isAuthenticated: false
                 });
                 localStorage.removeItem('token');
-                try { notificationsService.disconnect(); } catch (e) { console.warn('Falha ao desconectar notificationsService', e); }
+                try { notificationsService.disconnect(true); } catch (e) { console.warn('Falha ao desconectar notificationsService', e); }
             },
 
             setLoading: (isLoading) => set({ isLoading }),
