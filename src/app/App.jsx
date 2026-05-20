@@ -7,9 +7,11 @@ import { useAuthStore } from '@features/auth/stores/authStore';
 import { useChat } from '@features/chat/hooks/useChat';
 import { AppProviders } from './providers';
 import { AppRoutes } from './routes';
+import notificationsService from '@shared/services/notificationsService';
 
 function AppContent() {
   const { isAuthenticated, loadUserData, user } = useAuthStore();
+  const { token } = useAuthStore();
   
   // Log inicial ao montar o App
   useEffect(() => {
@@ -42,6 +44,21 @@ function AppContent() {
       loadUserData();
     }
   }, [isAuthenticated, loadUserData, user?.tipo]);
+
+  // Conectar SSE de notificações quando autenticado
+  useEffect(() => {
+    if (isAuthenticated && token) {
+      console.log('🔔 App.jsx - Conectando SSE de notificações');
+      notificationsService.connect(token);
+    }
+
+    return () => {
+      // desconectar ao desmontar ou ao deslogar
+      if (!isAuthenticated) {
+        notificationsService.disconnect();
+      }
+    };
+  }, [isAuthenticated, token]);
 
   return (
     <QueryClientProvider client={queryClient}>

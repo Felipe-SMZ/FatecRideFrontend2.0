@@ -2,6 +2,7 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { authService } from '../services/authService';
+import notificationsService from '@shared/services/notificationsService';
 
 export const useAuthStore = create(
     persist(
@@ -153,6 +154,7 @@ export const useAuthStore = create(
                     isAuthenticated: false
                 });
                 localStorage.removeItem('token');
+                try { notificationsService.disconnect(); } catch (e) { console.warn('Falha ao desconectar notificationsService', e); }
             },
 
             setLoading: (isLoading) => set({ isLoading }),
