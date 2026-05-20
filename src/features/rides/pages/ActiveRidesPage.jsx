@@ -44,30 +44,17 @@ export function ActiveRidesPage() {
   const isDriver = userTipo === 'MOTORISTA';
   const isBoth = userTipo === 'AMBOS';
 
-  console.log('\n========== ACTIVE RIDES PAGE ==========');
-  console.log('👤 User completo:', JSON.stringify(user, null, 2));
-  console.log('📋 Tipo de usuário:', user?.tipo);
-  console.log('🎭 Flags:', {
-    isPassenger,
-    isDriver,
-    isBoth,
-    temTipo: !!user?.tipo
-  });
-  console.log('=======================================\n');
+  // Página simplificada para testes: logs reduzidos
+  console.debug('ActiveRidesPage mounted');
 
   // REMOVIDO: Redirect automático - passageiro também pode ver esta página
 
   // Buscar caronas ativas ao carregar
   useEffect(() => {
-    console.log('\n🔄 useEffect executado');
-    console.log('📊 Estado atual:', { isDriver, isBoth, isPassenger, userTipo, activeTab });
-    
     // Apenas buscar se for motorista ou ambos E aba driver
     if ((isDriver || isBoth) && activeTab === 'driver') {
-      console.log('✅ Usuário é MOTORISTA ou AMBOS - Buscando caronas ativas...');
       fetchActiveRides();
     } else {
-      console.log('ℹ️ Não buscar caronas - limpar estado');
       setLoading(false);
       setRides([]);
     }
@@ -107,25 +94,15 @@ export function ActiveRidesPage() {
   }, [isDriver, isBoth, activeTab, user?.id]);
 
   const fetchActiveRides = async () => {
-    console.log('\n🚀 INICIANDO fetchActiveRides');
-    console.log('👤 User ID:', user?.id);
-    console.log('📧 User Email:', user?.email);
-    console.log('🎭 User Tipo:', user?.tipo);
-    
     try {
       setLoading(true);
-      
-      console.log('🔑 Token:', token ? `Presente (${token.substring(0, 20)}...)` : '❌ AUSENTE');
-      
+
       if (!token) {
-        console.error('❌ Token não encontrado! Redirecionando para login...');
         toast.error('Sessão expirada. Faça login novamente.');
         navigate('/login');
         return;
       }
-      
-      // MOTORISTA: Buscar caronas criadas
-      console.log('\n📡 Buscando caronas ativas do motorista...');
+
       const ridesResponse = await fetch('http://localhost:8080/rides/corridasAtivas', {
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -133,15 +110,9 @@ export function ActiveRidesPage() {
         }
       });
 
-      console.log('📡 Status corridasAtivas:', ridesResponse.status);
-
       if (ridesResponse.ok) {
         const ridesData = await ridesResponse.json();
-        console.log('✅ Caronas ativas recebidas:', ridesData);
-        
-        // Buscar solicitações para minhas caronas
         try {
-          console.log('📡 Buscando solicitações para minhas caronas...');
           const requestsResponse = await fetch('http://localhost:8080/rides/requestsForMyRide', {
             headers: {
               'Authorization': `Bearer ${token}`,
@@ -149,40 +120,28 @@ export function ActiveRidesPage() {
             }
           });
 
-          console.log('📡 Status requestsForMyRide:', requestsResponse.status);
-
           if (requestsResponse.ok) {
             const requestsData = await requestsResponse.json();
-            console.log('📋 Solicitações recebidas:', requestsData);
-            
-            // Agrupar solicitações por carona
             const ridesWithRequests = ridesData.map(ride => {
               const rideRequests = requestsData.filter(req => req.id_carona === ride.id);
-              console.log(`🚗 Carona ${ride.id}: ${rideRequests.length} solicitações`, rideRequests);
               return { ...ride, requests: rideRequests };
             });
-            
-            console.log('✅ Caronas com solicitações:', ridesWithRequests);
             setRides(ridesWithRequests);
           } else if (requestsResponse.status === 500) {
-            // Backend retorna 500 quando não há solicitações
-            console.log('ℹ️ Nenhuma solicitação para as caronas (500 tratado)');
             setRides(ridesData.map(ride => ({ ...ride, requests: [] })));
           } else {
-            const errorText = await requestsResponse.text();
-            console.error('❌ Erro ao buscar solicitações:', requestsResponse.status, errorText);
             setRides(ridesData.map(ride => ({ ...ride, requests: [] })));
           }
         } catch (reqError) {
-          console.error('❌ Exceção ao buscar solicitações:', reqError);
+          console.error('Erro ao buscar solicitações:', reqError);
           setRides(ridesData.map(ride => ({ ...ride, requests: [] })));
         }
       } else {
         const errorText = await ridesResponse.text();
-        console.error('❌ Erro ao buscar caronas:', ridesResponse.status, errorText);
+        console.error('Erro ao buscar caronas:', ridesResponse.status, errorText);
       }
     } catch (error) {
-      console.error('❌ Exceção ao buscar caronas ativas:', error);
+      console.error('Exceção ao buscar caronas ativas:', error);
     } finally {
       setLoading(false);
     }
