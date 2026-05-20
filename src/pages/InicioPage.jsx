@@ -22,7 +22,12 @@ export function InicioPage() {
     const tipo = user?.tipo || null; // 'MOTORISTA' | 'PASSAGEIRO' | 'AMBOS'
     const needed = target.toUpperCase();
     if (tipo === 'AMBOS' || tipo === needed) {
-      navigate(`/${target}`);
+      // Navegar para a página correta
+      if (target === 'motorista') {
+        navigate('/oferecer-carona');
+      } else if (target === 'passageiro') {
+        navigate('/passageiro');
+      }
     } else {
       setNotice({ target: needed, tipo: tipo });
       window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -119,6 +124,44 @@ export function InicioPage() {
                 </div>
               </div>
             </aside>
+          </div>
+
+          {/* Seção de Atalhos Rápidos */}
+          <div className="mt-16 pt-8 border-t border-gray-300">
+            <h3 className="text-2xl font-bold text-gray-900 mb-8 text-center">
+              Atalhos Rápidos
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-4xl mx-auto">
+              <Card
+                className="p-6 cursor-pointer hover:shadow-lg transition-shadow bg-gradient-to-br from-green-50 to-green-100 border border-green-200"
+                onClick={() => navigate('/minhas-solicitacoes')}
+                role="button"
+              >
+                <div className="text-4xl mb-3">📋</div>
+                <h4 className="font-bold text-gray-900 mb-2">Minhas Solicitações</h4>
+                <p className="text-sm text-gray-700">Acompanhe suas solicitações em tempo real</p>
+              </Card>
+
+              <Card
+                className="p-6 cursor-pointer hover:shadow-lg transition-shadow bg-gradient-to-br from-blue-50 to-blue-100 border border-blue-200"
+                onClick={() => navigate('/caronas-ativas')}
+                role="button"
+              >
+                <div className="text-4xl mb-3">🚗</div>
+                <h4 className="font-bold text-gray-900 mb-2">Minhas Caronas</h4>
+                <p className="text-sm text-gray-700">Gerencie suas caronas ativas</p>
+              </Card>
+
+              <Card
+                className="p-6 cursor-pointer hover:shadow-lg transition-shadow bg-gradient-to-br from-purple-50 to-purple-100 border border-purple-200"
+                onClick={() => navigate('/historico')}
+                role="button"
+              >
+                <div className="text-4xl mb-3">📊</div>
+                <h4 className="font-bold text-gray-900 mb-2">Histórico</h4>
+                <p className="text-sm text-gray-700">Veja seu histórico de caronas</p>
+              </Card>
+            </div>
           </div>
         </div>
       </div>

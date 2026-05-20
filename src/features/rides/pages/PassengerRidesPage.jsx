@@ -24,19 +24,12 @@ export function PassengerRidesPage() {
   const isPassenger = user?.tipo === 'PASSAGEIRO';
   const isBoth = user?.tipo === 'AMBOS';
 
-  // Redirecionar automaticamente passageiro para buscar carona
+  // Buscar solicitações ao carregar ou quando usuário muda
   useEffect(() => {
-    if (isPassenger || isBoth) {
-      console.log('✅ Usuário PASSAGEIRO/AMBOS - indo para buscar carona');
-      navigate('/buscar-carona');
-    }
-  }, [isPassenger, isBoth, navigate]);
-
-  useEffect(() => {
-    if (isPassenger || isBoth) {
+    if (user?.id) {
       fetchMyRequests();
     }
-  }, [user?.tipo, user?.id]);
+  }, [user?.id]);
 
   // Subscribes SSE events para atualizar requests do passageiro
   useEffect(() => {
@@ -150,82 +143,103 @@ export function PassengerRidesPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">Minhas Solicitações</h1>
-          <p className="text-gray-600 mt-2">Acompanhe suas solicitações de carona</p>
+    <div className="min-h-screen bg-gradient-to-b from-green-50 to-white">
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Header com ações */}
+        <div className="mb-8 flex items-center justify-between flex-wrap gap-4">
+          <div>
+            <h1 className="text-4xl font-bold text-fatecride-blue">Minhas Solicitações</h1>
+            <p className="text-gray-600 mt-2">Acompanhe suas solicitações de carona em tempo real</p>
+          </div>
+          <div className="flex gap-3 flex-wrap">
+            <Button
+              onClick={() => navigate('/passageiro')}
+              className="bg-green-600 hover:bg-green-700"
+            >
+              + Nova Solicitação
+            </Button>
+            <Button
+              onClick={() => navigate('/inicio')}
+              className="bg-gray-500 hover:bg-gray-600"
+            >
+              Voltar
+            </Button>
+          </div>
         </div>
 
         {requests.length === 0 ? (
           <EmptyState
             icon={FaCar}
             title="Nenhuma solicitação"
-            description="Você ainda não solicitou nenhuma carona"
+            description="Você ainda não solicitou nenhuma carona. Comece sua primeira solicitação!"
             action={{
-              label: "Buscar Carona",
-              onClick: () => navigate('/buscar-carona')
+              label: "Solicitar Carona Agora",
+              onClick: () => navigate('/passageiro')
             }}
           />
         ) : (
-          <div className="grid gap-4">
+          <div className="grid gap-6">
             {requests.map((request) => (
-              <Card key={request.id} className="hover:shadow-lg transition-shadow">
-                <div className="flex items-start justify-between">
+              <Card key={request.id} className="hover:shadow-xl transition-all duration-300 border-l-4 border-fatecride-blue overflow-hidden">
+                <div className="flex items-start justify-between p-6">
                   <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-2">
-                      <h3 className="text-lg font-semibold text-gray-900">
-                        Carona #{request.id_carona || request.id}
-                      </h3>
+                    {/* Header do Card */}
+                    <div className="flex items-center gap-3 mb-4">
+                      <div className="bg-fatecride-blue/10 rounded-full p-3">
+                        <FaCar className="w-5 h-5 text-fatecride-blue" />
+                      </div>
+                      <div className="flex-1">
+                        <h3 className="text-lg font-bold text-gray-900">
+                          Solicitação #{request.id_carona || request.id}
+                        </h3>
+                        <p className="text-xs text-gray-500">
+                          {request.data_carona || request.data_hora || 'Data indisponível'}
+                        </p>
+                      </div>
                       {getStatusBadge(request.status)}
                     </div>
 
-                    <div className="space-y-2 text-sm text-gray-600">
-                      <div className="flex items-center gap-2">
-                        <FiMapPin className="w-4 h-4" />
+                    {/* Detalhes da Rota */}
+                    <div className="space-y-2 text-sm ml-16">
+                      <div className="flex items-center gap-2 text-gray-700">
+                        <span className="text-lg">📍</span>
                         <span><strong>De:</strong> {request.origem || 'N/A'}</span>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <FiMapPin className="w-4 h-4 text-green-600" />
+                      <div className="flex items-center gap-2 text-gray-700">
+                        <span className="text-lg">🎯</span>
                         <span><strong>Para:</strong> {request.destino || 'N/A'}</span>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <FiClock className="w-4 h-4" />
-                        <span><strong>Data:</strong> {request.data_carona || request.data_hora || 'N/A'}</span>
-                      </div>
                       {request.nome_motorista && (
-                        <div className="flex items-center gap-2">
-                          <FaCar className="w-4 h-4" />
+                        <div className="flex items-center gap-2 text-gray-700 mt-3 pt-3 border-t border-gray-200">
+                          <span className="text-lg">🚗</span>
                           <span><strong>Motorista:</strong> {request.nome_motorista}</span>
                         </div>
                       )}
                     </div>
                   </div>
 
-                  <div className="flex flex-col gap-2 ml-4">
-                    {(request.status === 'aceita' || request.status === 'ACEITO') && (
+                  {/* Ações */}
+                  <div className="ml-6 flex gap-2">
+                    {['pendente', 'ativa'].includes(request.status?.toLowerCase()) && (
                       <Button
-                        size="sm"
-                        onClick={() => setOpenChat({
-                          id_solicitacao: request.id,
-                          otherUserName: request.nome_motorista || 'Motorista'
-                        })}
-                      >
-                        <FiMessageCircle className="w-4 h-4" />
-                        Chat
-                      </Button>
-                    )}
-                    
-                    {request.status === 'pendente' && (
-                      <Button
-                        variant="outline"
-                        size="sm"
                         onClick={() => handleCancelRequest(request.id)}
+                        loading={cancelingId === request.id}
                         disabled={cancelingId === request.id}
+                        className="bg-red-500 hover:bg-red-600 text-white text-sm"
                       >
-                        {cancelingId === request.id ? 'Cancelando...' : 'Cancelar'}
+                        Cancelar
                       </Button>
                     )}
+                    <Button
+                      onClick={() => setOpenChat({
+                        requestId: request.id,
+                        otherUserName: request.nome_motorista || 'Motorista',
+                        receiverId: null
+                      })}
+                      className="bg-blue-500 hover:bg-blue-600 text-white text-sm"
+                    >
+                      <FiMessageCircle className="w-4 h-4" />
+                    </Button>
                   </div>
                 </div>
               </Card>
@@ -236,7 +250,7 @@ export function PassengerRidesPage() {
 
       {openChat && (
         <SimpleChatModal
-          requestId={openChat.id_solicitacao}
+          requestId={openChat.requestId}
           otherUserName={openChat.otherUserName}
           onClose={() => setOpenChat(null)}
         />
