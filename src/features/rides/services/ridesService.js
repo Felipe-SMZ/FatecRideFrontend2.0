@@ -36,13 +36,31 @@ const ridesService = {
     return data;
   },
 
-  // Aceitar solicitação usando o fluxo automático com filaId
+  // Aceitar solicitação usando o fluxo automático com body (NOVO - recomendado)
+  acceptAutomatic: async (solicitacaoId, filaId) => {
+    const { data } = await api.post('/solicitacao/automatico/aceitar', {
+      solicitacaoId,
+      filaId
+    });
+    return data;
+  },
+
+  // Recusar solicitação usando o fluxo automático com body (NOVO - recomendado)
+  rejectAutomatic: async (solicitacaoId, filaId) => {
+    const { data } = await api.post('/solicitacao/automatico/recusar', {
+      solicitacaoId,
+      filaId
+    });
+    return data;
+  },
+
+  // Aceitar solicitação usando o fluxo automático com filaId (LEGADO - path params)
   acceptAutomaticByFila: async (filaId, solicitacaoId) => {
     const { data } = await api.post(`/solicitacao/automatico/${filaId}/aceitar/${solicitacaoId}`);
     return data;
   },
 
-  // Recusar solicitação usando o fluxo automático com filaId
+  // Recusar solicitação usando o fluxo automático com filaId (LEGADO - path params)
   rejectAutomaticByFila: async (filaId, solicitacaoId) => {
     const { data } = await api.post(`/solicitacao/automatico/${filaId}/recusar/${solicitacaoId}`);
     return data;
@@ -56,8 +74,20 @@ const ridesService = {
 
   // Histórico de solicitações do passageiro
   getPassengerHistory: async (pagina = 0, itens = 50) => {
-    const { data } = await api.get('/solicitacao/concluidas', { params: { pagina, itens } });
-    return data;
+    console.log('🔍 ridesService.getPassengerHistory: Chamando GET /solicitacao/concluidas');
+    try {
+      const { data } = await api.get('/solicitacao/concluidas', { params: { pagina, itens } });
+      console.log('✅ ridesService.getPassengerHistory: Resposta recebida:', data);
+      return data;
+    } catch (err) {
+      console.error('❌ ridesService.getPassengerHistory ERRO:', {
+        message: err?.message,
+        status: err?.response?.status,
+        statusText: err?.response?.statusText,
+        data: err?.response?.data
+      });
+      throw err;
+    }
   },
 
   // Solicitações pendentes/ativas do passageiro
@@ -182,6 +212,59 @@ const ridesService = {
   // Atualizar carona
   update: async (id, rideData) => {
     const { data } = await api.put(`/rides/${id}`, rideData);
+    return data;
+  },
+
+  // ============ AGENDAMENTO DE CARONAS ============
+
+  // Agendar carona por dias da semana (seg=1, ter=2, ..., dom=7)
+  scheduleRideWeekly: async (rideId, diasSemana) => {
+    console.log('📅 Agendando carona semanal:', { ride: rideId, dia_semana_agendamento: diasSemana });
+    const { data } = await api.post('/agendar-ride-dia-semana', {
+      ride: rideId,
+      dia_semana_agendamento: diasSemana
+    });
+    return data;
+  },
+
+  // Obter agendamentos semanais do motorista
+  getScheduledWeekly: async () => {
+    console.log('📅 Buscando agendamentos semanais...');
+    const { data } = await api.get('/agendar-ride-dia-semana');
+    return data;
+  },
+
+  // Desativar dias específicos de um agendamento semanal
+  desactivateScheduleWeekly: async (scheduleId, diasSemana) => {
+    console.log('📅 Desativando dias do agendamento:', { id: scheduleId, diasSemana });
+    const { data } = await api.put(`/agendar-ride-dia-semana/desativar/${scheduleId}`, {
+      diasSemana
+    });
+    return data;
+  },
+
+  // Agendar carona por intervalo de dias
+  scheduleRideInterval: async (rideId, dataInicio, intervaloDias) => {
+    console.log('📅 Agendando carona por intervalo:', { ride: rideId, dataInicio, intervalo_dias: intervaloDias });
+    const { data } = await api.post('/agendar-compromisso-intervalo-dias', {
+      ride: rideId,
+      dataInicio,
+      intervalo_dias: intervaloDias
+    });
+    return data;
+  },
+
+  // Obter agendamentos por intervalo do motorista
+  getScheduledInterval: async () => {
+    console.log('📅 Buscando agendamentos por intervalo...');
+    const { data } = await api.get('/agendar-compromisso-intervalo-dias');
+    return data;
+  },
+
+  // Desativar agendamento por intervalo
+  desactivateScheduleInterval: async (scheduleId) => {
+    console.log('📅 Desativando agendamento por intervalo:', { id: scheduleId });
+    const { data } = await api.put(`/agendar-compromisso-intervalo-dias/desativar/${scheduleId}`);
     return data;
   }
 };
