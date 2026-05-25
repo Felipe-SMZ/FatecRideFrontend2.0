@@ -11,14 +11,27 @@ export function useSolicitacoesSSE() {
   const { user } = useAuthStore();
   const isDriver = user?.tipo === 'MOTORISTA' || user?.tipo === 'AMBOS';
 
-  useEffect(() => {
-    if (!isDriver) return;
+  console.log('🌍 useSolicitacoesSSE - Hook renderizado', {
+    isDriver,
+    userTipo: user?.tipo,
+    userId: user?.id,
+    timestamp: new Date().toISOString()
+  });
 
-    console.log('🌍 useSolicitacoesSSE: Registrando listeners GLOBAIS para motorista');
+  useEffect(() => {
+    if (!isDriver) {
+      console.log('🌍 useSolicitacoesSSE - Usuário não é motorista, pulando setup');
+      return;
+    }
+
+    console.log('🌍 useSolicitacoesSSE - SETUP: Registrando listeners GLOBAIS para motorista', {
+      timestamp: new Date().toISOString(),
+      sseStatus: notificationsService.es?.readyState ? 'OPEN' : 'CLOSED'
+    });
 
     // Listener para nova_solicitacao
     const handleNovaSolicitacao = (data) => {
-      console.log('🌍 GLOBAL EVENT: nova_solicitacao recebido', {
+      console.log('🌍 GLOBAL HANDLER: nova_solicitacao recebido em useSolicitacoesSSE', {
         solicitacaoId: data?.solicitacaoId,
         passageiroNome: data?.passageiroNome,
         timestamp: new Date().toISOString()
@@ -31,7 +44,7 @@ export function useSolicitacoesSSE() {
     };
 
     const handleSolicitacaoAceita = (data) => {
-      console.log('🌍 GLOBAL EVENT: solicitacao_aceita recebido', {
+      console.log('🌍 GLOBAL HANDLER: solicitacao_aceita recebido em useSolicitacoesSSE', {
         solicitacaoId: data?.solicitacaoId,
         timestamp: new Date().toISOString()
       });
@@ -42,7 +55,7 @@ export function useSolicitacoesSSE() {
     };
 
     const handleNenhumMotorista = (data) => {
-      console.log('🌍 GLOBAL EVENT: nenhum_motorista recebido', {
+      console.log('🌍 GLOBAL HANDLER: nenhum_motorista recebido em useSolicitacoesSSE', {
         solicitacaoId: data?.solicitacaoId,
         timestamp: new Date().toISOString()
       });
@@ -53,7 +66,7 @@ export function useSolicitacoesSSE() {
     };
 
     const handleFalhaFinal = (data) => {
-      console.log('🌍 GLOBAL EVENT: falha_final recebido', {
+      console.log('🌍 GLOBAL HANDLER: falha_final recebido em useSolicitacoesSSE', {
         solicitacaoId: data?.solicitacaoId,
         timestamp: new Date().toISOString()
       });
@@ -69,11 +82,15 @@ export function useSolicitacoesSSE() {
     const offNenhum = notificationsService.on('nenhum_motorista', handleNenhumMotorista);
     const offFalha = notificationsService.on('falha_final', handleFalhaFinal);
 
-    console.log('✅ useSolicitacoesSSE: Todos os listeners registrados globalmente');
+    console.log('✅ useSolicitacoesSSE: TODOS 4 listeners registrados globalmente', {
+      timestamp: new Date().toISOString()
+    });
 
     // Cleanup: remover listeners quando hook desmontar
     return () => {
-      console.log('🔌 useSolicitacoesSSE: Removendo listeners globais');
+      console.log('🔌 useSolicitacoesSSE: CLEANUP - Removendo 4 listeners globais', {
+        timestamp: new Date().toISOString()
+      });
       offNova?.();
       offAceita?.();
       offNenhum?.();

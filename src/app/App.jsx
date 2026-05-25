@@ -14,7 +14,14 @@ function AppContent() {
   const { isAuthenticated, loadUserData, user } = useAuthStore();
   const { token } = useAuthStore();
   
+  console.log('🚀 AppContent - Render', {
+    isAuthenticated,
+    user: user ? `${user.nome} (${user.tipo})` : 'null',
+    timestamp: new Date().toISOString()
+  });
+  
   // ✅ Registrar listeners SSE globalmente SEMPRE (não esperar por página montar)
+  // Este hook garante que listeners estão ativos ANTES de qualquer página montar
   useSolicitacoesSSE();
   
   // Outro hook global para chat
