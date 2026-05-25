@@ -33,6 +33,7 @@ export function DriverPage() {
     const [destination, setDestination] = useState('');
     const [vehicleId, setVehicleId] = useState('');
     const [availableSeats, setAvailableSeats] = useState(1);
+    const [rideDateTime, setRideDateTime] = useState(''); // Novo campo: data/hora da viagem
     const [vehicles, setVehicles] = useState([]);
     
     // Estados de coordenadas e endereços
@@ -101,6 +102,16 @@ export function DriverPage() {
     };
 
     /**
+     * Valida se a data/hora é válida (não no passado)
+     */
+    const isValidDateTime = (dateTime) => {
+        if (!dateTime) return false;
+        const selected = new Date(dateTime);
+        const now = new Date();
+        return selected > now;
+    };
+
+    /**
      * Cria a carona
      */
     const handleCreateRide = async () => {
@@ -114,13 +125,24 @@ export function DriverPage() {
             return;
         }
 
+        if (!rideDateTime) {
+            toast.error('Informe a data e hora da viagem');
+            return;
+        }
+
+        if (!isValidDateTime(rideDateTime)) {
+            toast.error('A data/hora deve ser no futuro');
+            return;
+        }
+
         try {
             setCreatingRide(true);
             const payload = {
                 originDTO: originAddress,
                 destinationDTO: destinationAddress,
                 vagas_disponiveis: Number(availableSeats),
-                id_veiculo: vehicleId
+                id_veiculo: vehicleId,
+                data_hora_viagem: rideDateTime // ← NOVO: data/hora ISO-8601
             };
 
             // Usar service para garantir Authorization via interceptor
@@ -232,12 +254,27 @@ export function DriverPage() {
                                             disabled={creatingRide}
                                         />
 
+                                        {/* Data e Hora da Viagem (NOVO) */}
+                                        <Input
+                                            label="📅 Data e Hora da Viagem"
+                                            type="datetime-local"
+                                            value={rideDateTime}
+                                            onChange={(e) => setRideDateTime(e.target.value)}
+                                            disabled={creatingRide}
+                                            required
+                                        />
+                                        {rideDateTime && !isValidDateTime(rideDateTime) && (
+                                            <p className="text-xs text-red-600">
+                                                ⚠️ A data/hora deve ser no futuro
+                                            </p>
+                                        )}
+
                                         {/* Botão Criar Carona */}
                                         <Button
                                             onClick={handleCreateRide}
                                             fullWidth
                                             loading={creatingRide}
-                                            disabled={!originSelected || !destinationSelected}
+                                            disabled={!originSelected || !destinationSelected || !rideDateTime || !isValidDateTime(rideDateTime)}
                                         >
                                             {creatingRide ? 'Criando...' : 'Criar Carona'}
                                         </Button>
