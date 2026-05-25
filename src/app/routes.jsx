@@ -85,12 +85,12 @@ export function AppRoutes() {
                     </ProtectedRoute>
                 } />
                 <Route path="/solicitacoes-ativas" element={
-                    <ProtectedRoute>
+                    <ProtectedRoute requiredRole="PASSAGEIRO">
                         <ActiveRequestsPage />
                     </ProtectedRoute>
                 } />
                 <Route path="/minhas-solicitacoes" element={
-                    <ProtectedRoute>
+                    <ProtectedRoute requiredRole="PASSAGEIRO">
                         <PassengerRidesPage />
                     </ProtectedRoute>
                 } />

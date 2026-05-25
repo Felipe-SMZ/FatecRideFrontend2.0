@@ -22,21 +22,34 @@ export function PassengerRidesPage() {
   const [openChat, setOpenChat] = useState(null);
   const [cancelConfirm, setCancelConfirm] = useState(null);
 
+  // ⭐ VALIDAÇÃO: Verificar tipo de usuário
   const isPassenger = user?.tipo === 'PASSAGEIRO';
   const isBoth = user?.tipo === 'AMBOS';
+  const isAuthorized = isPassenger || isBoth;
 
-  console.log('🎯 PassengerRidesPage MONTADO - user:', user?.id, 'tipo:', user?.tipo);
+  console.log('🎯 PassengerRidesPage MONTADO - user:', user?.id, 'tipo:', user?.tipo, 'authorized:', isAuthorized);
 
   // Buscar solicitações ao carregar ou quando usuário muda
   useEffect(() => {
     console.log('📍 PassengerRidesPage.useEffect[user?.id] acionado - user.id:', user?.id);
+    
+    // ⭐ VALIDAÇÃO: Só fazer requisições se autorizado
+    if (!isAuthorized) {
+      console.warn('❌ PassengerRidesPage: Usuário não autorizado (não é passageiro)', {
+        userTipo: user?.tipo,
+        userId: user?.id
+      });
+      setLoading(false);
+      return;
+    }
+    
     if (user?.id) {
       console.log('🚀 PassengerRidesPage: CHAMANDO fetchMyRequests()');
       fetchMyRequests();
     } else {
       console.warn('⚠️ PassengerRidesPage: user.id não disponível', user);
     }
-  }, [user?.id]);
+  }, [user?.id, isAuthorized]);
 
   // Subscribes SSE events para atualizar requests do passageiro
   useEffect(() => {

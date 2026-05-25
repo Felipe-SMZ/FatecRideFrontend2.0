@@ -22,9 +22,24 @@ export function ActiveRequestsPage() {
   const [loading, setLoading] = useState(true);
   const [openChat, setOpenChat] = useState(null);
 
+  // ⭐ VALIDAÇÃO: Verificar se é passageiro (segunda linha de defesa)
+  const isPassenger = user?.tipo === 'PASSAGEIRO';
+  const isBoth = user?.tipo === 'AMBOS';
+  const isAuthorized = isPassenger || isBoth;
+
   useEffect(() => {
+    // Se não é passageiro, não fazer requisições
+    if (!isAuthorized) {
+      console.warn('❌ ActiveRequestsPage: Usuário não é passageiro, abortando fetchActiveRequests', {
+        userTipo: user?.tipo,
+        userId: user?.id
+      });
+      setLoading(false);
+      return;
+    }
+
     fetchActiveRequests();
-  }, []);
+  }, [isAuthorized, user?.tipo]);
 
   const fetchActiveRequests = async () => {
     try {
