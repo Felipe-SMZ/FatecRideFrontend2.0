@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import { useAuthStore } from '@features/auth/stores/authStore';
+import { useRidesStore } from '@features/rides/stores/ridesStore';
 import notificationsService from '@shared/services/notificationsService';
 
 /**
@@ -38,23 +39,27 @@ export function useSolicitacoesSSE() {
 
     // ✨ Registrar handlers que processam eventos
     const handleNovaSolicitacao = (data) => {
-      console.log('🌍 GLOBAL HANDLER: nova_solicitacao recebido', {
-        solicitacaoId: data?.solicitacaoId,
-        passageiroNome: data?.passageiroNome,
-        timestamp: new Date().toISOString()
-      });
-
-      // Armazenar em localStorage como backup
       try {
-        const stored = JSON.parse(localStorage.getItem('sse-pending-events') || '[]');
-        stored.push({ type: 'nova_solicitacao', data, timestamp: new Date().toISOString() });
-        localStorage.setItem('sse-pending-events', JSON.stringify(stored.slice(-10))); // Guardar últimos 10
-      } catch (e) { /* ignorar */ }
+        console.log('🌍 GLOBAL HANDLER: nova_solicitacao recebido', {
+          solicitacaoId: data?.solicitacaoId,
+          passageiroNome: data?.passageiroNome,
+          timestamp: new Date().toISOString()
+        });
 
-      // Dispatch evento global para qualquer componente escutar
-      window.dispatchEvent(
-        new CustomEvent('sse-nova-solicitacao', { detail: data })
-      );
+        // ⭐ Salvar em Zustand store para persistência
+        // Isso vai atualizar o componente PendingSolicitacaoCard em QUALQUER página
+        const store = useRidesStore.getState();
+        store.setPendingSolicitacao(data);
+        console.log('✅ Salvo no store - Card flutuante será renderizado');
+
+        // Dispatch evento global para qualquer componente escutar
+        window.dispatchEvent(
+          new CustomEvent('sse-nova-solicitacao', { detail: data })
+        );
+        console.log('✅ Window event disparado');
+      } catch (e) {
+        console.error('❌ Erro em handleNovaSolicitacao:', e.message);
+      }
     };
 
     const handleSolicitacaoAceita = (data) => {
@@ -62,6 +67,8 @@ export function useSolicitacoesSSE() {
         solicitacaoId: data?.solicitacaoId,
         timestamp: new Date().toISOString()
       });
+
+      useRidesStore.getState().clearPendingSolicitacao();
 
       window.dispatchEvent(
         new CustomEvent('sse-solicitacao-aceita', { detail: data })
@@ -74,6 +81,8 @@ export function useSolicitacoesSSE() {
         timestamp: new Date().toISOString()
       });
 
+      useRidesStore.getState().clearPendingSolicitacao();
+
       window.dispatchEvent(
         new CustomEvent('sse-nenhum-motorista', { detail: data })
       );
@@ -84,6 +93,8 @@ export function useSolicitacoesSSE() {
         solicitacaoId: data?.solicitacaoId,
         timestamp: new Date().toISOString()
       });
+
+      useRidesStore.getState().clearPendingSolicitacao();
 
       window.dispatchEvent(
         new CustomEvent('sse-falha-final', { detail: data })

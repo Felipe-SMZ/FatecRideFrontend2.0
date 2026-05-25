@@ -1,6 +1,7 @@
 // app/App.jsx
 import { useEffect } from 'react';
 import { BrowserRouter } from 'react-router-dom';
+import { Toaster } from 'react-hot-toast';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { queryClient } from '@shared/lib/queryClient';
 import { useAuthStore } from '@features/auth/stores/authStore';
@@ -8,6 +9,7 @@ import { useChat } from '@features/chat/hooks/useChat';
 import { useSolicitacoesSSE } from '@features/rides/hooks/useSolicitacoesSSE';
 import { AppProviders } from './providers';
 import { AppRoutes } from './routes';
+import { PendingSolicitacaoCard } from '@features/rides/components/PendingSolicitacaoCard';
 import notificationsService from '@shared/services/notificationsService';
 
 function AppContent() {
@@ -83,6 +85,12 @@ function AppContent() {
   return (
     <QueryClientProvider client={queryClient}>
       <AppProviders>
+        <Toaster
+          position="top-right"
+          toastOptions={{ duration: 5000 }}
+        />
+        {/* ⭐ Card flutuante de solicitação pendente - aparece em QUALQUER página */}
+        <PendingSolicitacaoCard />
         <div className="min-h-screen bg-gray-50">
           <main>
             <AppRoutes />

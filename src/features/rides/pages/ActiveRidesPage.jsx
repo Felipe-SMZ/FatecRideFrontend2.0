@@ -8,6 +8,7 @@ import { Button } from '@shared/components/ui/Button';
 import { EmptyState } from '@shared/components/ui/EmptyState';
 import { Spinner } from '@shared/components/ui/Spinner';
 import { useAuthStore } from '@features/auth/stores/authStore';
+import { useRidesStore } from '@features/rides/stores/ridesStore';
 import { SimpleChatModal } from '@features/chat/components/SimpleChatModal';
 import { sendRideAcceptedMessage } from '@features/chat/services/autoMessageService';
 import notificationsService from '@shared/services/notificationsService';
@@ -32,6 +33,7 @@ import { FloatingRequestButton } from '@features/rides/components/FloatingReques
 export function ActiveRidesPage() {
   const navigate = useNavigate();
   const { user, token } = useAuthStore();
+  const pendingSolicitacao = useRidesStore((state) => state.pendingSolicitacao); // ⭐ Usar seletor
   const [rides, setRides] = useState([]);
   const [loading, setLoading] = useState(true);
   const [processingId, setProcessingId] = useState(null);
@@ -48,6 +50,14 @@ export function ActiveRidesPage() {
   const isPassenger = userTipo === 'PASSAGEIRO';
   const isDriver = userTipo === 'MOTORISTA';
   const isBoth = userTipo === 'AMBOS';
+
+  // ⭐ Carregar solicitação pendente do store ao montar
+  useEffect(() => {
+    if (pendingSolicitacao) {
+      console.log('✅ Restaurando pendingSolicitacao do store:', pendingSolicitacao);
+      setNewRequestAlert(pendingSolicitacao);
+    }
+  }, [pendingSolicitacao]);
 
   // Cleanup ao desmontar
   useEffect(() => {
@@ -209,22 +219,32 @@ export function ActiveRidesPage() {
     const handleGlobalSolicitacaoAceita = (event) => {
       console.log('✅ EVENTO GLOBAL: solicitacao-aceita recebido em ActiveRidesPage');
       setNewRequestAlert(null);
+      useRidesStore.getState().clearPendingSolicitacao(); // ⭐ NOVO: Limpar do store
     };
 
     const handleGlobalNenhumMotorista = (event) => {
       console.log('⚠️ EVENTO GLOBAL: nenhum-motorista recebido em ActiveRidesPage');
       setNewRequestAlert(null);
+      useRidesStore.getState().clearPendingSolicitacao(); // ⭐ NOVO: Limpar do store
     };
 
     const handleGlobalFalhaFinal = (event) => {
       console.log('❌ EVENTO GLOBAL: falha-final recebido em ActiveRidesPage');
       setNewRequestAlert(null);
+      useRidesStore.getState().clearPendingSolicitacao(); // ⭐ NOVO: Limpar do store
+    };
+
+    // ⭐ NOVO: Listener para quando aceita/recusa pelo card flutuante
+    const handlePendingSolicitacaoUpdated = (event) => {
+      console.log('🔄 EVENTO: solicitacao-processada recebido - refetching dados');
+      fetchActiveRides();
     };
 
     window.addEventListener('sse-nova-solicitacao', handleGlobalNovaSolicitacao);
     window.addEventListener('sse-solicitacao-aceita', handleGlobalSolicitacaoAceita);
     window.addEventListener('sse-nenhum-motorista', handleGlobalNenhumMotorista);
     window.addEventListener('sse-falha-final', handleGlobalFalhaFinal);
+    window.addEventListener('pendingSolicitacao-updated', handlePendingSolicitacaoUpdated);
 
     console.log('✅ Listeners globais registrados em window');
 
@@ -234,6 +254,7 @@ export function ActiveRidesPage() {
       window.removeEventListener('sse-solicitacao-aceita', handleGlobalSolicitacaoAceita);
       window.removeEventListener('sse-nenhum-motorista', handleGlobalNenhumMotorista);
       window.removeEventListener('sse-falha-final', handleGlobalFalhaFinal);
+      window.removeEventListener('pendingSolicitacao-updated', handlePendingSolicitacaoUpdated);
     };
   }, [isDriver, isBoth, onNova]);
 
@@ -254,7 +275,10 @@ export function ActiveRidesPage() {
         try {
           console.log('✅ Usando fluxo automático (body):', { solicitacaoId, filaId });
           await ridesService.acceptAutomatic(solicitacaoId, filaId);
-          toast.success('Solicitação aceita com sucesso!');          setNewRequestAlert(null); // ✅ Limpar alerta após sucesso          await fetchActiveRides();
+          toast.success('Solicitação aceita com sucesso!');
+          setNewRequestAlert(null); // ✅ Limpar alerta após sucesso
+          useRidesStore.getState().clearPendingSolicitacao(); // ⭐ NOVO: Limpar do store
+          await fetchActiveRides();
 
           setOpenChat({ requestId: requestId, otherUserName: passageiroNome, receiverId: passageiroId });
           sendRideAcceptedMessage(requestId, user?.name, passageiroNome, 'Origem', 'Destino');
@@ -281,6 +305,8 @@ export function ActiveRidesPage() {
 
       if (response.ok) {
         toast.success('Solicitação aceita!');
+        setNewRequestAlert(null); // ✅ Limpar alerta
+        useRidesStore.getState().clearPendingSolicitacao(); // ⭐ NOVO: Limpar do store
         await fetchActiveRides();
 
         setOpenChat({ requestId: requestId, otherUserName: passageiroNome, receiverId: passageiroId });
@@ -312,6 +338,7 @@ export function ActiveRidesPage() {
           await ridesService.rejectAutomatic(solicitacaoId, filaId);
           toast.success('Solicitação recusada');
           setNewRequestAlert(null); // ✅ Limpar alerta após sucesso
+          useRidesStore.getState().clearPendingSolicitacao(); // ⭐ NOVO: Limpar do store
           await fetchActiveRides();
           return;
         } catch (errAuto) {
@@ -333,6 +360,8 @@ export function ActiveRidesPage() {
 
       if (response.ok) {
         toast.success('Solicitação recusada');
+        setNewRequestAlert(null); // ✅ Limpar alerta
+        useRidesStore.getState().clearPendingSolicitacao(); // ⭐ NOVO: Limpar do store
         await fetchActiveRides(); // Recarregar lista
       } else {
         const error = await response.json();
@@ -453,121 +482,7 @@ export function ActiveRidesPage() {
             </Button>
           </div>
 
-          {/* 🔥 NOVA SOLICITAÇÃO - Card Principal */}
-          {newRequestAlert && !loading && (isDriver || isBoth) && (
-            <Card className="mb-8 border-4 border-green-500 bg-gradient-to-r from-green-50 to-emerald-50 shadow-xl animate-pulse">
-              <div className="p-6">
-                <div className="flex items-start justify-between mb-4">
-                  <div className="flex items-center gap-3">
-                    <div className="bg-green-500 text-white rounded-full w-12 h-12 flex items-center justify-center text-xl font-bold">
-                      🔔
-                    </div>
-                    <div>
-                      <h2 className="text-2xl font-bold text-green-900">
-                        Nova Solicitação! 🎉
-                      </h2>
-                      <p className="text-green-700 text-sm">
-                        {new Date().toLocaleTimeString('pt-BR')}
-                      </p>
-                    </div>
-                  </div>
-                  <button
-                    onClick={() => setNewRequestAlert(null)}
-                    className="text-green-600 hover:text-green-800 text-2xl"
-                  >
-                    ✕
-                  </button>
-                </div>
-
-                {/* Informações do Passageiro */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-                  <div className="bg-white p-4 rounded-lg border border-green-200">
-                    <p className="text-xs text-gray-500 font-semibold mb-1">👤 PASSAGEIRO</p>
-                    <p className="text-xl font-bold text-gray-900">
-                      {newRequestAlert?.passageiroNome || 'Passageiro'}
-                    </p>
-                  </div>
-
-                  <div className="bg-white p-4 rounded-lg border border-green-200">
-                    <p className="text-xs text-gray-500 font-semibold mb-1">📍 DISTÂNCIA</p>
-                    <p className="text-xl font-bold text-blue-600">
-                      {newRequestAlert?.distanciaOrigemKm?.toFixed(2) ?? '?'} km
-                    </p>
-                  </div>
-                </div>
-
-                {/* Origem e Destino */}
-                <div className="bg-white p-4 rounded-lg border border-green-200 mb-6">
-                  <div className="flex gap-4">
-                    <div className="flex-1">
-                      <p className="text-xs text-gray-500 font-semibold mb-1">📌 ORIGEM</p>
-                      <p className="font-semibold text-gray-900">
-                        ({newRequestAlert?.origem?.latitude?.toFixed(4)}, {newRequestAlert?.origem?.longitude?.toFixed(4)})
-                      </p>
-                    </div>
-                    <div className="flex-1">
-                      <p className="text-xs text-gray-500 font-semibold mb-1">🎯 DESTINO</p>
-                      <p className="font-semibold text-gray-900">
-                        ({newRequestAlert?.destino?.latitude?.toFixed(4)}, {newRequestAlert?.destino?.longitude?.toFixed(4)})
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* IDs para Debug */}
-                <div className="bg-gray-100 p-3 rounded text-xs text-gray-600 mb-6 font-mono">
-                  <p>ID Solicitação: {newRequestAlert?.solicitacaoId}</p>
-                  <p>Fila ID: {newRequestAlert?.filaId}</p>
-                  <p>Tentativa: {newRequestAlert?.tentativa || 1}</p>
-                </div>
-
-                {/* Botões de Ação */}
-                <div className="flex gap-3">
-                  <Button
-                    onClick={() => {
-                      if (newRequestAlert?.solicitacaoId && rides.length > 0) {
-                        const firstRide = rides[0];
-                        handleAcceptRequest(
-                          firstRide.id,
-                          newRequestAlert.solicitacaoId,
-                          newRequestAlert.passageiroNome || 'Passageiro',
-                          newRequestAlert.passageiroId
-                        );
-                      } else {
-                        toast.error('Erro: Você precisa ter uma carona ativa para aceitar');
-                      }
-                    }}
-                    disabled={processingId !== null || rides.length === 0}
-                    className="flex-1 bg-green-600 hover:bg-green-700 text-white font-bold py-3 text-lg"
-                  >
-                    {processingId !== null ? '⏳ Processando...' : '✅ ACEITAR SOLICITAÇÃO'}
-                  </Button>
-
-                  <Button
-                    onClick={() => {
-                      if (newRequestAlert?.solicitacaoId && rides.length > 0) {
-                        const firstRide = rides[0];
-                        handleRejectRequest(firstRide.id, newRequestAlert.solicitacaoId);
-                      }
-                    }}
-                    disabled={processingId !== null || rides.length === 0}
-                    variant="danger"
-                    className="flex-1 bg-red-100 hover:bg-red-200 text-red-700 font-bold py-3 text-lg"
-                  >
-                    ❌ RECUSAR
-                  </Button>
-                </div>
-
-                {/* Aviso se não tem carona ativa */}
-                {rides.length === 0 && (
-                  <div className="mt-4 p-3 bg-yellow-100 border border-yellow-400 rounded text-yellow-800 text-sm">
-                    ⚠️ Você precisa ter uma carona ativa para aceitar esta solicitação. 
-                    <Button onClick={() => navigate('/motorista')} className="ml-2 underline">Criar carona</Button>
-                  </div>
-                )}
-              </div>
-            </Card>
-          )}
+          {/* ⭐ Card antigo removido - agora renderizado globalmente via PendingSolicitacaoCard */}
 
           {/* Loading */}
           {loading && (
