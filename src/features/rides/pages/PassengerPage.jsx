@@ -106,8 +106,8 @@ export function PassengerPage() {
                 });
             }
 
-            // Navegar para página de solicitações ativas
-            navigate('/minhas-solicitacoes');
+            // Navegar para página de acompanhamento em tempo real
+            navigate(`/acompanhar-solicitacao?id=${solicitacaoId}`);
         } catch (error) {
             console.error('Erro ao solicitar carona:', error);
             const backendMessage = error?.response?.data?.message || error?.message;
