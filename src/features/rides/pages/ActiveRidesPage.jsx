@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
 import { FiMessageCircle } from 'react-icons/fi';
@@ -39,11 +39,27 @@ export function ActiveRidesPage() {
   const [activeTab, setActiveTab] = useState('driver'); // 'driver' ou 'passenger'
   const [newRequestAlert, setNewRequestAlert] = useState(null);
 
+  // ⭐ REF para persistir listener entre re-renders (evita remover/readicionar em React StrictMode)
+  const listenerOffRef = useRef(null);
+  const isMountedRef = useRef(true);
+
   // Verificar tipo de usuário (memoizar para evitar recalcular)
   const userTipo = user?.tipo;
   const isPassenger = userTipo === 'PASSAGEIRO';
   const isDriver = userTipo === 'MOTORISTA';
   const isBoth = userTipo === 'AMBOS';
+
+  // Cleanup ao desmontar
+  useEffect(() => {
+    return () => {
+      console.log('🧹 ActiveRidesPage desmontando, removendo listener SSE');
+      isMountedRef.current = false;
+      if (listenerOffRef.current) {
+        listenerOffRef.current();
+        listenerOffRef.current = null;
+      }
+    };
+  }, []);
 
   // Página simplificada para testes: logs reduzidos
   console.debug('🏠 ActiveRidesPage mounted', {
@@ -177,6 +193,12 @@ export function ActiveRidesPage() {
       return;
     }
 
+    // Se já tem listener registrado, não registrar novamente
+    if (listenerOffRef.current) {
+      console.log('✅ Listener SSE já registrado, reutilizando');
+      return;
+    }
+
     console.log('🔔 ActiveRidesPage: subscribing SSE nova_solicitacao event', {
       isDriver,
       isBoth,
@@ -188,15 +210,26 @@ export function ActiveRidesPage() {
       tiposDeEventos: Array.from(notificationsService.listeners?.keys() || [])
     });
 
+    // Registrar listener UMA VEZ apenas
     const offNova = notificationsService.on('nova_solicitacao', onNova);
+    listenerOffRef.current = offNova;
 
     console.log('✅ Listener registrado, funcao unsubscribe:', typeof offNova);
 
+    // Cleanup: NUNCA remover listener durante re-render em React StrictMode
+    // Só remover quando componente desmontar (ver useEffect de cleanup acima)
     return () => {
-      console.log('🔌 Dessubscrevendo SSE nova_solicitacao');
-      offNova?.();
+      // Em StrictMode, essa função é chamada 2x mas listenerOffRef.current já foi limpo
+      // no cleanup principal, então não vai duplicar/remover listener
+      if (!isMountedRef.current) {
+        console.log('🔌 Componente desmontando, removendo listener SSE');
+        if (listenerOffRef.current) {
+          listenerOffRef.current();
+          listenerOffRef.current = null;
+        }
+      }
     };
-  }, [isDriver, isBoth, onNova]); // onNova agora SEM dependências
+  }, [isDriver, isBoth]); // Removido onNova (sempre mesmo anyway, tem [] dependências)
 
   const handleAcceptRequest = async (rideId, requestId, passageiroNome, passageiroId) => {
     console.log('🎯 Aceitando solicitação:', { rideId, requestId, passageiroNome, passageiroId });
