@@ -161,48 +161,12 @@ export function ActiveRidesPage() {
       setNewRequestAlert(null);
     }, 8000);
 
-    // ✨ NOVO: Adicionar solicitação à lista DIRETO do evento SSE
-    console.log('✨ Adicionando solicitação direto do evento SSE à lista');
-    setRides(prevRides => {
-      return prevRides.map(ride => {
-        // Se houver uma carona, adicionar a solicitação a ela
-        const newRequest = {
-          id_solicitacao: payload?.solicitacaoId ?? payload?.id_solicitacao,
-          id_carona: ride.id,
-          status: 'PENDENTE',
-          nome_passageiro: payload?.passageiroNome ?? payload?.passageiro_nome,
-          passageiro: {
-            id: payload?.passageiroId ?? payload?.id_passageiro,
-            nome: payload?.passageiroNome ?? payload?.passageiro_nome
-          },
-          id_passageiro: payload?.passageiroId ?? payload?.id_passageiro,
-          distancia_origem: payload?.distanciaOrigemKm ?? payload?.distancia_origem_km,
-          origem: payload?.origem,
-          destino: payload?.destino,
-          fila_id: payload?.filaId ?? payload?.fila_id,
-          id_fila: payload?.filaId ?? payload?.fila_id ?? payload?.id_fila
-        };
-        
-        console.log('🔹 Novo request object:', newRequest);
-        
-        // Verificar se a solicitação já existe
-        const requestExists = ride.requests?.some(r => r.id_solicitacao === payload?.solicitacaoId);
-        
-        if (!requestExists) {
-          console.log(`✅ Adicionando solicitação ${payload?.solicitacaoId} à carona ${ride.id}`);
-          return {
-            ...ride,
-            requests: [...(ride.requests || []), newRequest]
-          };
-        }
-        return ride;
-      });
+    console.log('✨ Alerta visual definido com payload:', {
+      solicitacaoId: payload?.solicitacaoId,
+      passageiroNome: payload?.passageiroNome,
+      distancia: payload?.distanciaOrigemKm
     });
-
-    // Refetch completo
-    console.log('🔄 Refetchando caronas ativas após nova_solicitacao');
-    fetchActiveRides();
-  }, [fetchActiveRides]); // Dependência: fetchActiveRides
+  }, []); // ⭐ IMPORTANTE: Sem dependências! Usar apenas state da closure
 
   // Subscribes SSE events para atualizar automaticamente
   useEffect(() => {
@@ -216,17 +180,23 @@ export function ActiveRidesPage() {
     console.log('🔔 ActiveRidesPage: subscribing SSE nova_solicitacao event', {
       isDriver,
       isBoth,
-      activeTab,
       timestamp: new Date().toISOString()
     });
 
+    console.log('📊 Estado atual do notificationsService:', {
+      listeners: notificationsService.listeners?.size,
+      tiposDeEventos: Array.from(notificationsService.listeners?.keys() || [])
+    });
+
     const offNova = notificationsService.on('nova_solicitacao', onNova);
+
+    console.log('✅ Listener registrado, funcao unsubscribe:', typeof offNova);
 
     return () => {
       console.log('🔌 Dessubscrevendo SSE nova_solicitacao');
       offNova?.();
     };
-  }, [isDriver, isBoth, onNova]); // REMOVIDO activeTab da dependência
+  }, [isDriver, isBoth, onNova]); // onNova agora SEM dependências
 
   const handleAcceptRequest = async (rideId, requestId, passageiroNome, passageiroId) => {
     console.log('🎯 Aceitando solicitação:', { rideId, requestId, passageiroNome, passageiroId });
@@ -443,6 +413,122 @@ export function ActiveRidesPage() {
               Voltar
             </Button>
           </div>
+
+          {/* 🔥 NOVA SOLICITAÇÃO - Card Principal */}
+          {newRequestAlert && !loading && (isDriver || isBoth) && (
+            <Card className="mb-8 border-4 border-green-500 bg-gradient-to-r from-green-50 to-emerald-50 shadow-xl animate-pulse">
+              <div className="p-6">
+                <div className="flex items-start justify-between mb-4">
+                  <div className="flex items-center gap-3">
+                    <div className="bg-green-500 text-white rounded-full w-12 h-12 flex items-center justify-center text-xl font-bold">
+                      🔔
+                    </div>
+                    <div>
+                      <h2 className="text-2xl font-bold text-green-900">
+                        Nova Solicitação! 🎉
+                      </h2>
+                      <p className="text-green-700 text-sm">
+                        {new Date().toLocaleTimeString('pt-BR')}
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => setNewRequestAlert(null)}
+                    className="text-green-600 hover:text-green-800 text-2xl"
+                  >
+                    ✕
+                  </button>
+                </div>
+
+                {/* Informações do Passageiro */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                  <div className="bg-white p-4 rounded-lg border border-green-200">
+                    <p className="text-xs text-gray-500 font-semibold mb-1">👤 PASSAGEIRO</p>
+                    <p className="text-xl font-bold text-gray-900">
+                      {newRequestAlert?.passageiroNome || 'Passageiro'}
+                    </p>
+                  </div>
+
+                  <div className="bg-white p-4 rounded-lg border border-green-200">
+                    <p className="text-xs text-gray-500 font-semibold mb-1">📍 DISTÂNCIA</p>
+                    <p className="text-xl font-bold text-blue-600">
+                      {newRequestAlert?.distanciaOrigemKm?.toFixed(2) ?? '?'} km
+                    </p>
+                  </div>
+                </div>
+
+                {/* Origem e Destino */}
+                <div className="bg-white p-4 rounded-lg border border-green-200 mb-6">
+                  <div className="flex gap-4">
+                    <div className="flex-1">
+                      <p className="text-xs text-gray-500 font-semibold mb-1">📌 ORIGEM</p>
+                      <p className="font-semibold text-gray-900">
+                        ({newRequestAlert?.origem?.latitude?.toFixed(4)}, {newRequestAlert?.origem?.longitude?.toFixed(4)})
+                      </p>
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-xs text-gray-500 font-semibold mb-1">🎯 DESTINO</p>
+                      <p className="font-semibold text-gray-900">
+                        ({newRequestAlert?.destino?.latitude?.toFixed(4)}, {newRequestAlert?.destino?.longitude?.toFixed(4)})
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* IDs para Debug */}
+                <div className="bg-gray-100 p-3 rounded text-xs text-gray-600 mb-6 font-mono">
+                  <p>ID Solicitação: {newRequestAlert?.solicitacaoId}</p>
+                  <p>Fila ID: {newRequestAlert?.filaId}</p>
+                  <p>Tentativa: {newRequestAlert?.tentativa || 1}</p>
+                </div>
+
+                {/* Botões de Ação */}
+                <div className="flex gap-3">
+                  <Button
+                    onClick={() => {
+                      if (newRequestAlert?.solicitacaoId && rides.length > 0) {
+                        const firstRide = rides[0];
+                        handleAcceptRequest(
+                          firstRide.id,
+                          newRequestAlert.solicitacaoId,
+                          newRequestAlert.passageiroNome || 'Passageiro',
+                          newRequestAlert.passageiroId
+                        );
+                      } else {
+                        toast.error('Erro: Você precisa ter uma carona ativa para aceitar');
+                      }
+                    }}
+                    disabled={processingId !== null || rides.length === 0}
+                    className="flex-1 bg-green-600 hover:bg-green-700 text-white font-bold py-3 text-lg"
+                  >
+                    {processingId !== null ? '⏳ Processando...' : '✅ ACEITAR SOLICITAÇÃO'}
+                  </Button>
+
+                  <Button
+                    onClick={() => {
+                      if (newRequestAlert?.solicitacaoId && rides.length > 0) {
+                        const firstRide = rides[0];
+                        handleRejectRequest(firstRide.id, newRequestAlert.solicitacaoId);
+                      }
+                    }}
+                    disabled={processingId !== null || rides.length === 0}
+                    variant="danger"
+                    className="flex-1 bg-red-100 hover:bg-red-200 text-red-700 font-bold py-3 text-lg"
+                  >
+                    ❌ RECUSAR
+                  </Button>
+                </div>
+
+                {/* Aviso se não tem carona ativa */}
+                {rides.length === 0 && (
+                  <div className="mt-4 p-3 bg-yellow-100 border border-yellow-400 rounded text-yellow-800 text-sm">
+                    ⚠️ Você precisa ter uma carona ativa para aceitar esta solicitação. 
+                    <Button onClick={() => navigate('/motorista')} className="ml-2 underline">Criar carona</Button>
+                  </div>
+                )}
+              </div>
+            </Card>
+          )}
 
           {/* Loading */}
           {loading && (
