@@ -184,52 +184,40 @@ export function ActiveRidesPage() {
     });
   }, []); // ⭐ IMPORTANTE: Sem dependências! Usar apenas state da closure
 
-  // Subscribes SSE events para atualizar automaticamente
+  // Subscribes eventos SSE GLOBAIS (registrados em App.jsx)
   useEffect(() => {
-    // ⭐ IMPORTANTE: Registrar listener SEMPRE para motorista, não apenas na aba driver
-    // Assim a notificação chega mesmo que esteja em outra aba
     if (!(isDriver || isBoth)) {
-      console.log('🔌 Usuário não é motorista, não registrando listener SSE');
+      console.log('🔌 Usuário não é motorista, não escutando eventos SSE');
       return;
     }
 
-    // Se já tem listener registrado, não registrar novamente
-    if (listenerOffRef.current) {
-      console.log('✅ Listener SSE já registrado, reutilizando');
-      return;
-    }
-
-    console.log('🔔 ActiveRidesPage: subscribing SSE nova_solicitacao event', {
+    console.log('🔔 ActiveRidesPage: escutando eventos SSE globais', {
       isDriver,
       isBoth,
       timestamp: new Date().toISOString()
     });
 
-    console.log('📊 Estado atual do notificationsService:', {
-      listeners: notificationsService.listeners?.size,
-      tiposDeEventos: Array.from(notificationsService.listeners?.keys() || [])
-    });
+    // Escutar evento global de nova_solicitacao
+    const handleGlobalNovaSolicitacao = (event) => {
+      console.log('📢 EVENTO GLOBAL recebido em ActiveRidesPage:', {
+        evento: 'sse-nova-solicitacao',
+        data: event.detail,
+        timestamp: new Date().toISOString()
+      });
 
-    // Registrar listener UMA VEZ apenas
-    const offNova = notificationsService.on('nova_solicitacao', onNova);
-    listenerOffRef.current = offNova;
-
-    console.log('✅ Listener registrado, funcao unsubscribe:', typeof offNova);
-
-    // Cleanup: NUNCA remover listener durante re-render em React StrictMode
-    // Só remover quando componente desmontar (ver useEffect de cleanup acima)
-    return () => {
-      // Em StrictMode, essa função é chamada 2x mas listenerOffRef.current já foi limpo
-      // no cleanup principal, então não vai duplicar/remover listener
-      if (!isMountedRef.current) {
-        console.log('🔌 Componente desmontando, removendo listener SSE');
-        if (listenerOffRef.current) {
-          listenerOffRef.current();
-          listenerOffRef.current = null;
-        }
-      }
+      // Chamar o callback onNova com os dados do evento
+      onNova(event.detail);
     };
-  }, [isDriver, isBoth]); // Removido onNova (sempre mesmo anyway, tem [] dependências)
+
+    window.addEventListener('sse-nova-solicitacao', handleGlobalNovaSolicitacao);
+
+    console.log('✅ Listener global registrado em window para sse-nova-solicitacao');
+
+    return () => {
+      console.log('🔌 Removendo listener global de sse-nova-solicitacao');
+      window.removeEventListener('sse-nova-solicitacao', handleGlobalNovaSolicitacao);
+    };
+  }, [isDriver, isBoth, onNova]);
 
   const handleAcceptRequest = async (rideId, requestId, passageiroNome, passageiroId) => {
     console.log('🎯 Aceitando solicitação:', { rideId, requestId, passageiroNome, passageiroId });

@@ -5,6 +5,7 @@ import { QueryClientProvider } from '@tanstack/react-query';
 import { queryClient } from '@shared/lib/queryClient';
 import { useAuthStore } from '@features/auth/stores/authStore';
 import { useChat } from '@features/chat/hooks/useChat';
+import { useSolicitacoesSSE } from '@features/rides/hooks/useSolicitacoesSSE';
 import { AppProviders } from './providers';
 import { AppRoutes } from './routes';
 import notificationsService from '@shared/services/notificationsService';
@@ -12,6 +13,12 @@ import notificationsService from '@shared/services/notificationsService';
 function AppContent() {
   const { isAuthenticated, loadUserData, user } = useAuthStore();
   const { token } = useAuthStore();
+  
+  // ✅ Registrar listeners SSE globalmente SEMPRE (não esperar por página montar)
+  useSolicitacoesSSE();
+  
+  // Outro hook global para chat
+  useChat();
   
   // Log inicial ao montar o App
   useEffect(() => {
@@ -23,18 +30,6 @@ function AppContent() {
     });
     console.log('💾 localStorage auth:', localStorage.getItem('fatecride-auth'));
   }, []);
-  
-  // Log para monitorar mudanças no user
-  useEffect(() => {
-    console.log('\n🔍 APP.JSX - User mudou:');
-    console.log('  👤 User:', user);
-    console.log('  🎭 Tipo:', user?.tipo);
-    console.log('  🔐 Autenticado:', isAuthenticated);
-  }, [user, isAuthenticated]);
-  
-  // SEMPRE chamar useChat (mesmo que não conecte)
-  // Hooks devem ser chamados na mesma ordem em cada render
-  useChat();
 
   // Carregar dados completos do usuário ao iniciar (somente se não tiver tipo)
   useEffect(() => {
