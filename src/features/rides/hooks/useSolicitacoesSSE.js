@@ -5,37 +5,51 @@ import notificationsService from '@shared/services/notificationsService';
 /**
  * Hook global para escutar eventos SSE de solicitações
  * Registra listeners GLOBALMENTE (não depende de qual página está ativa)
- * Armazena em Zustand para qualquer componente acessar
+ * 
+ * IMPORTANTE: Registra listeners MESMO ANTES do tipo estar disponível
+ * para garantir que eventos não se percam durante carregamento do tipo
  */
 export function useSolicitacoesSSE() {
   const { user } = useAuthStore();
   const isDriver = user?.tipo === 'MOTORISTA' || user?.tipo === 'AMBOS';
+  const isAuthenticated = useAuthStore.getState().isAuthenticated;
 
   console.log('🌍 useSolicitacoesSSE - Hook renderizado', {
     isDriver,
+    isAuthenticated,
     userTipo: user?.tipo,
     userId: user?.id,
     timestamp: new Date().toISOString()
   });
 
   useEffect(() => {
-    if (!isDriver) {
-      console.log('🌍 useSolicitacoesSSE - Usuário não é motorista, pulando setup');
+    // ⭐ IMPORTANTE: Registrar listeners MESMO QUE NÃO SAIBAMOS SE É MOTORISTA YET
+    // Isso garante que eventos não se percam enquanto carregamos o tipo do usuário
+    if (!isAuthenticated) {
+      console.log('🌍 useSolicitacoesSSE - Não autenticado, pulando setup');
       return;
     }
 
-    console.log('🌍 useSolicitacoesSSE - SETUP: Registrando listeners GLOBAIS para motorista', {
+    console.log('🌍 useSolicitacoesSSE - SETUP: Registrando listeners GLOBAIS', {
       timestamp: new Date().toISOString(),
-      sseStatus: notificationsService.es?.readyState ? 'OPEN' : 'CLOSED'
+      isDriver,
+      sseStatus: notificationsService.es?.readyState === 1 ? 'OPEN ✓' : 'CLOSED ✗'
     });
 
-    // Listener para nova_solicitacao
+    // ✨ Registrar handlers que processam eventos
     const handleNovaSolicitacao = (data) => {
-      console.log('🌍 GLOBAL HANDLER: nova_solicitacao recebido em useSolicitacoesSSE', {
+      console.log('🌍 GLOBAL HANDLER: nova_solicitacao recebido', {
         solicitacaoId: data?.solicitacaoId,
         passageiroNome: data?.passageiroNome,
         timestamp: new Date().toISOString()
       });
+
+      // Armazenar em localStorage como backup
+      try {
+        const stored = JSON.parse(localStorage.getItem('sse-pending-events') || '[]');
+        stored.push({ type: 'nova_solicitacao', data, timestamp: new Date().toISOString() });
+        localStorage.setItem('sse-pending-events', JSON.stringify(stored.slice(-10))); // Guardar últimos 10
+      } catch (e) { /* ignorar */ }
 
       // Dispatch evento global para qualquer componente escutar
       window.dispatchEvent(
@@ -44,7 +58,7 @@ export function useSolicitacoesSSE() {
     };
 
     const handleSolicitacaoAceita = (data) => {
-      console.log('🌍 GLOBAL HANDLER: solicitacao_aceita recebido em useSolicitacoesSSE', {
+      console.log('🌍 GLOBAL HANDLER: solicitacao_aceita recebido', {
         solicitacaoId: data?.solicitacaoId,
         timestamp: new Date().toISOString()
       });
@@ -55,7 +69,7 @@ export function useSolicitacoesSSE() {
     };
 
     const handleNenhumMotorista = (data) => {
-      console.log('🌍 GLOBAL HANDLER: nenhum_motorista recebido em useSolicitacoesSSE', {
+      console.log('🌍 GLOBAL HANDLER: nenhum_motorista recebido', {
         solicitacaoId: data?.solicitacaoId,
         timestamp: new Date().toISOString()
       });
@@ -66,7 +80,7 @@ export function useSolicitacoesSSE() {
     };
 
     const handleFalhaFinal = (data) => {
-      console.log('🌍 GLOBAL HANDLER: falha_final recebido em useSolicitacoesSSE', {
+      console.log('🌍 GLOBAL HANDLER: falha_final recebido', {
         solicitacaoId: data?.solicitacaoId,
         timestamp: new Date().toISOString()
       });
@@ -76,14 +90,16 @@ export function useSolicitacoesSSE() {
       );
     };
 
-    // Registrar todos os listeners
+    // Registrar todos os listeners NO NOTIFICATIONSSERVICE
+    // (não esperar por isDriver estar pronto)
     const offNova = notificationsService.on('nova_solicitacao', handleNovaSolicitacao);
     const offAceita = notificationsService.on('solicitacao_aceita', handleSolicitacaoAceita);
     const offNenhum = notificationsService.on('nenhum_motorista', handleNenhumMotorista);
     const offFalha = notificationsService.on('falha_final', handleFalhaFinal);
 
     console.log('✅ useSolicitacoesSSE: TODOS 4 listeners registrados globalmente', {
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
+      note: 'Listeners ativos MESMO ANTES de saber se é motorista'
     });
 
     // Cleanup: remover listeners quando hook desmontar
@@ -96,5 +112,5 @@ export function useSolicitacoesSSE() {
       offNenhum?.();
       offFalha?.();
     };
-  }, [isDriver]);
+  }, [isAuthenticated]); // Depende APENAS de autenticação, não de tipo!
 }
