@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import toast from 'react-hot-toast';
+import { toast } from 'react-hot-toast';
 import { FiMessageCircle } from 'react-icons/fi';
 import { FaCar } from 'react-icons/fa';
 import { Card } from '@shared/components/ui/Card';
@@ -54,57 +54,8 @@ export function ActiveRidesPage() {
 
   // REMOVIDO: Redirect automático - passageiro também pode ver esta página
 
-  // Buscar caronas ativas ao carregar
-  useEffect(() => {
-    // Apenas buscar se for motorista ou ambos E aba driver
-    if ((isDriver || isBoth) && activeTab === 'driver') {
-      fetchActiveRides();
-    } else {
-      setLoading(false);
-      setRides([]);
-    }
-  }, [userTipo, activeTab]); // Apenas tipo e aba
-
-  // Subscribes SSE events para atualizar automaticamente
-  useEffect(() => {
-    // Só interessam eventos para motorista quando estiver na aba driver
-    if (!(isDriver || isBoth) || activeTab !== 'driver') return;
-
-    console.log('🔔 ActiveRidesPage: subscribing SSE nova_solicitacao event');
-
-    const onNova = (payload) => {
-      console.log('📢 SSE nova_solicitacao recebido em ActiveRidesPage:', payload, {
-        timestamp: new Date().toISOString()
-      });
-      // Mostrar notificação ao motorista
-      try {
-        const name = payload?.passageiroNome || payload?.passageiro_nome || payload?.passageiro || 'Passageiro';
-        const dist = payload?.distanciaOrigemKm ?? payload?.distancia_origem_km ?? null;
-        if (dist != null) {
-          toast.info(`Nova solicitação de ${name} — ${dist} km`);
-        } else {
-          toast.info(`Nova solicitação de ${name}`);
-        }
-      } catch (e) { console.warn('Erro ao mostrar toast nova_solicitacao', e); }
-
-      // destacar visualmente por alguns segundos
-      setNewRequestAlert(payload);
-      setTimeout(() => setNewRequestAlert(null), 8000);
-
-      // Refetch completo
-      console.log('🔄 Refetchando caronas ativas após nova_solicitacao');
-      fetchActiveRides();
-    };
-
-    const offNova = notificationsService.on('nova_solicitacao', onNova);
-
-    return () => {
-      console.log('🔌 Dessubscrevendo SSE nova_solicitacao');
-      offNova();
-    };
-  }, [isDriver, isBoth, activeTab, user?.id]);
-
-  const fetchActiveRides = async () => {
+  // Memorizar fetchActiveRides para evitar recriação desnecessária (DEVE VIR ANTES do useEffect que a chama)
+  const fetchActiveRides = useCallback(async () => {
     try {
       setLoading(true);
       console.log('📡 fetchActiveRides iniciado para usuário:', user?.id);
@@ -124,6 +75,7 @@ export function ActiveRidesPage() {
 
       if (ridesResponse.ok) {
         const ridesData = await ridesResponse.json();
+        console.log('✅ Caronas carregadas:', ridesData.length, 'carona(s)');
         try {
           const requestsResponse = await fetch('http://localhost:8080/rides/requestsForMyRide', {
             headers: {
@@ -134,14 +86,22 @@ export function ActiveRidesPage() {
 
           if (requestsResponse.ok) {
             const requestsData = await requestsResponse.json();
+            console.log('✅ Solicitações carregadas:', requestsData.length, 'solicitação(ões)');
+            console.log('   📋 Dados brutos:', requestsData);
             const ridesWithRequests = ridesData.map(ride => {
               const rideRequests = requestsData.filter(req => req.id_carona === ride.id);
+              console.log(`   🚗 Carona ${ride.id}: ${rideRequests.length} solicitações`);
               return { ...ride, requests: rideRequests };
             });
             setRides(ridesWithRequests);
+            console.log('📊 Dados renderizados - Tela atualizada!');
           } else if (requestsResponse.status === 500) {
+            console.warn('⚠️ Backend retornou 500 - usando caronas sem solicitações');
+            console.log('   Error:', await requestsResponse.text());
             setRides(ridesData.map(ride => ({ ...ride, requests: [] })));
           } else {
+            console.warn('⚠️ Backend retornou:', requestsResponse.status);
+            console.log('   Error:', await requestsResponse.text());
             setRides(ridesData.map(ride => ({ ...ride, requests: [] })));
           }
         } catch (reqError) {
@@ -157,7 +117,98 @@ export function ActiveRidesPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [token, user?.id, navigate]); // Dependências: token, userId
+
+  // Buscar caronas ativas ao carregar
+  useEffect(() => {
+    // Apenas buscar se for motorista ou ambos E aba driver
+    if ((isDriver || isBoth) && activeTab === 'driver') {
+      fetchActiveRides();
+    } else {
+      setLoading(false);
+      setRides([]);
+    }
+  }, [userTipo, activeTab, fetchActiveRides]); // Adicionar fetchActiveRides
+
+  // Memorizar listener SSE para evitar recriação
+  const onNova = useCallback((payload) => {
+    console.log('📢 SSE nova_solicitacao recebido em ActiveRidesPage:', payload, {
+      timestamp: new Date().toISOString()
+    });
+    // Mostrar notificação ao motorista
+    try {
+      const name = payload?.passageiroNome || payload?.passageiro_nome || payload?.passageiro || 'Passageiro';
+      const dist = payload?.distanciaOrigemKm ?? payload?.distancia_origem_km ?? null;
+      const messageText = dist != null 
+        ? `Nova solicitação de ${name} — ${dist} km`
+        : `Nova solicitação de ${name}`;
+      
+      console.log('🎉 Disparando toast:', messageText);
+      toast.info(messageText);
+    } catch (e) { console.warn('Erro ao mostrar toast nova_solicitacao', e); }
+
+    // destacar visualmente por alguns segundos
+    console.log('🎨 Renderizando alerta visual de nova solicitação');
+    setNewRequestAlert(payload);
+    setTimeout(() => {
+      console.log('⏱️ Removendo alerta visual (timeout 8s)');
+      setNewRequestAlert(null);
+    }, 8000);
+
+    // ✨ NOVO: Adicionar solicitação à lista DIRETO do evento SSE
+    console.log('✨ Adicionando solicitação direto do evento SSE à lista');
+    setRides(prevRides => {
+      return prevRides.map(ride => {
+        // Se houver uma carona, adicionar a solicitação a ela
+        const newRequest = {
+          id_solicitacao: payload?.solicitacaoId,
+          id_carona: ride.id,
+          status: 'PENDENTE',
+          nome_passageiro: payload?.passageiroNome,
+          passageiro: {
+            id: payload?.passageiroId,
+            nome: payload?.passageiroNome
+          },
+          id_passageiro: payload?.passageiroId,
+          distancia_origem: payload?.distanciaOrigemKm,
+          origem: payload?.origem,
+          destino: payload?.destino,
+          fila_id: payload?.filaId
+        };
+        
+        // Verificar se a solicitação já existe
+        const requestExists = ride.requests?.some(r => r.id_solicitacao === payload?.solicitacaoId);
+        
+        if (!requestExists) {
+          console.log(`✅ Adicionando solicitação ${payload?.solicitacaoId} à carona ${ride.id}`);
+          return {
+            ...ride,
+            requests: [...(ride.requests || []), newRequest]
+          };
+        }
+        return ride;
+      });
+    });
+
+    // Refetch completo
+    console.log('🔄 Refetchando caronas ativas após nova_solicitacao');
+    fetchActiveRides();
+  }, [fetchActiveRides]); // Dependência: fetchActiveRides
+
+  // Subscribes SSE events para atualizar automaticamente
+  useEffect(() => {
+    // Só interessam eventos para motorista quando estiver na aba driver
+    if (!(isDriver || isBoth) || activeTab !== 'driver') return;
+
+    console.log('🔔 ActiveRidesPage: subscribing SSE nova_solicitacao event');
+
+    const offNova = notificationsService.on('nova_solicitacao', onNova);
+
+    return () => {
+      console.log('🔌 Dessubscrevendo SSE nova_solicitacao');
+      offNova();
+    };
+  }, [isDriver, isBoth, activeTab, onNova]); // onNova memorizado
 
   const handleAcceptRequest = async (rideId, requestId, passageiroNome, passageiroId) => {
     console.log('🎯 Aceitando solicitação:', { rideId, requestId, passageiroNome, passageiroId });
@@ -165,25 +216,29 @@ export function ActiveRidesPage() {
     try {
       setProcessingId(requestId);
 
-      // Se houver evento SSE recente com filaId, usar endpoint automático
+      // NOVO: Usar endpoint automático com body (recomendado)
       const filaId = newRequestAlert?.filaId ?? newRequestAlert?.fila_id ?? null;
-      const novaSolicId = newRequestAlert?.solicitacaoId ?? newRequestAlert?.id_solicitacao ?? newRequestAlert?.id ?? null;
+      const solicitacaoId = newRequestAlert?.solicitacaoId ?? newRequestAlert?.id_solicitacao ?? requestId;
 
-      if (filaId && novaSolicId && Number(novaSolicId) === Number(requestId)) {
+      if (filaId && solicitacaoId) {
         try {
-          await ridesService.acceptAutomaticByFila(filaId, requestId);
-          toast.success('Solicitação aceita (fluxo automático)!');
+          console.log('✅ Usando fluxo automático (body):', { solicitacaoId, filaId });
+          await ridesService.acceptAutomatic(solicitacaoId, filaId);
+          toast.success('Solicitação aceita com sucesso!');
           await fetchActiveRides();
 
           setOpenChat({ requestId: requestId, otherUserName: passageiroNome, receiverId: passageiroId });
           sendRideAcceptedMessage(requestId, user?.name, passageiroNome, 'Origem', 'Destino');
           return;
         } catch (errAuto) {
-          console.warn('Falha ao aceitar via fluxo automático:', errAuto);
-          // continuar para tentar endpoint legacy
+          console.error('❌ Erro ao aceitar via fluxo automático:', errAuto);
+          toast.error('Erro ao aceitar solicitação');
+          return;
         }
       }
 
+      // FALLBACK: Endpoint legacy (se filaId não disponível)
+      console.log('⚠️ Fallback para endpoint legacy');
       const response = await fetch(`http://localhost:8080/rides/${requestId}/acept`, {
         method: 'PUT',
         headers: {
@@ -203,7 +258,7 @@ export function ActiveRidesPage() {
         toast.error('Erro ao aceitar solicitação');
       }
     } catch (error) {
-      console.error('Erro ao aceitar solicitação:', error);
+      console.error('❌ Erro ao aceitar solicitação:', error);
       toast.error('Erro ao aceitar solicitação');
     } finally {
       setProcessingId(null);
@@ -215,22 +270,27 @@ export function ActiveRidesPage() {
     
     try {
       setProcessingId(requestId);
-      // Se houver fila do fluxo automático para essa solicitação, usar endpoint automático de recusa
+      
+      // NOVO: Usar endpoint automático com body (recomendado)
       const filaId = newRequestAlert?.filaId ?? newRequestAlert?.fila_id ?? null;
-      const novaSolicId = newRequestAlert?.solicitacaoId ?? newRequestAlert?.id_solicitacao ?? newRequestAlert?.id ?? null;
+      const solicitacaoId = newRequestAlert?.solicitacaoId ?? newRequestAlert?.id_solicitacao ?? requestId;
 
-      if (filaId && novaSolicId && Number(novaSolicId) === Number(requestId)) {
+      if (filaId && solicitacaoId) {
         try {
-          await ridesService.rejectAutomaticByFila(filaId, requestId);
-          toast.success('Solicitação recusada (fluxo automático)');
+          console.log('✅ Recusando via fluxo automático (body):', { solicitacaoId, filaId });
+          await ridesService.rejectAutomatic(solicitacaoId, filaId);
+          toast.success('Solicitação recusada');
           await fetchActiveRides();
           return;
         } catch (errAuto) {
-          console.warn('Falha ao recusar via fluxo automático:', errAuto);
-          // fallback para endpoint legacy
+          console.error('❌ Erro ao recusar via fluxo automático:', errAuto);
+          toast.error('Erro ao recusar solicitação');
+          return;
         }
       }
 
+      // FALLBACK: Endpoint legacy
+      console.log('⚠️ Fallback para endpoint legacy');
       const response = await fetch(`http://localhost:8080/solicitacao/cancelar/${requestId}`, {
         method: 'PUT',
         headers: {
@@ -247,7 +307,7 @@ export function ActiveRidesPage() {
         toast.error(error.message || 'Erro ao recusar solicitação');
       }
     } catch (error) {
-      console.error('Erro ao recusar solicitação:', error);
+      console.error('❌ Erro ao recusar solicitação:', error);
       toast.error('Erro ao recusar solicitação');
     } finally {
       setProcessingId(null);
@@ -340,6 +400,35 @@ export function ActiveRidesPage() {
         <div className="container mx-auto max-w-6xl">
           {/* Abas para usuários AMBOS */}
           {/* Aba removida: 'Minhas Caronas' não é mais necessária para usuários AMBOS */}
+
+          {/* 🚨 ALERTA VISUAL - Nova Solicitação */}
+          {newRequestAlert && (
+            <div className="mb-6 animate-pulse">
+              <div className="bg-green-50 border-l-4 border-green-500 p-4 rounded-lg shadow-md">
+                <div className="flex items-start justify-between">
+                  <div className="flex-1">
+                    <h3 className="text-lg font-bold text-green-800 mb-1">
+                      🔔 Nova Solicitação Recebida!
+                    </h3>
+                    <p className="text-green-700 font-semibold">
+                      {newRequestAlert?.passageiroNome || newRequestAlert?.passageiro_nome || 'Passageiro'} está buscando uma carona
+                    </p>
+                    {(newRequestAlert?.distanciaOrigemKm ?? newRequestAlert?.distancia_origem_km) !== null && (
+                      <p className="text-sm text-green-600 mt-2">
+                        📍 Distância: {newRequestAlert?.distanciaOrigemKm ?? newRequestAlert?.distancia_origem_km} km
+                      </p>
+                    )}
+                  </div>
+                  <button
+                    onClick={() => setNewRequestAlert(null)}
+                    className="text-green-600 hover:text-green-800 text-2xl leading-none"
+                  >
+                    ✕
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Header */}
           <div className="flex items-center justify-between mb-8">
