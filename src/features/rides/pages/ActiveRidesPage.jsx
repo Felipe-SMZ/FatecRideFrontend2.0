@@ -205,18 +205,27 @@ export function ActiveRidesPage() {
 
   // Subscribes SSE events para atualizar automaticamente
   useEffect(() => {
-    // Só interessam eventos para motorista quando estiver na aba driver
-    if (!(isDriver || isBoth) || activeTab !== 'driver') return;
+    // ⭐ IMPORTANTE: Registrar listener SEMPRE para motorista, não apenas na aba driver
+    // Assim a notificação chega mesmo que esteja em outra aba
+    if (!(isDriver || isBoth)) {
+      console.log('🔌 Usuário não é motorista, não registrando listener SSE');
+      return;
+    }
 
-    console.log('🔔 ActiveRidesPage: subscribing SSE nova_solicitacao event');
+    console.log('🔔 ActiveRidesPage: subscribing SSE nova_solicitacao event', {
+      isDriver,
+      isBoth,
+      activeTab,
+      timestamp: new Date().toISOString()
+    });
 
     const offNova = notificationsService.on('nova_solicitacao', onNova);
 
     return () => {
       console.log('🔌 Dessubscrevendo SSE nova_solicitacao');
-      offNova();
+      offNova?.();
     };
-  }, [isDriver, isBoth, activeTab, onNova]); // onNova memorizado
+  }, [isDriver, isBoth, onNova]); // REMOVIDO activeTab da dependência
 
   const handleAcceptRequest = async (rideId, requestId, passageiroNome, passageiroId) => {
     console.log('🎯 Aceitando solicitação:', { rideId, requestId, passageiroNome, passageiroId });
