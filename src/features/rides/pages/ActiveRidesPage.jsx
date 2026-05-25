@@ -12,6 +12,7 @@ import { SimpleChatModal } from '@features/chat/components/SimpleChatModal';
 import { sendRideAcceptedMessage } from '@features/chat/services/autoMessageService';
 import notificationsService from '@shared/services/notificationsService';
 import { ridesService } from '@features/rides/services/ridesService';
+import { FloatingRequestButton } from '@features/rides/components/FloatingRequestButton';
 
 /**
  * ActiveRidesPage - Página de gerenciamento de caronas ativas
@@ -423,34 +424,7 @@ export function ActiveRidesPage() {
           {/* Abas para usuários AMBOS */}
           {/* Aba removida: 'Minhas Caronas' não é mais necessária para usuários AMBOS */}
 
-          {/* 🚨 ALERTA VISUAL - Nova Solicitação */}
-          {newRequestAlert && (
-            <div className="mb-6 animate-pulse">
-              <div className="bg-green-50 border-l-4 border-green-500 p-4 rounded-lg shadow-md">
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <h3 className="text-lg font-bold text-green-800 mb-1">
-                      🔔 Nova Solicitação Recebida!
-                    </h3>
-                    <p className="text-green-700 font-semibold">
-                      {newRequestAlert?.passageiroNome || newRequestAlert?.passageiro_nome || 'Passageiro'} está buscando uma carona
-                    </p>
-                    {(newRequestAlert?.distanciaOrigemKm ?? newRequestAlert?.distancia_origem_km) !== null && (
-                      <p className="text-sm text-green-600 mt-2">
-                        📍 Distância: {newRequestAlert?.distanciaOrigemKm ?? newRequestAlert?.distancia_origem_km} km
-                      </p>
-                    )}
-                  </div>
-                  <button
-                    onClick={() => setNewRequestAlert(null)}
-                    className="text-green-600 hover:text-green-800 text-2xl leading-none"
-                  >
-                    ✕
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
+          {/* 🎯 ALERTA VISUAL - Agora usando FloatingRequestButton (ver fim do arquivo) */}
 
           {/* Header */}
           <div className="flex items-center justify-between mb-8">
@@ -767,6 +741,31 @@ export function ActiveRidesPage() {
           onClose={() => setOpenChat(null)}
         />
       )}
+
+      {/* Floating Button para nova solicitação */}
+      <FloatingRequestButton
+        newRequest={newRequestAlert}
+        onAccept={() => {
+          if (newRequestAlert?.solicitacaoId && rides.length > 0) {
+            // Usar a primeira carona do motorista
+            const firstRide = rides[0];
+            handleAcceptRequest(
+              firstRide.id,
+              newRequestAlert.solicitacaoId,
+              newRequestAlert.passageiroNome || 'Passageiro',
+              newRequestAlert.passageiroId
+            );
+          }
+        }}
+        onReject={() => {
+          if (newRequestAlert?.solicitacaoId && rides.length > 0) {
+            const firstRide = rides[0];
+            handleRejectRequest(firstRide.id, newRequestAlert.solicitacaoId);
+          }
+        }}
+        onClose={() => setNewRequestAlert(null)}
+        loading={processingId !== null}
+      />
     </>
   );
 }
