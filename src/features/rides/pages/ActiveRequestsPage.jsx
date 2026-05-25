@@ -11,6 +11,7 @@ import { SimpleChatModal } from '@features/chat/components/SimpleChatModal';
 import api from '@shared/lib/api';
 import { ridesService } from '@features/rides/services/ridesService';
 import { normalizeRequest } from '@shared/utils/normalizeRequest';
+import notificationsService from '@shared/services/notificationsService';
 
 /**
  * ActiveRequestsPage - Solicitações Ativas do Passageiro
@@ -40,6 +41,69 @@ export function ActiveRequestsPage() {
 
     fetchActiveRequests();
   }, [isAuthorized, user?.tipo]);
+
+  // ⭐ NOVO: Listeners para SSE events de atualização de solicitações
+  useEffect(() => {
+    if (!isAuthorized) return;
+
+    console.log('📡 ActiveRequestsPage: Registrando listeners para eventos SSE do passageiro');
+
+    // Quando a solicitação é ENVIADA para um novo motorista (tentativa automática)
+    const handleNovaSolicitacao = (data) => {
+      console.log('🔄 Evento: Nova tentativa automática', data);
+      const tentativaNum = data?.tentativa || data?.tentativaNumero || 'próxima';
+      toast.success(`Tentando próximo motorista... (tentativa ${tentativaNum}) 🔄`);
+      // Auto-refresh da página
+      setTimeout(() => {
+        fetchActiveRequests();
+      }, 800);
+    };
+
+    // Quando um motorista ACEITA a solicitação
+    const handleSolicitacaoAceita = (data) => {
+      console.log('✅ Evento: Solicitação ACEITA', data);
+      toast.success('Motorista aceitou sua solicitação! 🎉');
+      // Auto-refresh da página
+      setTimeout(() => {
+        fetchActiveRequests();
+      }, 1000);
+    };
+
+    // Quando NENHUM motorista aceita (tentativa falhou)
+    const handleNenhumMotorista = (data) => {
+      console.log('❌ Evento: Nenhum motorista disponível', data);
+      toast.error('Nenhum motorista disponível. Tentando próxima tentativa...');
+      // Auto-refresh da página
+      setTimeout(() => {
+        fetchActiveRequests();
+      }, 1500);
+    };
+
+    // Quando a solicitação FALHA definitivamente
+    const handleFalhaFinal = (data) => {
+      console.log('🚫 Evento: Falha final na solicitação', data);
+      toast.error('Solicitação cancelada. Nenhum motorista disponível.');
+      // Auto-refresh da página
+      setTimeout(() => {
+        fetchActiveRequests();
+      }, 1500);
+    };
+
+    // Registrar listeners
+    notificationsService.on('nova_solicitacao', handleNovaSolicitacao);
+    notificationsService.on('solicitacao_aceita', handleSolicitacaoAceita);
+    notificationsService.on('nenhum_motorista', handleNenhumMotorista);
+    notificationsService.on('falha_final', handleFalhaFinal);
+
+    // Cleanup: remover listeners quando desmontar
+    return () => {
+      notificationsService.off('nova_solicitacao', handleNovaSolicitacao);
+      notificationsService.off('solicitacao_aceita', handleSolicitacaoAceita);
+      notificationsService.off('nenhum_motorista', handleNenhumMotorista);
+      notificationsService.off('falha_final', handleFalhaFinal);
+      console.log('🧹 ActiveRequestsPage: Listeners removidos');
+    };
+  }, [isAuthorized]);
 
   const fetchActiveRequests = async () => {
     try {
