@@ -28,6 +28,12 @@ export function PassengerFollowPage() {
 
   // IDs da solicitação
   const solicitacaoId = searchParams.get('id');
+  
+  console.log('🚀 PassengerFollowPage iniciado', {
+    solicitacaoId,
+    user: user?.nome,
+    timestamp: new Date().toISOString()
+  });
 
   // Estados
   const [solicitacao, setSolicitacao] = useState(null);
@@ -42,31 +48,32 @@ export function PassengerFollowPage() {
     const fetchSolicitacao = async () => {
       try {
         setLoading(true);
-        const pending = await ridesService.getPending(0, 100);
+        console.log('🔍 Buscando solicitação:', solicitacaoId);
         
-        let foundRequest = null;
-        if (Array.isArray(pending)) {
-          foundRequest = pending.find(p => Number(p.id_solicitacao ?? p.id) === Number(solicitacaoId));
-        } else if (pending?.content && Array.isArray(pending.content)) {
-          foundRequest = pending.content.find(p => Number(p.id_solicitacao ?? p.id) === Number(solicitacaoId));
-        }
+        // ⭐ NOVO: Usar método dedicado que tenta GET direto e depois fallback
+        const foundRequest = await ridesService.getSolicitacaoById(solicitacaoId);
 
         if (foundRequest) {
+          console.log('✅ Solicitação carregada:', foundRequest);
           setSolicitacao(foundRequest);
+          
           // Inferir status inicial
-          const initialStatus = foundRequest.status_solicitacao ?? 'pendente';
-          if (initialStatus === 'aceita') {
+          const initialStatus = foundRequest.status_solicitacao ?? foundRequest.status ?? 'pendente';
+          console.log('📊 Status inicial:', initialStatus);
+          
+          if (initialStatus === 'aceita' || initialStatus === 'ACEITA') {
             setStatus('aceita');
             setMotorista(foundRequest);
           } else {
             setStatus('aguardando');
           }
         } else {
-          console.warn('Solicitação não encontrada:', solicitacaoId);
+          console.warn('❌ Solicitação não encontrada:', solicitacaoId);
+          toast.error('Solicitação não encontrada. Verifique o ID.');
         }
       } catch (err) {
-        console.error('Erro ao buscar solicitação:', err);
-        toast.error('Erro ao carregar dados da solicitação');
+        console.error('❌ Erro ao buscar solicitação:', err);
+        toast.error('Erro ao carregar dados da solicitação: ' + (err?.message || 'Unknown'));
       } finally {
         setLoading(false);
       }

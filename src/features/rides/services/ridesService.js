@@ -192,6 +192,44 @@ const ridesService = {
     }
   },
 
+  // ⭐ NOVO: Buscar solicitação por ID (para PassengerFollowPage)
+  getSolicitacaoById: async (solicitacaoId) => {
+    try {
+      console.log(`📡 ridesService.getSolicitacaoById(${solicitacaoId})`);
+      
+      // Tentar buscar diretamente
+      try {
+        const { data } = await api.get(`/solicitacao/${solicitacaoId}`);
+        console.log('✅ Solicitação encontrada via GET direto:', data);
+        return data;
+      } catch (err1) {
+        console.warn(`⚠️ GET /solicitacao/${solicitacaoId} falhou, tentando /solicitacao/pending...`, err1.message);
+        
+        // Fallback: buscar da lista pendente
+        const pending = await ridesService.getPending(0, 1000);
+        let pendingArray = [];
+        if (Array.isArray(pending)) pendingArray = pending;
+        else if (pending?.content && Array.isArray(pending.content)) pendingArray = pending.content;
+        
+        const found = pendingArray.find(p => {
+          const id = p?.id_solicitacao ?? p?.id;
+          return Number(id) === Number(solicitacaoId);
+        });
+        
+        if (found) {
+          console.log('✅ Solicitação encontrada via lista pendente:', found);
+          return found;
+        }
+        
+        console.warn(`❌ Solicitação ${solicitacaoId} não encontrada em nenhum endpoint`);
+        return null;
+      }
+    } catch (err) {
+      console.error('Erro ao buscar solicitação:', err);
+      throw err;
+    }
+  },
+
   // Corridas ativas
   getActive: async () => {
     const { data } = await api.get('/rides/corridasAtivas');
