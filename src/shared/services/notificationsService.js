@@ -294,4 +294,34 @@ class NotificationsService {
 
 const notificationsService = new NotificationsService();
 
+// 🔧 DEBUG: Expor notificationsService no window para testes manuais
+if (typeof window !== 'undefined' && import.meta.env.DEV) {
+  try {
+    window.__notificationsService = notificationsService;
+    window.__debugNotifications = () => {
+      console.log('📊 DEBUG Notifications Service:');
+      const debug = notificationsService.debug();
+      console.log('  SSE Connected:', debug.sseConnected);
+      console.log('  SSE ReadyState:', debug.sseReadyState);
+      console.log('  Total Events:', debug.totalEvents);
+      console.log('  Listeners:');
+      console.log('  ' + debug.listeners.replace(/\n/g, '\n  '));
+      return debug;
+    };
+    
+    // Add a test listener to nova_solicitacao
+    window.__addTestListener = () => {
+      console.log('🧪 Adicionando listener de teste para nova_solicitacao...');
+      const off = notificationsService.on('nova_solicitacao', (data) => {
+        console.log('🧪 TEST LISTENER DISPAROU!', data);
+      });
+      window.__removeTestListener = () => {
+        console.log('🧪 Removendo listener de teste...');
+        off();
+      };
+      return 'Listener adicionado. Use __removeTestListener() para remover.';
+    };
+  } catch (e) { }
+}
+
 export default notificationsService;
