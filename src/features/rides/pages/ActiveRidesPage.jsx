@@ -169,13 +169,9 @@ export function ActiveRidesPage() {
       toast.info(messageText);
     } catch (e) { console.warn('Erro ao mostrar toast nova_solicitacao', e); }
 
-    // destacar visualmente por alguns segundos
-    console.log('🎨 Renderizando alerta visual de nova solicitação');
+    // Mostrar card visual PERMANENTEMENTE (até aceitar/recusar ou receber resposta)
+    console.log('🎨 Renderizando alerta visual de nova solicitação - PERMANENTE');
     setNewRequestAlert(payload);
-    setTimeout(() => {
-      console.log('⏱️ Removendo alerta visual (timeout 8s)');
-      setNewRequestAlert(null);
-    }, 8000);
 
     console.log('✨ Alerta visual definido com payload:', {
       solicitacaoId: payload?.solicitacaoId,
@@ -209,13 +205,35 @@ export function ActiveRidesPage() {
       onNova(event.detail);
     };
 
-    window.addEventListener('sse-nova-solicitacao', handleGlobalNovaSolicitacao);
+    // Escutar eventos finais para limpar alerta
+    const handleGlobalSolicitacaoAceita = (event) => {
+      console.log('✅ EVENTO GLOBAL: solicitacao-aceita recebido em ActiveRidesPage');
+      setNewRequestAlert(null);
+    };
 
-    console.log('✅ Listener global registrado em window para sse-nova-solicitacao');
+    const handleGlobalNenhumMotorista = (event) => {
+      console.log('⚠️ EVENTO GLOBAL: nenhum-motorista recebido em ActiveRidesPage');
+      setNewRequestAlert(null);
+    };
+
+    const handleGlobalFalhaFinal = (event) => {
+      console.log('❌ EVENTO GLOBAL: falha-final recebido em ActiveRidesPage');
+      setNewRequestAlert(null);
+    };
+
+    window.addEventListener('sse-nova-solicitacao', handleGlobalNovaSolicitacao);
+    window.addEventListener('sse-solicitacao-aceita', handleGlobalSolicitacaoAceita);
+    window.addEventListener('sse-nenhum-motorista', handleGlobalNenhumMotorista);
+    window.addEventListener('sse-falha-final', handleGlobalFalhaFinal);
+
+    console.log('✅ Listeners globais registrados em window');
 
     return () => {
-      console.log('🔌 Removendo listener global de sse-nova-solicitacao');
+      console.log('🔌 Removendo listeners globais de window');
       window.removeEventListener('sse-nova-solicitacao', handleGlobalNovaSolicitacao);
+      window.removeEventListener('sse-solicitacao-aceita', handleGlobalSolicitacaoAceita);
+      window.removeEventListener('sse-nenhum-motorista', handleGlobalNenhumMotorista);
+      window.removeEventListener('sse-falha-final', handleGlobalFalhaFinal);
     };
   }, [isDriver, isBoth, onNova]);
 
@@ -236,8 +254,7 @@ export function ActiveRidesPage() {
         try {
           console.log('✅ Usando fluxo automático (body):', { solicitacaoId, filaId });
           await ridesService.acceptAutomatic(solicitacaoId, filaId);
-          toast.success('Solicitação aceita com sucesso!');
-          await fetchActiveRides();
+          toast.success('Solicitação aceita com sucesso!');          setNewRequestAlert(null); // ✅ Limpar alerta após sucesso          await fetchActiveRides();
 
           setOpenChat({ requestId: requestId, otherUserName: passageiroNome, receiverId: passageiroId });
           sendRideAcceptedMessage(requestId, user?.name, passageiroNome, 'Origem', 'Destino');
@@ -294,6 +311,7 @@ export function ActiveRidesPage() {
           console.log('✅ Recusando via fluxo automático (body):', { solicitacaoId, filaId });
           await ridesService.rejectAutomatic(solicitacaoId, filaId);
           toast.success('Solicitação recusada');
+          setNewRequestAlert(null); // ✅ Limpar alerta após sucesso
           await fetchActiveRides();
           return;
         } catch (errAuto) {
