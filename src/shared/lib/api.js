@@ -99,9 +99,20 @@ api.interceptors.response.use(
         }
 
         const message = error.response?.data?.message || 'Erro ao processar requisição';
+        const url = error.config?.url || '';
 
-        // Logout automático se token expirou
-        if (status === 401) {
+        // ⭐ NOVO: Endpoints "soft-fail" que podem retornar 401 sem fazer logout
+        // Tipicamente endpoints de leitura que o passageiro chama após aceitar
+        const softFailEndpoints = [
+            '/solicitacao/pending',      // Passageiro listando solicitações
+            '/solicitacao/concluidas',   // Passageiro buscando histórico
+            '/rides/requestsForMyRide',  // Motorista buscando solicitações
+        ];
+
+        const isSoftFailEndpoint = softFailEndpoints.some(ep => url.includes(ep));
+
+        // Logout automático se token expirou - MAS NÃO em endpoints soft-fail
+        if (status === 401 && !isSoftFailEndpoint) {
             console.error('🚨🚨🚨 INTERCEPTOR: 401 CAPTURADO 🚨🚨🚨', {
                 url: error.config?.url,
                 method: error.config?.method,
@@ -114,6 +125,13 @@ api.interceptors.response.use(
             useAuthStore.getState().logout();
             toast.error('Sessão expirada. Faça login novamente.');
             window.location.href = '/';
+        } else if (status === 401 && isSoftFailEndpoint) {
+            // Para endpoints soft-fail, apenas log e passa o erro adiante
+            console.warn('⚠️ SOFT-FAIL 401:', {
+                url: error.config?.url,
+                message: 'Endpoint retornou 401 mas não fará logout. O componente deve tratar.',
+                isSoftFailEndpoint
+            });
         }
 
         // Erros específicos
@@ -123,7 +141,8 @@ api.interceptors.response.use(
             toast.error('Recurso não encontrado');
         } else if (status === 500) {
             toast.error('Erro no servidor. Tente novamente mais tarde.');
-        } else {
+        } else if (status !== 401 || !isSoftFailEndpoint) {
+            // Só mostra toast se não for 401 soft-fail
             toast.error(message);
         }
 

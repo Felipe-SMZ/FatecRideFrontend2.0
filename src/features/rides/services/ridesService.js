@@ -81,6 +81,14 @@ const ridesService = {
       console.log('✅ ridesService.getPassengerHistory: Resposta recebida:', data);
       return data;
     } catch (err) {
+      // ⭐ NOVO: Se for 401, apenas warn e retorna array vazio (não lança erro)
+      if (err?.response?.status === 401) {
+        console.warn('⚠️ getPassengerHistory retornou 401 - retornando array vazio', {
+          message: err?.message || err?.response?.data?.message
+        });
+        return []; // Retorna array vazio em vez de lançar erro
+      }
+      
       console.error('❌ ridesService.getPassengerHistory ERRO:', {
         message: err?.message,
         status: err?.response?.status,
@@ -93,38 +101,50 @@ const ridesService = {
 
   // Solicitações pendentes/ativas do passageiro
   getPending: async (pagina = 0, itens = 100) => {
-    const { data } = await api.get('/solicitacao/pending', { params: { pagina, itens } });
-
-    // Persistir mapeamento id_solicitacao -> { motorista, passageiro } em localStorage para fallback
     try {
-      const STORAGE_KEY = 'fatecride_solicitacao_to_users';
-      const raw = localStorage.getItem(STORAGE_KEY);
-      const map = raw ? JSON.parse(raw) : {};
+      const { data } = await api.get('/solicitacao/pending', { params: { pagina, itens } });
 
-      let pendingArray = [];
-      if (Array.isArray(data)) pendingArray = data;
-      else if (data?.content && Array.isArray(data.content)) pendingArray = data.content;
-      else if (data && typeof data === 'object') pendingArray = [data];
+      // Persistir mapeamento id_solicitacao -> { motorista, passageiro } em localStorage para fallback
+      try {
+        const STORAGE_KEY = 'fatecride_solicitacao_to_users';
+        const raw = localStorage.getItem(STORAGE_KEY);
+        const map = raw ? JSON.parse(raw) : {};
 
-      pendingArray.forEach(p => {
-        const idSolicitacao = p?.id_solicitacao ?? p?.id ?? null;
-        const motorista = p?.id_motorista ?? p?.idMotorista ?? (p?.carona && (p.carona.id_motorista ?? p.carona.idMotorista)) ?? null;
-        const passageiro = p?.id_passageiro ?? p?.idPassageiro ?? (p?.passageiro && (p.passageiro.id ?? null)) ?? null;
-        if (idSolicitacao != null) {
-          map[String(idSolicitacao)] = {
-            motorista: motorista != null ? Number(motorista) : null,
-            passageiro: passageiro != null ? Number(passageiro) : null
-          };
-        }
-      });
+        let pendingArray = [];
+        if (Array.isArray(data)) pendingArray = data;
+        else if (data?.content && Array.isArray(data.content)) pendingArray = data.content;
+        else if (data && typeof data === 'object') pendingArray = [data];
 
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(map));
+        pendingArray.forEach(p => {
+          const idSolicitacao = p?.id_solicitacao ?? p?.id ?? null;
+          const motorista = p?.id_motorista ?? p?.idMotorista ?? (p?.carona && (p.carona.id_motorista ?? p.carona.idMotorista)) ?? null;
+          const passageiro = p?.id_passageiro ?? p?.idPassageiro ?? (p?.passageiro && (p.passageiro.id ?? null)) ?? null;
+          if (idSolicitacao != null) {
+            map[String(idSolicitacao)] = {
+              motorista: motorista != null ? Number(motorista) : null,
+              passageiro: passageiro != null ? Number(passageiro) : null
+            };
+          }
+        });
+
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(map));
+      } catch (err) {
+        // não bloquear a resposta por falha no localStorage
+        console.warn('ridesService: falha ao persistir mapeamento pending ->', err?.message || err);
+      }
+
+      return data;
     } catch (err) {
-      // não bloquear a resposta por falha no localStorage
-      console.warn('ridesService: falha ao persistir mapeamento pending ->', err?.message || err);
+      // ⭐ NOVO: Se for 401, apenas warn e retorna array vazio (não lança erro)
+      if (err?.response?.status === 401) {
+        console.warn('⚠️ getPending retornou 401 - retornando array vazio para não quebrar a página', {
+          message: err?.message || err?.response?.data?.message
+        });
+        return []; // Retorna array vazio em vez de lançar erro
+      }
+      // Para outros erros, propaga normalmente
+      throw err;
     }
-
-    return data;
   },
 
   // Para MOTORISTAS: buscar solicitações referentes às minhas caronas (driver view)
@@ -204,7 +224,12 @@ const ridesService = {
         console.log('✅ Solicitação encontrada via GET direto:', data);
         return data;
       } catch (err1) {
-        console.warn(`⚠️ GET /solicitacao/${solicitacaoId} falhou, tentando /solicitacao/pending...`, err1.message);
+        // ⭐ NOVO: Se for 401 no GET direto, apenas warn (não break o fluxo)
+        if (err1?.response?.status === 401) {
+          console.warn(`⚠️ GET /solicitacao/${solicitacaoId} retornou 401 - tentando fallback...`);
+        } else {
+          console.warn(`⚠️ GET /solicitacao/${solicitacaoId} falhou, tentando /solicitacao/pending...`, err1.message);
+        }
         
         // Fallback: buscar da lista pendente
         const pending = await ridesService.getPending(0, 1000);
@@ -226,6 +251,14 @@ const ridesService = {
         return null;
       }
     } catch (err) {
+      // ⭐ NOVO: Se for 401, não quebra (retorna null) em vez de lançar erro
+      if (err?.response?.status === 401) {
+        console.warn('⚠️ getSolicitacaoById falhou com 401 - retornando null', {
+          message: err?.message || err?.response?.data?.message
+        });
+        return null;
+      }
+      
       console.error('Erro ao buscar solicitação:', err);
       throw err;
     }
