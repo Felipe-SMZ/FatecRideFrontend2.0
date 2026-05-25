@@ -84,6 +84,31 @@ export function PassengerFollowPage() {
     }
   }, [solicitacaoId]);
 
+  // ⭐ NOVO: Polling de recuperação de evento perdido
+  // Se SSE não chegar em 5 segundos, faz polling a cada 2s por até 30s
+  useEffect(() => {
+    if (!solicitacaoId || status !== 'aguardando') return;
+
+    const pollingTimeout = setTimeout(() => {
+      console.log('⏱️ SSE não chegou em 5s, iniciando polling para recuperar evento...');
+      
+      ridesService.recoverLostEvent(solicitacaoId)
+        .then(recovered => {
+          if (recovered) {
+            console.log('✅ Evento recuperado via polling!');
+            // Event vai ser disparado automaticamente via CustomEvent
+          } else {
+            console.warn('⚠️ Evento não recuperado mesmo com polling');
+          }
+        })
+        .catch(err => {
+          console.error('❌ Erro ao tentar recuperar evento:', err);
+        });
+    }, 5000); // Esperar 5 segundos antes de iniciar polling
+
+    return () => clearTimeout(pollingTimeout);
+  }, [solicitacaoId, status]);
+
   // Escutar eventos SSE
   useEffect(() => {
     if (!solicitacaoId) return;

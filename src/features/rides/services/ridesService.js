@@ -1,4 +1,5 @@
 import api from '@shared/lib/api';
+import notificationsService from '@shared/services/notificationsService';
 
 const ridesService = {
   // Criar carona (motorista)
@@ -304,6 +305,84 @@ const ridesService = {
     console.log('📅 Desativando agendamento por intervalo:', { id: scheduleId });
     const { data } = await api.put(`/agendar-compromisso-intervalo-dias/desativar/${scheduleId}`);
     return data;
+  },
+
+  // ⭐ NOVO: Polling para recuperar evento perdido (se SSE não chegar a tempo)
+  // Faz polling a cada 2s por até 30s
+  pollForLostEvent: async (solicitacaoId, maxAttempts = 15, intervalMs = 2000) => {
+    console.log('🔄 Iniciando polling para recuperar evento perdido:', { solicitacaoId, maxAttempts, intervalMs });
+    
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+      try {
+        // Aguardar antes de fazer requisição (exceto primeira vez)
+        if (attempt > 0) {
+          await new Promise(resolve => setTimeout(resolve, intervalMs));
+        }
+        
+        const solicitacao = await ridesService.getSolicitacaoById(solicitacaoId);
+        
+        if (solicitacao) {
+          console.log(`✅ Polling tentativa ${attempt + 1}: Solicitação encontrada`, solicitacao);
+          
+          // Verificar se está no status que esperamos (enviada/com fila)
+          const status = solicitacao?.status || solicitacao?.solicitacao_status;
+          if (status === 'ENVIADA' || status === 'enviada' || solicitacao?.fila?.length > 0) {
+            console.log('🎯 Evento recuperado via polling! Retornando:', solicitacao);
+            return solicitacao;
+          }
+        }
+      } catch (err) {
+        console.warn(`⚠️ Polling tentativa ${attempt + 1} falhou:`, err?.message);
+        // Continuar tentando mesmo com erro
+      }
+    }
+    
+    console.error('❌ Polling expirou - evento não recuperado após', maxAttempts, 'tentativas');
+    return null;
+  },
+
+  // ⭐ NOVO: Recuperar evento perdido (use para PassengerFollowPage)
+  // Tenta usar localStorage primeiro, depois polling
+  recoverLostEvent: async (solicitacaoId) => {
+    console.log('🔍 Tentando recuperar evento perdido:', { solicitacaoId });
+    
+    // 1. Verificar se está em localStorage
+    try {
+      const stored = JSON.parse(localStorage.getItem('sse-pending-events') || '[]');
+      const found = stored.find(ev => 
+        ev.data?.solicitacaoId === solicitacaoId || 
+        ev.data?.id_solicitacao === solicitacaoId
+      );
+      
+      if (found) {
+        console.log('✅ Evento encontrado em localStorage:', found);
+        // Disparar manualmente via notificationsService
+        notificationsService.retryLostEvent('nova_solicitacao', found.data);
+        // Também disparar via CustomEvent para compatibilidade
+        window.dispatchEvent(new CustomEvent('sse-nova-solicitacao', {
+          detail: found.data
+        }));
+        return found.data;
+      }
+    } catch (err) {
+      console.warn('⚠️ Erro ao verificar localStorage:', err);
+    }
+    
+    // 2. Fazer polling como fallback
+    console.log('📡 localStorage vazio, iniciando polling...');
+    const recovered = await ridesService.pollForLostEvent(solicitacaoId);
+    
+    if (recovered) {
+      // Disparar manualmente via notificationsService
+      notificationsService.retryLostEvent('nova_solicitacao', recovered);
+      // Também disparar via CustomEvent para compatibilidade
+      window.dispatchEvent(new CustomEvent('sse-nova-solicitacao', {
+        detail: recovered
+      }));
+      return recovered;
+    }
+    
+    return null;
   }
 };
 

@@ -290,6 +290,15 @@ class NotificationsService {
       } 
     });
   }
+
+  /**
+   * ⭐ NOVO: Disparar manualmente um evento (usado para recuperação de evento perdido)
+   * Útil quando o frontend consegue recuperar o evento de outra forma (polling, localStorage)
+   */
+  retryLostEvent(eventName, payload) {
+    console.log(`🔄 notificationsService.retryLostEvent('${eventName}')`, { payload });
+    this.emit(eventName, payload);
+  }
 }
 
 const notificationsService = new NotificationsService();
