@@ -48,17 +48,35 @@ function AppContent() {
   // Conectar SSE de notificações quando autenticado
   useEffect(() => {
     if (isAuthenticated && token) {
-      console.log('🔔 App.jsx - Conectando SSE de notificações');
+      console.log('🔔 App.jsx - Conectando SSE de notificações', {
+        userId: user?.id,
+        userTipo: user?.tipo,
+        timestamp: new Date().toISOString()
+      });
       notificationsService.connect(token);
+      
+      // Log de status em 1 segundo (para debug)
+      const timer = setTimeout(() => {
+        const status = notificationsService.es?.readyState;
+        const states = { 0: 'CONNECTING', 1: 'OPEN ✓', 2: 'CLOSING', 3: 'CLOSED' };
+        console.log(`📊 SSE status após 1s: readyState=${status} (${states[status] || 'UNKNOWN'})`);
+      }, 1000);
+      
+      return () => clearTimeout(timer);
+    } else if (!isAuthenticated && token === null) {
+      // Se não autenticado E token foi removido, garantir desconexão
+      console.log('🔌 App.jsx - Desconectando SSE (logout detectado)');
+      notificationsService.disconnect(true);
     }
 
     return () => {
-      // desconectar ao desmontar ou ao deslogar
+      // cleanup: desconectar ao desmontar
       if (!isAuthenticated) {
-        notificationsService.disconnect();
+        console.log('🔌 App.jsx - Cleanup: desconectando SSE');
+        notificationsService.disconnect(true);
       }
     };
-  }, [isAuthenticated, token]);
+  }, [isAuthenticated, token, user?.id, user?.tipo]);
 
   return (
     <QueryClientProvider client={queryClient}>

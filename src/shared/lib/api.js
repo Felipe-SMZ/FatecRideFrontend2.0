@@ -102,6 +102,15 @@ api.interceptors.response.use(
 
         // Logout automático se token expirou
         if (status === 401) {
+            console.error('🚨🚨🚨 INTERCEPTOR: 401 CAPTURADO 🚨🚨🚨', {
+                url: error.config?.url,
+                method: error.config?.method,
+                status: error.response?.status,
+                statusText: error.response?.statusText,
+                data: error.response?.data,
+                headers: error.response?.headers,
+                message: message
+            });
             useAuthStore.getState().logout();
             toast.error('Sessão expirada. Faça login novamente.');
             window.location.href = '/';

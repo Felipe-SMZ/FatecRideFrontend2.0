@@ -135,6 +135,11 @@ export function ActiveRidesPage() {
     console.log('📢 SSE nova_solicitacao recebido em ActiveRidesPage:', payload, {
       timestamp: new Date().toISOString()
     });
+
+    // ⚠️ DEBUG: Exibir todas as chaves do payload
+    console.log('🔍 Keys do payload:', Object.keys(payload || {}));
+    console.log('🔍 Estrutura do payload:', JSON.stringify(payload, null, 2));
+
     // Mostrar notificação ao motorista
     try {
       const name = payload?.passageiroNome || payload?.passageiro_nome || payload?.passageiro || 'Passageiro';
@@ -161,20 +166,23 @@ export function ActiveRidesPage() {
       return prevRides.map(ride => {
         // Se houver uma carona, adicionar a solicitação a ela
         const newRequest = {
-          id_solicitacao: payload?.solicitacaoId,
+          id_solicitacao: payload?.solicitacaoId ?? payload?.id_solicitacao,
           id_carona: ride.id,
           status: 'PENDENTE',
-          nome_passageiro: payload?.passageiroNome,
+          nome_passageiro: payload?.passageiroNome ?? payload?.passageiro_nome,
           passageiro: {
-            id: payload?.passageiroId,
-            nome: payload?.passageiroNome
+            id: payload?.passageiroId ?? payload?.id_passageiro,
+            nome: payload?.passageiroNome ?? payload?.passageiro_nome
           },
-          id_passageiro: payload?.passageiroId,
-          distancia_origem: payload?.distanciaOrigemKm,
+          id_passageiro: payload?.passageiroId ?? payload?.id_passageiro,
+          distancia_origem: payload?.distanciaOrigemKm ?? payload?.distancia_origem_km,
           origem: payload?.origem,
           destino: payload?.destino,
-          fila_id: payload?.filaId
+          fila_id: payload?.filaId ?? payload?.fila_id,
+          id_fila: payload?.filaId ?? payload?.fila_id ?? payload?.id_fila
         };
+        
+        console.log('🔹 Novo request object:', newRequest);
         
         // Verificar se a solicitação já existe
         const requestExists = ride.requests?.some(r => r.id_solicitacao === payload?.solicitacaoId);
@@ -212,13 +220,16 @@ export function ActiveRidesPage() {
 
   const handleAcceptRequest = async (rideId, requestId, passageiroNome, passageiroId) => {
     console.log('🎯 Aceitando solicitação:', { rideId, requestId, passageiroNome, passageiroId });
+    console.log('📦 newRequestAlert:', newRequestAlert);
     
     try {
       setProcessingId(requestId);
 
       // NOVO: Usar endpoint automático com body (recomendado)
-      const filaId = newRequestAlert?.filaId ?? newRequestAlert?.fila_id ?? null;
+      const filaId = newRequestAlert?.filaId ?? newRequestAlert?.fila_id ?? newRequestAlert?.id_fila ?? null;
       const solicitacaoId = newRequestAlert?.solicitacaoId ?? newRequestAlert?.id_solicitacao ?? requestId;
+
+      console.log('🔍 Extraído do newRequestAlert:', { filaId, solicitacaoId });
 
       if (filaId && solicitacaoId) {
         try {
@@ -235,6 +246,8 @@ export function ActiveRidesPage() {
           toast.error('Erro ao aceitar solicitação');
           return;
         }
+      } else {
+        console.warn('⚠️ filaId ou solicitacaoId não disponível', { filaId, solicitacaoId });
       }
 
       // FALLBACK: Endpoint legacy (se filaId não disponível)

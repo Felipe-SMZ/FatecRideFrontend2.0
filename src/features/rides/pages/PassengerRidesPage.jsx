@@ -25,10 +25,16 @@ export function PassengerRidesPage() {
   const isPassenger = user?.tipo === 'PASSAGEIRO';
   const isBoth = user?.tipo === 'AMBOS';
 
+  console.log('🎯 PassengerRidesPage MONTADO - user:', user?.id, 'tipo:', user?.tipo);
+
   // Buscar solicitações ao carregar ou quando usuário muda
   useEffect(() => {
+    console.log('📍 PassengerRidesPage.useEffect[user?.id] acionado - user.id:', user?.id);
     if (user?.id) {
+      console.log('🚀 PassengerRidesPage: CHAMANDO fetchMyRequests()');
       fetchMyRequests();
+    } else {
+      console.warn('⚠️ PassengerRidesPage: user.id não disponível', user);
     }
   }, [user?.id]);
 
@@ -65,6 +71,7 @@ export function PassengerRidesPage() {
       setLoading(true);
       // Use ridesService to centralize API calls and avoid localStorage usage here
       try {
+        console.log('📡 PassengerRidesPage: Buscando histórico do passageiro...');
         const data = await ridesService.getPassengerHistory(0, 100);
         let requestsArray = Array.isArray(data) ? data : (data?.content || []);
 
@@ -92,11 +99,17 @@ export function PassengerRidesPage() {
         })));
         setRequests(uniqueRequests);
       } catch (err) {
-        console.warn('⚠️ Falha ao buscar histórico do passageiro', err);
+        console.error('❌ Erro ao buscar histórico do passageiro:', {
+          message: err?.message,
+          status: err?.response?.status,
+          statusText: err?.response?.statusText,
+          data: err?.response?.data,
+          url: err?.config?.url
+        });
         setRequests([]);
       }
     } catch (error) {
-      console.error('Erro ao buscar solicitações:', error);
+      console.error('❌ Erro geral ao buscar solicitações:', error);
       setRequests([]);
     } finally {
       setLoading(false);

@@ -8,10 +8,11 @@ class NotificationsService {
     this.listeners = new Map(); // eventName -> Set of handlers
     this.reconnectTimer = null;
     this.retryDelay = 3000;
+    this._lastToken = null;
+    this._isDisconnectingExplicitly = false; // Flag para prevenir reconexão após logout explícito
     if (typeof window !== 'undefined' && import.meta.env.DEV) {
       try { window.__notificationsService = this; } catch (e) { }
     }
-    this._lastToken = null;
   }
 
   getBaseUrl() {
@@ -60,7 +61,8 @@ class NotificationsService {
           error: err,
           readyState: this.es?.readyState,
           url,
-          timestamp: new Date().toISOString()
+          timestamp: new Date().toISOString(),
+          isDisconnectingExplicitly: this._isDisconnectingExplicitly
         });
         this.cleanupEventSource();
         this.scheduleReconnect(token);
@@ -102,6 +104,12 @@ class NotificationsService {
   }
 
   scheduleReconnect(token) {
+    // 🚫 Não reconectar se foi desconectado explicitamente (logout)
+    if (this._isDisconnectingExplicitly) {
+      console.log('🚫 notificationsService: desconexão explícita - pulando reconexão automática');
+      return;
+    }
+
     if (this.reconnectTimer) return;
 
     // Não tentar reconectar se o usuário não estiver autenticado
@@ -119,6 +127,7 @@ class NotificationsService {
         // usar token mais recente (pode ter sido renovado)
         const currentToken = useAuthStore.getState()?.token || this._lastToken;
         if (useAuthStore.getState()?.isAuthenticated && currentToken) {
+          console.log('✅ notificationsService: reconectando ao SSE...');
           this.connect(currentToken);
         } else {
           console.log('notificationsService: não reconectando pois usuário deslogou');
@@ -136,22 +145,42 @@ class NotificationsService {
   }
 
   disconnect(clearListeners = false) {
-    if (this.reconnectTimer) { clearTimeout(this.reconnectTimer); this.reconnectTimer = null; }
+    console.log('🔌 notificationsService.disconnect() chamado', { clearListeners });
+    
+    // Flag para prevenir reconexão automática durante logout explícito
+    this._isDisconnectingExplicitly = true;
+
+    if (this.reconnectTimer) { 
+      clearTimeout(this.reconnectTimer);
+      this.reconnectTimer = null;
+      console.log('  ⏰ Timer de reconexão cancelado');
+    }
 
     if (this.es) {
-      try { console.log('notificationsService.disconnect - closing EventSource, readyState=', this.es.readyState); } catch (e) { }
+      try { 
+        console.log('  📡 Fechando EventSource, readyState=', this.es.readyState);
+      } catch (e) { }
     }
 
     this.cleanupEventSource();
 
     if (clearListeners) {
-      try { this.listeners.clear(); } catch (e) { }
+      try { 
+        this.listeners.clear();
+        console.log('  🗑️ Listeners limpos');
+      } catch (e) { }
     }
 
     // limpar token salvo para evitar reconexões posteriores
     this._lastToken = null;
 
-    console.log('notificationsService: desconectado');
+    // Reset flag após um pequeno delay para garantir que tudo foi processado
+    setTimeout(() => {
+      this._isDisconnectingExplicitly = false;
+      console.log('  ✅ Flag de desconexão explícita resetada');
+    }, 100);
+
+    console.log('🔌 notificationsService: desconectado com sucesso');
   }
 
   isConnected() {
@@ -163,13 +192,63 @@ class NotificationsService {
   on(eventName, handler) {
     if (!this.listeners.has(eventName)) this.listeners.set(eventName, new Set());
     this.listeners.get(eventName).add(handler);
-    return () => this.listeners.get(eventName).delete(handler);
+    
+    const readyStateMap = {
+      0: 'CONNECTING',
+      1: 'OPEN ✓',
+      2: 'CLOSING',
+      3: 'CLOSED'
+    };
+    const currentState = this.es?.readyState;
+    const stateLabel = readyStateMap[currentState] || 'UNKNOWN';
+    
+    console.log(`✅ notificationsService.on('${eventName}') - listener registrado`, {
+      totalListeners: this.listeners.get(eventName).size,
+      sseReadyState: currentState,
+      sseState: stateLabel,
+      hasEventSource: !!this.es
+    });
+    return () => {
+      this.listeners.get(eventName).delete(handler);
+      console.log(`🔌 notificationsService.off('${eventName}') - listener removido`);
+    };
+  }
+
+  /**
+   * onEvent - Escuta TODOS os eventos SSE relevantes
+   * Útil quando você quer um handler genérico que processa vários tipos de eventos
+   * @param {Function} handler - Chamado com (eventData)
+   * @returns {Function} Função para desinscrever
+   */
+  onEvent(handler) {
+    const eventNames = ['conexao_estabelecida', 'nova_solicitacao', 'solicitacao_aceita', 'nenhum_motorista', 'falha_final'];
+    const unsubscribers = eventNames.map(eventName => {
+      return this.on(eventName, handler);
+    });
+
+    console.log(`✅ notificationsService.onEvent() - listener genérico registrado para ${eventNames.length} eventos`);
+
+    // Retornar função que desinscreve todos os eventos
+    return () => {
+      unsubscribers.forEach(unsub => unsub?.());
+      console.log(`🔌 notificationsService.onEvent() - listener genérico removido`);
+    };
   }
 
   emit(eventName, payload) {
     const set = this.listeners.get(eventName);
-    if (!set) return;
-    set.forEach((h) => { try { h(payload); } catch (e) { console.error('notificationsService handler error', e); } });
+    if (!set) {
+      console.warn(`⚠️ notificationsService.emit('${eventName}'): nenhum listener registrado!`);
+      return;
+    }
+    console.log(`🎯 notificationsService.emit('${eventName}') -> chamando ${set.size} listener(s)`, { payload });
+    set.forEach((h) => { 
+      try { 
+        h(payload); 
+      } catch (e) { 
+        console.error('notificationsService handler error', e); 
+      } 
+    });
   }
 }
 

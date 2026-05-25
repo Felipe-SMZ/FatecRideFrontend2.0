@@ -81,63 +81,58 @@ export function PassengerFollowPage() {
   useEffect(() => {
     if (!solicitacaoId) return;
 
-    const handleSSEEvent = (eventData) => {
-      console.log('📡 PassengerFollowPage: Evento SSE recebido:', eventData);
+    console.log('📡 PassengerFollowPage: Configurando listeners SSE para solicitação:', solicitacaoId);
 
-      // Evento: solicitacao_aceita
-      if (eventData.type === 'solicitacao_aceita' || eventData.event === 'solicitacao_aceita') {
-        console.log('✅ Solicitação aceita:', eventData);
-        setStatus('aceita');
-        setMotorista(eventData.motorista || eventData);
-        toast.success(`🎉 ${eventData.motorista?.nome || 'Motorista'} aceitou sua solicitação!`);
-        
-        // Salvar no chat para referência
-        if (eventData.id_solicitacao) {
-          const id_num = Number(eventData.id_solicitacao);
-          useChatStore.getState().updateConversationLastMessage(id_num, {
-            message: 'Motorista aceitou sua solicitação',
-            data: new Date().toISOString(),
-            id: `system_${Date.now()}`
-          });
-        }
-
-        // Auto-navegar para chat/ativas em 2 segundos
-        setTimeout(() => {
-          navigate('/solicitacoes-ativas');
-        }, 2000);
-        return;
+    // Handler para solicitacao_aceita
+    const handleAceita = (eventData) => {
+      console.log('✅ Solicitação aceita:', eventData);
+      setStatus('aceita');
+      setMotorista(eventData.motorista || eventData);
+      toast.success(`🎉 ${eventData.motorista?.nome || 'Motorista'} aceitou sua solicitação!`);
+      
+      // Salvar no chat para referência
+      if (eventData.id_solicitacao) {
+        const id_num = Number(eventData.id_solicitacao);
+        useChatStore.getState().updateConversationLastMessage(id_num, {
+          message: 'Motorista aceitou sua solicitação',
+          data: new Date().toISOString(),
+          id: `system_${Date.now()}`
+        });
       }
 
-      // Evento: nenhum_motorista
-      if (eventData.type === 'nenhum_motorista' || eventData.event === 'nenhum_motorista') {
-        console.log('🚫 Nenhum motorista disponível:', eventData);
-        setStatus('nenhum_motorista');
-        toast.error('Nenhum motorista encontrado próximo a você');
-        return;
-      }
-
-      // Evento: falha_final
-      if (eventData.type === 'falha_final' || eventData.event === 'falha_final') {
-        console.log('❌ Falha final:', eventData);
-        setStatus('falha_final');
-        toast.error('Tempo esgotado. Nenhum motorista aceitou sua solicitação.');
-        return;
-      }
-
-      // Evento: nova_solicitacao (debug - passageiro não deveria receber)
-      if (eventData.type === 'nova_solicitacao' || eventData.event === 'nova_solicitacao') {
-        console.log('ℹ️ Nova solicitação (debug):', eventData);
-        return;
-      }
+      // Auto-navegar para chat/ativas em 2 segundos
+      setTimeout(() => {
+        navigate('/solicitacoes-ativas');
+      }, 2000);
     };
 
-    // Registrar listener
-    const unsubscribe = notificationsService.onEvent(handleSSEEvent);
+    // Handler para nenhum_motorista
+    const handleNenhum = (eventData) => {
+      console.log('🚫 Nenhum motorista disponível:', eventData);
+      setStatus('nenhum_motorista');
+      toast.error('Nenhum motorista encontrado próximo a você');
+    };
+
+    // Handler para falha_final
+    const handleFalha = (eventData) => {
+      console.log('❌ Falha final:', eventData);
+      setStatus('falha_final');
+      toast.error('Tempo esgotado. Nenhum motorista aceitou sua solicitação.');
+    };
+
+    // Registrar listeners para cada evento
+    const unsubAceita = notificationsService.on('solicitacao_aceita', handleAceita);
+    const unsubNenhum = notificationsService.on('nenhum_motorista', handleNenhum);
+    const unsubFalha = notificationsService.on('falha_final', handleFalha);
+
     setSseListenerActive(true);
 
     return () => {
-      unsubscribe?.();
+      unsubAceita?.();
+      unsubNenhum?.();
+      unsubFalha?.();
       setSseListenerActive(false);
+      console.log('🔌 PassengerFollowPage: Listeners SSE removidos');
     };
   }, [solicitacaoId, navigate]);
 
