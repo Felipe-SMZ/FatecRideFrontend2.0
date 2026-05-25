@@ -202,15 +202,40 @@ class NotificationsService {
     const currentState = this.es?.readyState;
     const stateLabel = readyStateMap[currentState] || 'UNKNOWN';
     
+    const allListeners = Array.from(this.listeners.keys())
+      .map(e => `${e}:${this.listeners.get(e).size}`)
+      .join(' | ');
+    
     console.log(`✅ notificationsService.on('${eventName}') - listener registrado`, {
-      totalListeners: this.listeners.get(eventName).size,
+      eventoAgora: eventName,
+      totalListenersDoEvento: this.listeners.get(eventName).size,
       sseReadyState: currentState,
       sseState: stateLabel,
-      hasEventSource: !!this.es
+      hasEventSource: !!this.es,
+      todosOsListeners: allListeners
     });
+    
     return () => {
-      this.listeners.get(eventName).delete(handler);
-      console.log(`🔌 notificationsService.off('${eventName}') - listener removido`);
+      this.listeners.get(eventName)?.delete(handler);
+      console.log(`🔌 notificationsService.off('${eventName}') - listener removido`, {
+        restantes: this.listeners.get(eventName)?.size || 0
+      });
+    };
+  }
+
+  /**
+   * DEBUG: Mostrar estado dos listeners
+   */
+  debug() {
+    const allListeners = Array.from(this.listeners.keys())
+      .map(e => `${e}: ${this.listeners.get(e).size} listeners`)
+      .join('\n  ');
+    
+    return {
+      sseConnected: this.isConnected(),
+      sseReadyState: this.es?.readyState || 'null',
+      totalEvents: this.listeners.size,
+      listeners: allListeners || 'NENHUM'
     };
   }
 
@@ -237,11 +262,26 @@ class NotificationsService {
 
   emit(eventName, payload) {
     const set = this.listeners.get(eventName);
-    if (!set) {
-      console.warn(`⚠️ notificationsService.emit('${eventName}'): nenhum listener registrado!`);
+    
+    // Log para debug: mostrar todos os eventos registrados
+    const allEventNames = Array.from(this.listeners.keys());
+    const listenerCounts = allEventNames.map(e => `${e}:${this.listeners.get(e).size}`).join(' | ');
+    
+    if (!set || set.size === 0) {
+      console.warn(`⚠️ notificationsService.emit('${eventName}'): nenhum listener registrado!`, {
+        eventoSolicitado: eventName,
+        todosOsEventos: listenerCounts || 'NENHUM EVENT REGISTRADO',
+        temListeners: !!set,
+        listeners: set ? set.size : 0
+      });
       return;
     }
-    console.log(`🎯 notificationsService.emit('${eventName}') -> chamando ${set.size} listener(s)`, { payload });
+    
+    console.log(`🎯 notificationsService.emit('${eventName}') -> chamando ${set.size} listener(s)`, { 
+      payload,
+      todosOsEventos: listenerCounts
+    });
+    
     set.forEach((h) => { 
       try { 
         h(payload); 
