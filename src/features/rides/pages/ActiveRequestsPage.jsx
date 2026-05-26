@@ -4,6 +4,7 @@ import { FiMapPin, FiClock, FiUser, FiMessageCircle } from 'react-icons/fi';
 import { Card } from '@shared/components/ui/Card';
 import { PageContainer } from '@shared/components/layout/PageContainer';
 import { Button } from '@shared/components/ui/Button';
+import { Badge } from '@shared/components/ui/Badge';
 import { EmptyState } from '@shared/components/ui/EmptyState';
 import { Spinner } from '@shared/components/ui/Spinner';
 import { useAuthStore } from '@features/auth/stores/authStore';
@@ -12,6 +13,17 @@ import api from '@shared/lib/api';
 import { ridesService } from '@features/rides/services/ridesService';
 import { normalizeRequest } from '@shared/utils/normalizeRequest';
 import notificationsService from '@shared/services/notificationsService';
+// Controle de logs: habilite definindo VITE_ENABLE_DEBUG_LOGS=true no .env
+const dbg = (...args) => {
+  try {
+    if (import.meta?.env?.VITE_ENABLE_DEBUG_LOGS === 'true') {
+      // eslint-disable-next-line no-console
+      console.log(...args);
+    }
+  } catch (e) {
+    // ambiente não suporta import.meta.env — fallback silencioso
+  }
+};
 
 /**
  * ActiveRequestsPage - Solicitações Ativas do Passageiro
@@ -46,11 +58,11 @@ export function ActiveRequestsPage() {
   useEffect(() => {
     if (!isAuthorized) return;
 
-    console.log('📡 ActiveRequestsPage: Registrando listeners para eventos SSE do passageiro');
+    dbg('📡 ActiveRequestsPage: Registrando listeners para eventos SSE do passageiro');
 
     // Quando a solicitação é ENVIADA para um novo motorista (tentativa automática)
     const handleNovaSolicitacao = (data) => {
-      console.log('🔄 Evento: Nova tentativa automática', data);
+      dbg('🔄 Evento: Nova tentativa automática', data);
       const tentativaNum = data?.tentativa || data?.tentativaNumero || data?.numero_tentativa || 'próxima';
       toast.success(`Tentando próximo motorista... (tentativa ${tentativaNum}) 🔄`);
       // Auto-refresh da página
@@ -61,7 +73,7 @@ export function ActiveRequestsPage() {
 
     // Quando um motorista ACEITA a solicitação
     const handleSolicitacaoAceita = (data) => {
-      console.log('✅ Evento: Solicitação ACEITA', data);
+      dbg('✅ Evento: Solicitação ACEITA', data);
       toast.success('Motorista aceitou sua solicitação! 🎉');
       // Auto-refresh da página
       setTimeout(() => {
@@ -71,7 +83,7 @@ export function ActiveRequestsPage() {
 
     // Quando NENHUM motorista aceita (tentativa falhou)
     const handleNenhumMotorista = (data) => {
-      console.log('❌ Evento: Nenhum motorista disponível', data);
+      dbg('❌ Evento: Nenhum motorista disponível', data);
       toast.info('Nenhum motorista disponível. Tentando próxima tentativa...');
       // Auto-refresh da página
       setTimeout(() => {
@@ -81,7 +93,7 @@ export function ActiveRequestsPage() {
 
     // Quando a solicitação FALHA definitivamente
     const handleFalhaFinal = (data) => {
-      console.log('🚫 Evento: Falha final na solicitação', data);
+      dbg('🚫 Evento: Falha final na solicitação', data);
       toast.error('Solicitação cancelada. Nenhum motorista disponível.');
       // Auto-refresh da página
       setTimeout(() => {
@@ -101,7 +113,7 @@ export function ActiveRequestsPage() {
       unsubscribeAceita();
       unsubscribeNenhum();
       unsubscribeFalha();
-      console.log('🧹 ActiveRequestsPage: Listeners removidos');
+      dbg('🧹 ActiveRequestsPage: Listeners removidos');
     };
   }, [isAuthorized]);
 
@@ -112,17 +124,17 @@ export function ActiveRequestsPage() {
       return;
     }
 
-    console.log('🔄 Iniciando polling automático de solicitações ativas (a cada 5s)');
+    dbg('🔄 Iniciando polling automático de solicitações ativas (a cada 5s)');
 
     const pollInterval = setInterval(() => {
-      console.log('🔄 Polling: Refetching solicitações ativas...');
+      dbg('🔄 Polling: Refetching solicitações ativas...');
       fetchActiveRequests().catch(err => {
         console.error('⚠️ Erro durante polling:', err?.message);
       });
     }, 5000); // A cada 5 segundos
 
     return () => {
-      console.log('🧹 Parando polling de solicitações ativas');
+      dbg('🧹 Parando polling de solicitações ativas');
       clearInterval(pollInterval);
     };
   }, [isAuthorized]);
@@ -130,7 +142,7 @@ export function ActiveRequestsPage() {
   const fetchActiveRequests = async () => {
     try {
       setLoading(true);
-      console.log('📡 Buscando solicitações aceitas do passageiro... (service)');
+      dbg('📡 Buscando solicitações aceitas do passageiro... (service)');
 
       try {
         // Tenta agregar solicitações pendentes + histórico do passageiro
@@ -138,7 +150,7 @@ export function ActiveRequestsPage() {
 
         try {
           const pendingData = await ridesService.getPending(0, 100);
-          console.log('📥 Raw /solicitacao/pending response:', pendingData);
+          dbg('📥 Raw /solicitacao/pending response:', pendingData);
 
           let pendingArray = [];
           if (Array.isArray(pendingData)) {
@@ -160,7 +172,7 @@ export function ActiveRequestsPage() {
 
         try {
           const historyData = await ridesService.getPassengerHistory(0, 100);
-          console.log('📥 Raw /solicitacao/concluidas response:', historyData);
+          dbg('📥 Raw /solicitacao/concluidas response:', historyData);
 
           let historyArray = [];
           if (Array.isArray(historyData)) {
@@ -173,7 +185,7 @@ export function ActiveRequestsPage() {
             historyArray = [];
           }
 
-          console.log('✅ historyArray após parse:', {
+          dbg('✅ historyArray após parse:', {
             isArray: Array.isArray(historyArray),
             length: historyArray?.length || 0,
             isEmpty: !historyArray || historyArray.length === 0
@@ -190,7 +202,7 @@ export function ActiveRequestsPage() {
         
         // Filtrar nulls/undefined antes de deduplicate
         const validCombined = combined.filter(r => r && typeof r === 'object');
-        console.log('🔍 Combined após filtro de nulls:', {
+        dbg('🔍 Combined após filtro de nulls:', {
           original: combined.length,
           afterFilter: validCombined.length,
           removed: combined.length - validCombined.length
@@ -216,7 +228,7 @@ export function ActiveRequestsPage() {
             return isPending || isAccepted;
           });
 
-        console.log('📋 Solicitações ativas filtradas:', {
+        dbg('📋 Solicitações ativas filtradas:', {
           totalRequests: requestsArray.length,
           activeCount: activeRequests.length
         });
@@ -233,7 +245,7 @@ export function ActiveRequestsPage() {
           })
           .filter((r) => r !== null); // Remove nulls
         
-        console.log('✅ Solicitações ativas (pendente/aceita) normalized:', normalized.length, normalized);
+        dbg('✅ Solicitações ativas (pendente/aceita) normalized:', normalized.length, normalized);
         setRequests(normalized);
       } catch (err) {
         console.error('❌ Erro inesperado ao agregar solicitações:', err);
@@ -249,7 +261,7 @@ export function ActiveRequestsPage() {
   };
 
   const handleOpenChat = async (request) => {
-    console.log('🔵 Abrindo chat - Request:', request);
+    dbg('🔵 Abrindo chat - Request:', request);
 
     // Tenta inferir o id do motorista a partir de várias possíveis chaves
     const raw = request.__raw || request || {};
@@ -267,7 +279,7 @@ export function ActiveRequestsPage() {
         // se backend expôs id_motorista, usamos prioritariamente
         const mid = match.id_motorista ?? match.idMotorista ?? match.carona?.driver?.id ?? null;
         if (mid) {
-          console.log('✅ Usando id_motorista vindo de /solicitacao/pending:', mid);
+          dbg('✅ Usando id_motorista vindo de /solicitacao/pending:', mid);
           // sobrescreve o raw para que o inferDriverId encontre o valor logo abaixo
           raw.id_motorista = mid;
           raw.nome_motorista = raw.nome_motorista || match.nome_motorista || match.nomeMotorista;
@@ -299,28 +311,28 @@ export function ActiveRequestsPage() {
     // Se não encontramos id_motorista diretamente, tentar buscar pelo id_carona
     if (!motoristaId && (request.id_carona || request.idCarona || request.__raw?.id_carona)) {
       const caronaId = request.id_carona || request.idCarona || request.__raw?.id_carona;
-      console.log('🔎 id_motorista ausente — tentando buscar motorista pela id_carona:', caronaId);
+        dbg('🔎 id_motorista ausente — tentando buscar motorista pela id_carona:', caronaId);
       try {
         const ride = await ridesService.getRideById(caronaId);
         // ride pode ter diferentes formatos; tentar extrair driver id com defensiva
         const driverId = ride?.driver?.id || ride?.motorista?.id || ride?.id_motorista || ride?.driverId || null;
         if (driverId) {
           motoristaId = driverId;
-          console.log('✅ Encontrado id_motorista via /rides/{id}:', motoristaId);
+          dbg('✅ Encontrado id_motorista via /rides/{id}:', motoristaId);
         } else {
-          console.warn('⚠️ /rides/{id} retornou carona sem informação de driver.id');
+          dbg('⚠️ /rides/{id} retornou carona sem informação de driver.id');
         }
       } catch (err) {
         console.warn('⚠️ Falha ao buscar /rides/{id} para inferir motorista (endpoint pode não existir):', err?.response?.status || err?.message || err);
         // Tentativa alternativa: buscar todas as caronas ativas e procurar pela id
         try {
-          console.log('🔎 Tentando fallback: buscando /rides/corridasAtivas e procurando carona por id...');
+          dbg('🔎 Tentando fallback: buscando /rides/corridasAtivas e procurando carona por id...');
           const activeRides = await ridesService.getActive();
           const found = Array.isArray(activeRides) ? activeRides.find(r => Number(r.id) === Number(caronaId) || Number(r.id_carona) === Number(caronaId)) : null;
           const driverId2 = found?.driver?.id || found?.motorista?.id || found?.id_motorista || found?.driverId || null;
           if (driverId2) {
             motoristaId = driverId2;
-            console.log('✅ Encontrado id_motorista via /rides/corridasAtivas:', motoristaId);
+            dbg('✅ Encontrado id_motorista via /rides/corridasAtivas:', motoristaId);
           } else {
             console.warn('⚠️ Fallback /rides/corridasAtivas não retornou driver info para essa carona');
           }
@@ -333,7 +345,7 @@ export function ActiveRequestsPage() {
     if (!motoristaId) {
       console.warn('⚠️ id_motorista não encontrado no payload (tentadas várias chaves). Backend deve retornar id_motorista. receiverId ficará nulo e envio por WebSocket pode falhar.');
     } else {
-      console.log('✅ ID do motorista inferido do payload:', motoristaId);
+      dbg('✅ ID do motorista inferido do payload:', motoristaId);
     }
 
     setOpenChat({
@@ -348,14 +360,14 @@ export function ActiveRequestsPage() {
     const numeric = Number(request?.id_status_solicitacao);
 
     if (status === 'aceita' || status === 'aceito' || numeric === 2) {
-      return <span className="px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm font-medium">Aceita</span>;
-    }
+        return <Badge variant="success">Aceita</Badge>;
+      }
 
-    if (status === 'pendente' || numeric === 1) {
-      return <span className="px-3 py-1 bg-amber-100 text-amber-800 rounded-full text-sm font-medium">Pendente</span>;
-    }
+      if (status === 'pendente' || numeric === 1) {
+        return <Badge variant="warning">Pendente</Badge>;
+      }
 
-    return <span className="px-3 py-1 bg-gray-100 text-gray-800 rounded-full text-sm">Aguardando</span>;
+      return <Badge>Aguardando</Badge>;
   };
 
   return (
