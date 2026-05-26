@@ -145,15 +145,22 @@ export function ActiveRequestsPage() {
             historyArray = historyData;
           } else if (historyData?.content && Array.isArray(historyData.content)) {
             historyArray = historyData.content;
-          } else if (historyData && typeof historyData === 'object') {
+          } else if (historyData && typeof historyData === 'object' && !Array.isArray(historyData)) {
             historyArray = [historyData];
           } else {
             historyArray = [];
           }
 
-          combined.push(...historyArray);
+          console.log('✅ historyArray após parse:', {
+            isArray: Array.isArray(historyArray),
+            length: historyArray?.length || 0,
+            isEmpty: !historyArray || historyArray.length === 0
+          });
+
+          combined.push(...(historyArray || []));
         } catch (e) {
           console.warn('⚠️ Falha ao buscar /solicitacao/concluidas (continuando):', e?.response?.status || e?.status, e?.message || e, e?.response?.data);
+          // Continua mesmo que history falhe - combined fica com só pending
         }
 
         // Deduplicate by id_solicitacao / id
@@ -177,17 +184,27 @@ export function ActiveRequestsPage() {
         });
 
         // Usar o utilitário compartilhado de normalização (suporta snake_case e camelCase)
-        const normalized = activeRequests.map((r) => normalizeRequest(r));
+        const normalized = activeRequests
+          .map((r) => {
+            try {
+              return normalizeRequest(r);
+            } catch (err) {
+              console.warn('⚠️ Erro ao normalizar request:', err, r);
+              return null; // Retorna null se houver erro
+            }
+          })
+          .filter((r) => r !== null); // Remove nulls
+        
         console.log('✅ Solicitações ativas (pendente/aceita) normalized:', normalized.length, normalized);
         setRequests(normalized);
       } catch (err) {
         console.error('❌ Erro inesperado ao agregar solicitações:', err);
-        toast.error('Erro ao carregar solicitações ativas');
-        setRequests([]);
+        toast.error('Erro ao carregar solicitações ativas. Tente novamente.');
+        setRequests([]); // Garante que requests é sempre um array
       }
     } catch (error) {
       console.error('❌ Erro ao buscar solicitações:', error);
-      setRequests([]);
+      setRequests([]); // Garante que requests é sempre um array
     } finally {
       setLoading(false);
     }
