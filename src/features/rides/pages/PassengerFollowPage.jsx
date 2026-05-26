@@ -74,11 +74,13 @@ export function PassengerFollowPage() {
           }
         } else {
           console.warn('❌ Solicitação não encontrada:', solicitacaoId);
-          toast.error('Solicitação não encontrada. Verifique o ID.');
+          // Não mostrar toast aqui - pode ser que ainda não tenha sido criada no backend
+          // O usuário verá a mensagem de carregamento enquanto aguarda
         }
       } catch (err) {
-        console.error('❌ Erro ao buscar solicitação:', err);
-        toast.error('Erro ao carregar dados da solicitação: ' + (err?.message || 'Unknown'));
+        // Apenas logar erro - pode ser timeout ou solicitação ainda não criada
+        console.error('⚠️ Erro ao buscar solicitação:', err?.message);
+        // Não mostrar toast.error aqui - deixar página em loading aguardando o SSE
       } finally {
         setLoading(false);
       }

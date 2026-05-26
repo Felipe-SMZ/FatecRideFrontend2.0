@@ -218,20 +218,9 @@ const ridesService = {
     try {
       console.log(`📡 ridesService.getSolicitacaoById(${solicitacaoId})`);
       
-      // Tentar buscar diretamente
+      // ⭐ OTIMIZADO: Pular GET direto (endpoint /solicitacao/{id} não existe no backend)
+      // Ir direto para fallback: buscar da lista pendente
       try {
-        const { data } = await api.get(`/solicitacao/${solicitacaoId}`);
-        console.log('✅ Solicitação encontrada via GET direto:', data);
-        return data;
-      } catch (err1) {
-        // ⭐ NOVO: Se for 401 no GET direto, apenas warn (não break o fluxo)
-        if (err1?.response?.status === 401) {
-          console.warn(`⚠️ GET /solicitacao/${solicitacaoId} retornou 401 - tentando fallback...`);
-        } else {
-          console.warn(`⚠️ GET /solicitacao/${solicitacaoId} falhou, tentando /solicitacao/pending...`, err1.message);
-        }
-        
-        // Fallback: buscar da lista pendente
         const pending = await ridesService.getPending(0, 1000);
         let pendingArray = [];
         if (Array.isArray(pending)) pendingArray = pending;
@@ -243,24 +232,21 @@ const ridesService = {
         });
         
         if (found) {
-          console.log('✅ Solicitação encontrada via lista pendente:', found);
+          console.log('✅ Solicitação encontrada via /solicitacao/pending:', found);
           return found;
         }
         
-        console.warn(`❌ Solicitação ${solicitacaoId} não encontrada em nenhum endpoint`);
+        console.warn(`❌ Solicitação ${solicitacaoId} não encontrada em /solicitacao/pending`);
+        return null;
+      } catch (err) {
+        // Se getPending falhar, apenas retornar null (não propagar erro)
+        console.warn(`⚠️ Erro ao buscar de /solicitacao/pending:`, err?.message);
         return null;
       }
     } catch (err) {
-      // ⭐ NOVO: Se for 401, não quebra (retorna null) em vez de lançar erro
-      if (err?.response?.status === 401) {
-        console.warn('⚠️ getSolicitacaoById falhou com 401 - retornando null', {
-          message: err?.message || err?.response?.data?.message
-        });
-        return null;
-      }
-      
-      console.error('Erro ao buscar solicitação:', err);
-      throw err;
+      // Fallback final: sempre retornar null em vez de lançar erro
+      console.error('Erro crítico ao buscar solicitação:', err?.message);
+      return null;
     }
   },
 
@@ -342,7 +328,7 @@ const ridesService = {
 
   // ⭐ NOVO: Polling para recuperar evento perdido (se SSE não chegar a tempo)
   // Faz polling a cada 2s por até 30s
-  pollForLostEvent: async (solicitacaoId, maxAttempts = 15, intervalMs = 2000) => {
+  pollForLostEvent: async (solicitacaoId, maxAttempts = 10, intervalMs = 3000) => {
     console.log('🔄 Iniciando polling para recuperar evento perdido:', { solicitacaoId, maxAttempts, intervalMs });
     
     for (let attempt = 0; attempt < maxAttempts; attempt++) {
@@ -366,11 +352,10 @@ const ridesService = {
         }
       } catch (err) {
         console.warn(`⚠️ Polling tentativa ${attempt + 1} falhou:`, err?.message);
-        // Continuar tentando mesmo com erro
       }
     }
     
-    console.error('❌ Polling expirou - evento não recuperado após', maxAttempts, 'tentativas');
+    console.warn('⚠️ Polling completou', maxAttempts, 'tentativas sem recuperar evento');
     return null;
   },
 
