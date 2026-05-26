@@ -89,18 +89,18 @@ export function ActiveRequestsPage() {
       }, 1500);
     };
 
-    // Registrar listeners
-    notificationsService.on('nova_solicitacao', handleNovaSolicitacao);
-    notificationsService.on('solicitacao_aceita', handleSolicitacaoAceita);
-    notificationsService.on('nenhum_motorista', handleNenhumMotorista);
-    notificationsService.on('falha_final', handleFalhaFinal);
+    // Registrar listeners e guardar unsubscribers
+    const unsubscribeNova = notificationsService.on('nova_solicitacao', handleNovaSolicitacao);
+    const unsubscribeAceita = notificationsService.on('solicitacao_aceita', handleSolicitacaoAceita);
+    const unsubscribeNenhum = notificationsService.on('nenhum_motorista', handleNenhumMotorista);
+    const unsubscribeFalha = notificationsService.on('falha_final', handleFalhaFinal);
 
     // Cleanup: remover listeners quando desmontar
     return () => {
-      notificationsService.off('nova_solicitacao', handleNovaSolicitacao);
-      notificationsService.off('solicitacao_aceita', handleSolicitacaoAceita);
-      notificationsService.off('nenhum_motorista', handleNenhumMotorista);
-      notificationsService.off('falha_final', handleFalhaFinal);
+      unsubscribeNova();
+      unsubscribeAceita();
+      unsubscribeNenhum();
+      unsubscribeFalha();
       console.log('🧹 ActiveRequestsPage: Listeners removidos');
     };
   }, [isAuthorized]);
