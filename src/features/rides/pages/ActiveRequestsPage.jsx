@@ -105,6 +105,28 @@ export function ActiveRequestsPage() {
     };
   }, [isAuthorized]);
 
+  // ⭐ NOVO: Polling automático para manter lista de solicitações ativas atualizada
+  // Recarrega solicitações a cada 5 segundos enquanto página está aberta
+  useEffect(() => {
+    if (!isAuthorized) {
+      return;
+    }
+
+    console.log('🔄 Iniciando polling automático de solicitações ativas (a cada 5s)');
+
+    const pollInterval = setInterval(() => {
+      console.log('🔄 Polling: Refetching solicitações ativas...');
+      fetchActiveRequests().catch(err => {
+        console.error('⚠️ Erro durante polling:', err?.message);
+      });
+    }, 5000); // A cada 5 segundos
+
+    return () => {
+      console.log('🧹 Parando polling de solicitações ativas');
+      clearInterval(pollInterval);
+    };
+  }, [isAuthorized]);
+
   const fetchActiveRequests = async () => {
     try {
       setLoading(true);
