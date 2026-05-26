@@ -165,7 +165,16 @@ export function ActiveRequestsPage() {
 
         // Deduplicate by id_solicitacao / id
         const map = new Map();
-        combined.forEach((r) => {
+        
+        // Filtrar nulls/undefined antes de deduplicate
+        const validCombined = combined.filter(r => r && typeof r === 'object');
+        console.log('🔍 Combined após filtro de nulls:', {
+          original: combined.length,
+          afterFilter: validCombined.length,
+          removed: combined.length - validCombined.length
+        });
+
+        validCombined.forEach((r) => {
           const key = r?.id || r?.id_solicitacao || JSON.stringify(r);
           if (!map.has(key)) map.set(key, r);
         });
@@ -173,14 +182,21 @@ export function ActiveRequestsPage() {
         const requestsArray = Array.from(map.values());
 
         // Filtrar solicitações "ativas": Pendente (1) e Aceita (2)
-        const activeRequests = requestsArray.filter((req) => {
-          const statusStr = (req?.status || '').toString().toLowerCase();
-          const numeric = Number(req?.id_status_solicitacao);
+        const activeRequests = requestsArray
+          .filter((req) => req && typeof req === 'object') // Remover nulls antes de filtrar
+          .filter((req) => {
+            const statusStr = (req?.status || '').toString().toLowerCase();
+            const numeric = Number(req?.id_status_solicitacao);
 
-          const isPending = statusStr === 'pendente' || numeric === 1;
-          const isAccepted = statusStr === 'aceita' || statusStr === 'aceito' || numeric === 2;
+            const isPending = statusStr === 'pendente' || numeric === 1;
+            const isAccepted = statusStr === 'aceita' || statusStr === 'aceito' || numeric === 2;
 
-          return isPending || isAccepted;
+            return isPending || isAccepted;
+          });
+
+        console.log('📋 Solicitações ativas filtradas:', {
+          totalRequests: requestsArray.length,
+          activeCount: activeRequests.length
         });
 
         // Usar o utilitário compartilhado de normalização (suporta snake_case e camelCase)
