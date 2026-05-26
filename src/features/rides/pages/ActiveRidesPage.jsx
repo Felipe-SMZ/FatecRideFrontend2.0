@@ -157,6 +157,28 @@ export function ActiveRidesPage() {
     }
   }, [userTipo, activeTab, fetchActiveRides]); // Adicionar fetchActiveRides
 
+  // ⭐ NOVO: Polling automático para manter lista atualizada em tempo real
+  // Recarrega caronas ativas a cada 5 segundos enquanto página está aberta
+  useEffect(() => {
+    if (!((isDriver || isBoth) && activeTab === 'driver')) {
+      return;
+    }
+
+    console.log('🔄 Iniciando polling automático de caronas ativas (a cada 5s)');
+
+    const pollInterval = setInterval(() => {
+      console.log('🔄 Polling: Refetching caronas ativas...');
+      fetchActiveRides().catch(err => {
+        console.error('⚠️ Erro durante polling:', err?.message);
+      });
+    }, 5000); // A cada 5 segundos
+
+    return () => {
+      console.log('🧹 Parando polling de caronas ativas');
+      clearInterval(pollInterval);
+    };
+  }, [isDriver, isBoth, activeTab, fetchActiveRides]);
+
   // Memorizar listener SSE para evitar recriação
   const onNova = useCallback((payload) => {
     console.log('📢 SSE nova_solicitacao recebido em ActiveRidesPage:', payload, {
@@ -240,11 +262,25 @@ export function ActiveRidesPage() {
       fetchActiveRides();
     };
 
+    // ⭐ NOVO: Listener para quando carona é concluída
+    const handleCaronaConcluida = (event) => {
+      console.log('✅ EVENTO: carona-concluida recebido - refetching lista');
+      fetchActiveRides();
+    };
+
+    // ⭐ NOVO: Listener para quando carona é cancelada
+    const handleCaronaCancelada = (event) => {
+      console.log('❌ EVENTO: carona-cancelada recebido - refetching lista');
+      fetchActiveRides();
+    };
+
     window.addEventListener('sse-nova-solicitacao', handleGlobalNovaSolicitacao);
     window.addEventListener('sse-solicitacao-aceita', handleGlobalSolicitacaoAceita);
     window.addEventListener('sse-nenhum-motorista', handleGlobalNenhumMotorista);
     window.addEventListener('sse-falha-final', handleGlobalFalhaFinal);
     window.addEventListener('pendingSolicitacao-updated', handlePendingSolicitacaoUpdated);
+    window.addEventListener('sse-carona-concluida', handleCaronaConcluida);
+    window.addEventListener('sse-carona-cancelada', handleCaronaCancelada);
 
     console.log('✅ Listeners globais registrados em window');
 
@@ -255,6 +291,8 @@ export function ActiveRidesPage() {
       window.removeEventListener('sse-nenhum-motorista', handleGlobalNenhumMotorista);
       window.removeEventListener('sse-falha-final', handleGlobalFalhaFinal);
       window.removeEventListener('pendingSolicitacao-updated', handlePendingSolicitacaoUpdated);
+      window.removeEventListener('sse-carona-concluida', handleCaronaConcluida);
+      window.removeEventListener('sse-carona-cancelada', handleCaronaCancelada);
     };
   }, [isDriver, isBoth, onNova]);
 
