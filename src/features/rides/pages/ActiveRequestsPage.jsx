@@ -51,7 +51,7 @@ export function ActiveRequestsPage() {
     // Quando a solicitação é ENVIADA para um novo motorista (tentativa automática)
     const handleNovaSolicitacao = (data) => {
       console.log('🔄 Evento: Nova tentativa automática', data);
-      const tentativaNum = data?.tentativa || data?.tentativaNumero || 'próxima';
+      const tentativaNum = data?.tentativa || data?.tentativaNumero || data?.numero_tentativa || 'próxima';
       toast.success(`Tentando próximo motorista... (tentativa ${tentativaNum}) 🔄`);
       // Auto-refresh da página
       setTimeout(() => {
@@ -72,7 +72,7 @@ export function ActiveRequestsPage() {
     // Quando NENHUM motorista aceita (tentativa falhou)
     const handleNenhumMotorista = (data) => {
       console.log('❌ Evento: Nenhum motorista disponível', data);
-      toast.error('Nenhum motorista disponível. Tentando próxima tentativa...');
+      toast.info('Nenhum motorista disponível. Tentando próxima tentativa...');
       // Auto-refresh da página
       setTimeout(() => {
         fetchActiveRequests();

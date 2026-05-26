@@ -57,6 +57,11 @@ export function PassengerFollowPage() {
           console.log('✅ Solicitação carregada:', foundRequest);
           setSolicitacao(foundRequest);
           
+          // ⭐ NOVO: Extrair tentativa inicial se disponível
+          const tentativaInicial = foundRequest?.tentativa || foundRequest?.numero_tentativa || foundRequest?.numeroTentativa || foundRequest?.tentativaNumero || 1;
+          console.log('📊 Tentativa inicial extraída:', tentativaInicial);
+          setTentativa(Number(tentativaInicial));
+          
           // Inferir status inicial
           const initialStatus = foundRequest.status_solicitacao ?? foundRequest.status ?? 'pendente';
           console.log('📊 Status inicial:', initialStatus);
@@ -115,6 +120,20 @@ export function PassengerFollowPage() {
 
     console.log('📡 PassengerFollowPage: Configurando listeners SSE para solicitação:', solicitacaoId);
 
+    // Handler para nova_solicitacao (quando passa para próxima tentativa)
+    const handleNovaSolicitacao = (eventData) => {
+      console.log('🔄 Evento: Nova tentativa automática', eventData);
+      const tentativaNum = eventData?.tentativa || eventData?.tentativaNumero || eventData?.numero_tentativa;
+      console.log('📊 Tentativa atualizada para:', tentativaNum);
+      
+      if (tentativaNum) {
+        setTentativa(Number(tentativaNum));
+        const mensagem = `Tentando próximo motorista... (tentativa ${tentativaNum}) 🔄`;
+        toast.success(mensagem);
+        console.log('✅ Tentativa incrementada:', { tentativaAnterior: tentativa, tentativaNova: tentativaNum });
+      }
+    };
+
     // Handler para solicitacao_aceita
     const handleAceita = (eventData) => {
       console.log('✅ Solicitação aceita:', eventData);
@@ -153,6 +172,7 @@ export function PassengerFollowPage() {
     };
 
     // Registrar listeners para cada evento
+    const unsubNova = notificationsService.on('nova_solicitacao', handleNovaSolicitacao);
     const unsubAceita = notificationsService.on('solicitacao_aceita', handleAceita);
     const unsubNenhum = notificationsService.on('nenhum_motorista', handleNenhum);
     const unsubFalha = notificationsService.on('falha_final', handleFalha);
@@ -160,6 +180,7 @@ export function PassengerFollowPage() {
     setSseListenerActive(true);
 
     return () => {
+      unsubNova?.();
       unsubAceita?.();
       unsubNenhum?.();
       unsubFalha?.();

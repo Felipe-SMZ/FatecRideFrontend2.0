@@ -34,6 +34,8 @@ export function normalizeRequest(r) {
     // status
     status: r.status || r.situacao || null,
     id_status_solicitacao: r.id_status_solicitacao || r.idStatusSolicitacao || r.statusId || null,
+    // tentativa
+    tentativa: r.tentativa || r.numero_tentativa || r.numeroTentativa || r.tentativaNumero || 1,
     // endereços extraídos dos DTOs
     origem: getAddressString(originDTO),
     destino: getAddressString(destinationDTO),
