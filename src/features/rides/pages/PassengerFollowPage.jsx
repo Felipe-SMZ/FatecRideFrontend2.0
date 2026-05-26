@@ -241,7 +241,7 @@ export function PassengerFollowPage() {
                 Procurando motoristas próximos...
               </h2>
               <p className="text-gray-600 mb-8">
-                Tentativa {tentativa} de 3 • Aguardando resposta dos motoristas
+                Por favor, aguarde enquanto buscamos motoristas disponíveis
               </p>
 
               {solicitacao && (
