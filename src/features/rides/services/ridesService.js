@@ -70,27 +70,36 @@ const ridesService = {
 
   // Histórico de motorista
   getHistory: async (pagina = 0, itens = 50) => {
-    const { data } = await api.get('/rides/history', { params: { pagina, itens } });
-    return data;
+    try {
+      const { data } = await api.get('/rides/concluidas', { params: { pagina, itens } });
+      return data;
+    } catch (err) {
+      if (err?.response?.status === 401) {
+        console.warn('⚠️ getHistory retornou 401 - retornando array vazio');
+        return [];
+      }
+      throw err;
+    }
   },
 
   // Histórico de solicitações do passageiro
   getPassengerHistory: async (pagina = 0, itens = 50) => {
     try {
-      const { data } = await api.get('/solicitacao/concluidas', { params: { pagina, itens } });
+      const response = await api.get('/solicitacao/concluidas', { params: { pagina, itens } });
+      
+      // Tratar 204 No Content como array vazio
+      if (response.status === 204) {
+        return [];
+      }
+
+      const { data } = response;
       return data;
     } catch (err) {
-      // ⭐ NOVO: Se for 401, apenas warn e retorna array vazio (não lança erro)
       if (err?.response?.status === 401) {
-        return []; // Retorna array vazio em vez de lançar erro
+        console.warn('⚠️ getPassengerHistory retornou 401 - retornando array vazio');
+        return [];
       }
-      
-      console.error('❌ ridesService.getPassengerHistory ERRO:', {
-        message: err?.message,
-        status: err?.response?.status,
-        statusText: err?.response?.statusText,
-        data: err?.response?.data
-      });
+      // Deixa o erro propagar para ser tratado pela UI ou interceptor global
       throw err;
     }
   },
@@ -113,8 +122,8 @@ const ridesService = {
 
         pendingArray.forEach(p => {
           const idSolicitacao = p?.id_solicitacao ?? p?.id ?? null;
-          const motorista = p?.id_motorista ?? p?.idMotorista ?? (p?.carona && (p.carona.id_motorista ?? p.carona.idMotorista)) ?? null;
-          const passageiro = p?.id_passageiro ?? p?.idPassageiro ?? (p?.passageiro && (p.passageiro.id ?? null)) ?? null;
+          const motorista = p?.idMotorista ?? p?.id_motorista ?? (p?.carona && (p.carona.id_motorista ?? p.carona.idMotorista)) ?? null;
+          const passageiro = p?.idPassageiro ?? p?.id_passageiro ?? (p?.passageiro && (p.passageiro.id ?? null)) ?? null;
           if (idSolicitacao != null) {
             map[String(idSolicitacao)] = {
               motorista: motorista != null ? Number(motorista) : null,
@@ -198,10 +207,16 @@ const ridesService = {
     }
   },
 
-  // Buscar carona por id (se o backend suportar /rides/{id})
+  // Finalizar carona (motorista)
+  finishRide: async (rideId) => {
+    const { data } = await api.put(`/rides/finalizar/${rideId}`);
+    return data;
+  },
+
+  // Buscar carona por id
   getRideById: async (id) => {
     try {
-      const { data } = await api.get(`/rides/${id}`);
+      const { data } = await api.get(`/rides/${id}`); // Nota: Endpoint não explícito no Controller fornecido, mas usado como fallback
       return data;
     } catch (err) {
       // Propaga erro para o chamador, que faz fallback
@@ -212,8 +227,6 @@ const ridesService = {
   // ⭐ NOVO: Buscar solicitação por ID (para PassengerFollowPage)
   getSolicitacaoById: async (solicitacaoId) => {
     try {
-      console.log(`📡 ridesService.getSolicitacaoById(${solicitacaoId})`);
-      
       // ⭐ OTIMIZADO: Pular GET direto (endpoint /solicitacao/{id} não existe no backend)
       // Ir direto para fallback: buscar da lista pendente
       try {
@@ -228,20 +241,16 @@ const ridesService = {
         });
         
         if (found) {
-          console.log('✅ Solicitação encontrada via /solicitacao/pending:', found);
           return found;
         }
         
-        console.warn(`❌ Solicitação ${solicitacaoId} não encontrada em /solicitacao/pending`);
         return null;
       } catch (err) {
         // Se getPending falhar, apenas retornar null (não propagar erro)
-        console.warn(`⚠️ Erro ao buscar de /solicitacao/pending:`, err?.message);
         return null;
       }
     } catch (err) {
       // Fallback final: sempre retornar null em vez de lançar erro
-      console.error('Erro crítico ao buscar solicitação:', err?.message);
       return null;
     }
   },
@@ -259,7 +268,7 @@ const ridesService = {
 
   // Cancelar solicitação (passageiro)
   cancelRequest: async (requestId) => {
-    const { data } = await api.put(`/solicitacao/${requestId}/cancelar`);
+    const { data } = await api.put(`/solicitacao/cancelar/${requestId}`);
     return data;
   },
 
@@ -273,7 +282,6 @@ const ridesService = {
 
   // Agendar carona por dias da semana (seg=1, ter=2, ..., dom=7)
   scheduleRideWeekly: async (rideId, diasSemana) => {
-    console.log('📅 Agendando carona semanal:', { ride: rideId, dia_semana_agendamento: diasSemana });
     const { data } = await api.post('/agendar-ride-dia-semana', {
       ride: rideId,
       dia_semana_agendamento: diasSemana
@@ -283,14 +291,12 @@ const ridesService = {
 
   // Obter agendamentos semanais do motorista
   getScheduledWeekly: async () => {
-    console.log('📅 Buscando agendamentos semanais...');
     const { data } = await api.get('/agendar-ride-dia-semana');
     return data;
   },
 
   // Desativar dias específicos de um agendamento semanal
   desactivateScheduleWeekly: async (scheduleId, diasSemana) => {
-    console.log('📅 Desativando dias do agendamento:', { id: scheduleId, diasSemana });
     const { data } = await api.put(`/agendar-ride-dia-semana/desativar/${scheduleId}`, {
       diasSemana
     });
@@ -299,7 +305,6 @@ const ridesService = {
 
   // Agendar carona por intervalo de dias
   scheduleRideInterval: async (rideId, dataInicio, intervaloDias) => {
-    console.log('📅 Agendando carona por intervalo:', { ride: rideId, dataInicio, intervalo_dias: intervaloDias });
     const { data } = await api.post('/agendar-compromisso-intervalo-dias', {
       ride: rideId,
       dataInicio,
@@ -310,14 +315,12 @@ const ridesService = {
 
   // Obter agendamentos por intervalo do motorista
   getScheduledInterval: async () => {
-    console.log('📅 Buscando agendamentos por intervalo...');
     const { data } = await api.get('/agendar-compromisso-intervalo-dias');
     return data;
   },
 
   // Desativar agendamento por intervalo
   desactivateScheduleInterval: async (scheduleId) => {
-    console.log('📅 Desativando agendamento por intervalo:', { id: scheduleId });
     const { data } = await api.put(`/agendar-compromisso-intervalo-dias/desativar/${scheduleId}`);
     return data;
   },
@@ -358,8 +361,6 @@ const ridesService = {
   // ⭐ NOVO: Recuperar evento perdido (use para PassengerFollowPage)
   // Tenta usar localStorage primeiro, depois polling
   recoverLostEvent: async (solicitacaoId) => {
-    console.log('🔍 Tentando recuperar evento perdido:', { solicitacaoId });
-    
     // 1. Verificar se está em localStorage
     try {
       const stored = JSON.parse(localStorage.getItem('sse-pending-events') || '[]');
@@ -369,7 +370,6 @@ const ridesService = {
       );
       
       if (found) {
-        console.log('✅ Evento encontrado em localStorage:', found);
         // Disparar manualmente via notificationsService
         notificationsService.retryLostEvent('nova_solicitacao', found.data);
         // Também disparar via CustomEvent para compatibilidade
@@ -379,11 +379,9 @@ const ridesService = {
         return found.data;
       }
     } catch (err) {
-      console.warn('⚠️ Erro ao verificar localStorage:', err);
     }
     
     // 2. Fazer polling como fallback
-    console.log('📡 localStorage vazio, iniciando polling...');
     const recovered = await ridesService.pollForLostEvent(solicitacaoId);
     
     if (recovered) {

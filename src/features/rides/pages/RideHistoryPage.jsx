@@ -19,53 +19,67 @@ import { FiClock } from 'react-icons/fi';
 
 export function RideHistoryPage() {
   const navigate = useNavigate();
-  const { loadUserData: loadAuthUserData } = useAuthStore();
-  const [user, setUser] = useState(null);
+  const { user, token, loadUserData } = useAuthStore();
   const [driverRides, setDriverRides] = useState([]);
   const [passengerRides, setPassengerRides] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('motorista'); // 'motorista' ou 'passageiro'
 
   useEffect(() => {
-    const reloadAndFetch = async () => {
-      try {
-        await loadAuthUserData();
-        const updatedUser = useAuthStore.getState().user;
-        setUser(updatedUser);
-        
-        if (updatedUser?.tipo === 'PASSAGEIRO') {
-          setActiveTab('passageiro');
-        } else {
-          setActiveTab('motorista');
-        }
-        
-        fetchHistory();
-      } catch (err) {
-        setLoading(false);
+    const init = async () => {
+      if (!user || !user.tipo) {
+        await loadUserData();
       }
+      if (token) fetchHistory();
     };
-    
-    reloadAndFetch();
-  }, [loadAuthUserData]);
+
+    init();
+  }, [token]);
+
+  // Sincronizar aba ativa com o tipo de usuário
+  useEffect(() => {
+    if (user?.tipo) {
+      if (user.tipo === 'PASSAGEIRO') setActiveTab('passageiro');
+      else if (user.tipo === 'MOTORISTA') setActiveTab('motorista');
+      else if (user.tipo === 'AMBOS' && (activeTab !== 'motorista' && activeTab !== 'passageiro')) {
+        setActiveTab('motorista');
+      }
+    }
+  }, [user?.tipo, activeTab]);
 
   const fetchHistory = async () => {
     try {
       setLoading(true);
       const currentUser = useAuthStore.getState().user;
+      const token = useAuthStore.getState().token;
+
+      if (!currentUser || !token) {
+        if (!token) console.warn('⚠️ Abortando fetchHistory: Token ausente');
+        setLoading(false);
+        return;
+      }
       
-      const isDriver = currentUser?.tipo === 'MOTORISTA' || currentUser?.tipo === 'AMBOS';
-      const isPassenger = currentUser?.tipo === 'PASSAGEIRO' || currentUser?.tipo === 'AMBOS';
+      const isDriver = currentUser.tipo === 'MOTORISTA' || currentUser.tipo === 'AMBOS';
+      const isPassenger = currentUser.tipo === 'PASSAGEIRO' || currentUser.tipo === 'AMBOS';
 
-      const [driverData, passengerData] = await Promise.all([
-        isDriver ? ridesService.getHistory(0, 50).catch(() => ({ content: [] })) : Promise.resolve({ content: [] }),
-        isPassenger ? ridesService.getPassengerHistory(0, 50).catch(() => ({ content: [] })) : Promise.resolve({ content: [] })
-      ]);
+      // Executa buscas em paralelo com tratamento de erro isolado para não travar a página
+      const driverPromise = isDriver ? ridesService.getHistory(0, 50).catch(() => []) : Promise.resolve([]);
+      const passengerPromise = isPassenger ? ridesService.getPassengerHistory(0, 50).catch(() => []) : Promise.resolve([]);
 
-      setDriverRides(driverData?.content || (Array.isArray(driverData) ? driverData : []));
-      setPassengerRides(passengerData?.content || (Array.isArray(passengerData) ? passengerData : []));
+      const [driverRes, passengerRes] = await Promise.all([driverPromise, passengerPromise]);
+
+      const extractArray = (res) => {
+        if (!res) return [];
+        if (Array.isArray(res)) return res;
+        if (res.content && Array.isArray(res.content)) return res.content;
+        if (typeof res === 'object') return [res];
+        return [];
+      };
+
+      setDriverRides(extractArray(driverRes));
+      setPassengerRides(extractArray(passengerRes));
 
     } catch (error) {
-      console.error('❌ Erro geral ao buscar histórico:', error);
       toast.error('Erro ao carregar histórico');
     } finally {
       setLoading(false);
@@ -88,8 +102,9 @@ export function RideHistoryPage() {
     }
   };
 
-  const handleRateDriver = async (solicitacaoId) => {
-    const nota = window.prompt('Avalie o motorista de 1 a 5:');
+  const handleRateDriver = async (request) => {
+    const motoristaNome = request.nomeMotorista || request.nome_motorista || 'o motorista';
+    const nota = window.prompt(`Avalie ${motoristaNome} de 1 a 5:`);
     if (!nota || isNaN(nota) || nota < 1 || nota > 5) {
       if (nota !== null) toast.error('Por favor, insira uma nota válida de 1 a 5.');
       return;
@@ -97,7 +112,7 @@ export function RideHistoryPage() {
 
     const comentario = window.prompt('Deixe um comentário (opcional):');
     try {
-      await ratingService.rateDriver(solicitacaoId, { avaliacao: Number(nota), comentario });
+      await ratingService.rateDriver(request.id, { avaliacao: Number(nota), comentario });
       toast.success('Avaliação enviada com sucesso! ⭐');
     } catch (error) {
       toast.error(error.response?.data?.message || 'Erro ao enviar avaliação');
@@ -175,8 +190,8 @@ export function RideHistoryPage() {
 
           {!loading && (
             <>
-              {/* Lista para MOTORISTA ou aba de motorista */}
-              {(user?.tipo === 'MOTORISTA' || (user?.tipo === 'AMBOS' && activeTab === 'motorista')) && (
+              {/* Renderização Exclusiva: Motorista */}
+              {(user?.tipo === 'MOTORISTA' || (user?.tipo === 'AMBOS' && activeTab === 'motorista')) ? (
                 <>
                   {driverRides.length === 0 ? (
                     <EmptyState
@@ -229,10 +244,8 @@ export function RideHistoryPage() {
                     </div>
                   )}
                 </>
-              )}
-
-              {/* Lista para PASSAGEIRO ou aba de passageiro */}
-              {(user?.tipo === 'PASSAGEIRO' || (user?.tipo === 'AMBOS' && activeTab === 'passageiro')) && (
+              ) : (user?.tipo === 'PASSAGEIRO' || (user?.tipo === 'AMBOS' && activeTab === 'passageiro')) && (
+                /* Renderização Exclusiva: Passageiro */
                 <>
                   {passengerRides.length === 0 ? (
                     <EmptyState
@@ -252,30 +265,32 @@ export function RideHistoryPage() {
                             <div className="flex-1">
                               <div className="flex items-center gap-3 mb-2">
                                 <h3 className="font-semibold text-lg">
-                                  {request.originDTO?.cidade || 'Origem'} → {request.destinationDTO?.cidade || 'Destino'}
+                                  {/* id_carona em ambos os DTOs */}
+                                  Solicitação #{request.id_carona || request.idCarona || 'N/A'}
                                 </h3>
                                 {getStatusBadge(request.status?.toUpperCase() || 'CONCLUIDA')}
                               </div>
                               
-                              {/* Endereços completos */}
-                              <div className="mb-2">
-                                <p className="text-sm text-gray-600">
-                                  <span className="font-medium">De:</span> {request.originDTO?.logradouro}, {request.originDTO?.numero} - {request.originDTO?.bairro}, {request.originDTO?.cidade}
-                                </p>
-                                <p className="text-sm text-gray-600">
-                                  <span className="font-medium">Para:</span> {request.destinationDTO?.logradouro}, {request.destinationDTO?.numero} - {request.destinationDTO?.bairro}, {request.destinationDTO?.cidade}
-                                </p>
+                              <div className="space-y-1 mb-2">
+                                {/* Ambos usam originDTO e destinationDTO */}
+                                <p className="text-sm text-gray-700">📍 <strong>De:</strong> {request.originDTO?.cidade || 'N/A'}</p>
+                                <p className="text-sm text-gray-700">🎯 <strong>Para:</strong> {request.destinationDTO?.cidade || 'N/A'}</p>
                               </div>
                               
                               <p className="text-sm text-gray-600 mb-1">
+                                {/* Completed usa dataHora */}
                                 {formatDate(request.dataHora)}
                               </p>
-                              {request.nome_motorista && (
+
+                              {/* Mapeamento de nomes: nome_motorista (Completed) vs nomeMotorista (Pending) */}
+                              {(request.nome_motorista || request.nomeMotorista) && (
                                 <p className="text-sm text-gray-500">
-                                  Motorista: {request.nome_motorista}
-                                  {request.curso_motorista && ` - ${request.curso_motorista}`}
+                                  Motorista: {request.nome_motorista || request.nomeMotorista}
+                                  {(request.curso_motorista || request.cursoMotorista) && ` - ${request.curso_motorista || request.cursoMotorista}`}
                                 </p>
                               )}
+
+                              {/* Veículo (Apenas no Completed DTO) */}
                               {request.veiculo_marca && request.veiculo_modelo && (
                                 <p className="text-sm text-gray-500">
                                   {request.veiculo_marca} {request.veiculo_modelo} - {request.veiculo_placa}
@@ -287,7 +302,7 @@ export function RideHistoryPage() {
                               {request.status?.toUpperCase() === 'CONCLUIDA' && (
                                 <div className="mt-4 flex justify-end border-t pt-4">
                                   <Button 
-                                    onClick={() => handleRateDriver(request.id)}
+                                    onClick={() => handleRateDriver(request)}
                                     className="bg-yellow-500 hover:bg-yellow-600 text-white text-sm py-1 px-4 h-auto"
                                   >
                                     ⭐ Avaliar Motorista

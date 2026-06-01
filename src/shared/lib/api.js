@@ -45,6 +45,15 @@ api.interceptors.request.use(
             config.headers.Authorization = `Bearer ${token}`;
         }
 
+        // Melhora o log de debug para verificar integridade do token
+        if (config.url && config.url.includes('/solicitacao')) {
+            const tokenPreview = token ? `${token.substring(0, 15)}... [len: ${token.length}]` : 'AUSENTE';
+            console.log(`📡 API REQ [${config.method.toUpperCase()}] ${config.url}`, {
+                token: tokenPreview,
+                hasAuthHeader: !!config.headers.Authorization
+            });
+        }
+
         // DEBUG: Log detalhado apenas para o endpoint de login (temporário)
         try {
             if (config.url && config.url.includes('/users/login')) {
@@ -102,7 +111,7 @@ api.interceptors.response.use(
         const url = error.config?.url || '';
 
         // ⭐ NOVO: Endpoints "soft-fail" que podem retornar 401 sem fazer logout
-        // Tipicamente endpoints de leitura que o passageiro chama após aceitar
+        // Tipicamente endpoints de leitura que não devem forçar o logout imediato
         const softFailEndpoints = [
             '/solicitacao/pending',      // Passageiro listando solicitações
             '/solicitacao/concluidas',   // Passageiro buscando histórico
@@ -113,18 +122,14 @@ api.interceptors.response.use(
 
         // Logout automático se token expirou - MAS NÃO em endpoints soft-fail
         if (status === 401 && !isSoftFailEndpoint) {
-            console.error('🚨🚨🚨 INTERCEPTOR: 401 CAPTURADO 🚨🚨🚨', {
-                url: error.config?.url,
-                method: error.config?.method,
-                status: error.response?.status,
-                statusText: error.response?.statusText,
-                data: error.response?.data,
-                headers: error.response?.headers,
-                message: message
-            });
-            useAuthStore.getState().logout();
-            toast.error('Sessão expirada. Faça login novamente.');
-            window.location.href = '/';
+            // Se não for soft-fail e não tiver token, ou token expirou de fato
+            if (!useAuthStore.getState().token) {
+                useAuthStore.getState().logout();
+                toast.error('Sessão expirada. Faça login novamente.');
+                window.location.href = '/login';
+            } else {
+                console.error(`❌ Erro 401 em rota protegida: ${url}. Verifique as permissões no Backend.`);
+            }
         } else if (status === 401 && isSoftFailEndpoint) {
             // Para endpoints soft-fail, apenas log e passa o erro adiante
             console.warn('⚠️ SOFT-FAIL 401:', {

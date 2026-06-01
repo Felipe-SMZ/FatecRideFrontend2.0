@@ -31,7 +31,7 @@ export const useAuthStore = create(
                     
                     // Backend agora retorna id e userTypeId diretamente no login
                     // Mapear userTypeId para tipo string (Backend: 1=PASSAGEIRO, 2=MOTORISTA, 3=AMBOS)
-                    let tipo = 'PASSAGEIRO'; // Default
+                    let tipo = 'PASSAGEIRO';
                     if (response.userTypeId === 1) {
                         tipo = 'PASSAGEIRO';
                     } else if (response.userTypeId === 2) {
@@ -43,7 +43,8 @@ export const useAuthStore = create(
                     console.log('🎭 authStore - Tipo mapeado:', tipo, '(userTypeId:', response.userTypeId, ')');
                     
                     const user = {
-                        name: response.name,
+                        name: response.name || response.nome,
+                        nome: response.nome || response.name, // Garante compatibilidade
                         email: email,
                         tipo: tipo,
                         id: response.id,
@@ -87,11 +88,11 @@ export const useAuthStore = create(
                     console.log('✅ loadUserData: Dados recebidos:', userDataResponse);
                     
                     // Mapear userTypeId para tipo string
-                    let tipo = get().user?.tipo || 'PASSAGEIRO'; // Manter atual ou default
+                    let tipo = 'PASSAGEIRO'; 
                     if (userDataResponse.userTypeId === 1) {
-                        tipo = 'MOTORISTA';
-                    } else if (userDataResponse.userTypeId === 2) {
                         tipo = 'PASSAGEIRO';
+                    } else if (userDataResponse.userTypeId === 2) {
+                        tipo = 'MOTORISTA';
                     } else if (userDataResponse.userTypeId === 3) {
                         tipo = 'AMBOS';
                     } else if (userDataResponse.tipo) {
@@ -103,7 +104,8 @@ export const useAuthStore = create(
                     set(state => ({
                         user: {
                             ...state.user,
-                            name: userDataResponse.nome || state.user?.name,
+                            name: userDataResponse.nome || userDataResponse.name || state.user?.name,
+                            nome: userDataResponse.nome || userDataResponse.name || state.user?.name,
                             tipo: tipo,
                             id: userDataResponse.id || state.user?.id,
                             userTypeId: userDataResponse.userTypeId,

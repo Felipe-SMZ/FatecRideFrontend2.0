@@ -84,7 +84,6 @@ export function ActiveRidesPage() {
   const fetchActiveRides = useCallback(async () => {
     try {
       setLoading(true);
-      console.log('📡 fetchActiveRides iniciado para usuário:', user?.id);
 
       if (!token) {
         toast.error('Sessão expirada. Faça login novamente.');
@@ -92,51 +91,25 @@ export function ActiveRidesPage() {
         return;
       }
 
-      const ridesResponse = await fetch('http://localhost:8080/rides/corridasAtivas', {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
-
-      if (ridesResponse.ok) {
-        const ridesData = await ridesResponse.json();
+      // ⭐ CORREÇÃO: Usar o serviço centralizado para garantir Auth e tratamento de erros
+      try {
+        const ridesData = await ridesService.getActive();
         console.log('✅ Caronas carregadas:', ridesData.length, 'carona(s)');
-        try {
-          const requestsResponse = await fetch('http://localhost:8080/rides/requestsForMyRide', {
-            headers: {
-              'Authorization': `Bearer ${token}`,
-              'Content-Type': 'application/json'
-            }
-          });
-
-          if (requestsResponse.ok) {
-            const requestsData = await requestsResponse.json();
-            console.log('✅ Solicitações carregadas:', requestsData.length, 'solicitação(ões)');
-            console.log('   📋 Dados brutos:', requestsData);
-            const ridesWithRequests = ridesData.map(ride => {
-              const rideRequests = requestsData.filter(req => req.id_carona === ride.id);
-              console.log(`   🚗 Carona ${ride.id}: ${rideRequests.length} solicitações`);
-              return { ...ride, requests: rideRequests };
-            });
-            setRides(ridesWithRequests);
-            console.log('📊 Dados renderizados - Tela atualizada!');
-          } else if (requestsResponse.status === 500) {
-            console.warn('⚠️ Backend retornou 500 - usando caronas sem solicitações');
-            console.log('   Error:', await requestsResponse.text());
-            setRides(ridesData.map(ride => ({ ...ride, requests: [] })));
-          } else {
-            console.warn('⚠️ Backend retornou:', requestsResponse.status);
-            console.log('   Error:', await requestsResponse.text());
-            setRides(ridesData.map(ride => ({ ...ride, requests: [] })));
-          }
-        } catch (reqError) {
-          console.error('Erro ao buscar solicitações:', reqError);
-          setRides(ridesData.map(ride => ({ ...ride, requests: [] })));
-        }
-      } else {
-        const errorText = await ridesResponse.text();
-        console.error('Erro ao buscar caronas:', ridesResponse.status, errorText);
+        
+        const requestsData = await ridesService.getRequestsForMyRide();
+        console.log('✅ Solicitações carregadas:', requestsData.length, 'solicitação(ões)');
+        
+        const ridesWithRequests = (Array.isArray(ridesData) ? ridesData : []).map(ride => {
+          const rideRequests = (Array.isArray(requestsData) ? requestsData : [])
+            .filter(req => req.id_carona === ride.id);
+          return { ...ride, requests: rideRequests };
+        });
+        
+        setRides(ridesWithRequests);
+        console.log('📊 Dados renderizados - Tela atualizada!');
+      } catch (err) {
+        console.error('Erro ao buscar dados das caronas:', err);
+        toast.error('Erro ao carregar dados das caronas');
       }
     } catch (error) {
       console.error('Exceção ao buscar caronas ativas:', error);
@@ -180,14 +153,6 @@ export function ActiveRidesPage() {
 
   // Memorizar listener SSE para evitar recriação
   const onNova = useCallback((payload) => {
-    console.log('📢 SSE nova_solicitacao recebido em ActiveRidesPage:', payload, {
-      timestamp: new Date().toISOString()
-    });
-
-    // ⚠️ DEBUG: Exibir todas as chaves do payload
-    console.log('🔍 Keys do payload:', Object.keys(payload || {}));
-    console.log('🔍 Estrutura do payload:', JSON.stringify(payload, null, 2));
-
     // Notificação interativa única para nova solicitação (substitui o botão flutuante e toast info)
     try {
       const name = payload?.passageiroNome || payload?.passageiro_nome || payload?.passageiro || 'Passageiro';

@@ -22,13 +22,6 @@ export function SimpleChatModal({ requestId, otherUserName, receiverId, onClose 
   const { getMessages, setMessages } = useChatStore();
   const { user, token, messagesToken } = useAuthStore();
   
-  console.log('🎨 SimpleChatModal renderizando:', { 
-    requestId, 
-    otherUserName, 
-    receiverId, 
-    isConnected 
-  });
-  
   const messages = getMessages(parseInt(requestId)) || [];
   
   // Auto-scroll para última mensagem
@@ -44,7 +37,6 @@ export function SimpleChatModal({ requestId, otherUserName, receiverId, onClose 
       if (existing && existing.length > 0) {
         const inferred = inferReceiverFromMessages(existing);
         if (inferred) {
-          console.log('✅ Inferido receiverId a partir de mensagens locais:', inferred);
           setLocalReceiverId(inferred);
         }
       }
@@ -60,7 +52,6 @@ export function SimpleChatModal({ requestId, otherUserName, receiverId, onClose 
       const myUserId = user?.id_usuario ?? user?.id ?? user?.userId ?? null;
       const mapped = ridesService.getSolicitacaoMapping(requestId, myUserId);
       if (mapped) {
-        console.log('✅ Found local mapping for request ->', mapped);
         setLocalReceiverId(Number(mapped));
       }
     } catch (e) {
