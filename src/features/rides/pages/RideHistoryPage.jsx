@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
  
 import { Card } from '@shared/components/ui/Card';
@@ -9,7 +9,8 @@ import { ridesService } from '@features/rides/services/ridesService';
 import { ratingService } from '@features/rides/services/ratingService';
 import { useAuthStore } from '@features/auth/stores/authStore';
 import { toast } from 'react-hot-toast';
-import { FiClock } from 'react-icons/fi';
+import { FiClock, FiX } from 'react-icons/fi';
+import { FaStar, FaRegStar } from 'react-icons/fa';
 
 /**
  * RideHistoryPage - Histórico de caronas
@@ -24,6 +25,12 @@ export function RideHistoryPage() {
   const [passengerRides, setPassengerRides] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('motorista'); // 'motorista' ou 'passageiro'
+  
+  // Estados para o Modal de Avaliação
+  const [rideToRate, setRideToRate] = useState(null);
+  const [rating, setRating] = useState(0);
+  const [hoverRating, setHoverRating] = useState(0);
+  const [comment, setComment] = useState('');
 
   useEffect(() => {
     const init = async () => {
@@ -103,17 +110,24 @@ export function RideHistoryPage() {
   };
 
   const handleRateDriver = async (request) => {
-    const motoristaNome = request.nomeMotorista || request.nome_motorista || 'o motorista';
-    const nota = window.prompt(`Avalie ${motoristaNome} de 1 a 5:`);
-    if (!nota || isNaN(nota) || nota < 1 || nota > 5) {
-      if (nota !== null) toast.error('Por favor, insira uma nota válida de 1 a 5.');
+    setRideToRate(request);
+    setRating(0);
+    setComment('');
+  };
+
+  const submitRating = async () => {
+    if (rating === 0) {
+      toast.error('Por favor, selecione uma nota de 1 a 5 estrelas.');
       return;
     }
 
-    const comentario = window.prompt('Deixe um comentário (opcional):');
     try {
-      await ratingService.rateDriver(request.id, { avaliacao: Number(nota), comentario });
+      await ratingService.rateDriver(rideToRate.id, { 
+        avaliacao: rating, 
+        texto: comment 
+      });
       toast.success('Avaliação enviada com sucesso! ⭐');
+      setRideToRate(null);
     } catch (error) {
       toast.error(error.response?.data?.message || 'Erro ao enviar avaliação');
     }
@@ -318,6 +332,69 @@ export function RideHistoryPage() {
                 </>
               )}
             </>
+          )}
+
+          {/* Modal de Avaliação com Estrelas */}
+          {rideToRate && (
+            <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+              <Card className="w-full max-w-md shadow-2xl animate-in fade-in zoom-in duration-200">
+                <div className="p-6">
+                  <div className="flex justify-between items-center mb-6">
+                    <h3 className="text-xl font-bold text-fatecride-blue">Avaliar Motorista</h3>
+                    <button 
+                      onClick={() => setRideToRate(null)}
+                      className="text-gray-400 hover:text-gray-600 transition-colors"
+                    >
+                      <FiX size={24} />
+                    </button>
+                  </div>
+
+                  <div className="text-center mb-6">
+                    <p className="text-gray-600 mb-4">
+                      Como foi sua experiência com <span className="font-bold">{rideToRate.nome_motorista || rideToRate.nomeMotorista || 'o motorista'}</span>?
+                    </p>
+                    
+                    {/* Seleção de Estrelas Interativa */}
+                    <div className="flex justify-center gap-2 mb-2">
+                      {[1, 2, 3, 4, 5].map((star) => (
+                        <button
+                          key={star}
+                          type="button"
+                          className="text-3xl transition-transform hover:scale-110 active:scale-95"
+                          onMouseEnter={() => setHoverRating(star)}
+                          onMouseLeave={() => setHoverRating(0)}
+                          onClick={() => setRating(star)}
+                        >
+                          {(hoverRating || rating) >= star ? (
+                            <FaStar className="text-yellow-400" />
+                          ) : (
+                            <FaRegStar className="text-gray-300" />
+                          )}
+                        </button>
+                      ))}
+                    </div>
+                    <p className="text-sm font-medium text-fatecride-blue h-5">
+                      {rating > 0 ? `${rating} estrela${rating > 1 ? 's' : ''}` : ''}
+                    </p>
+                  </div>
+
+                  <div className="mb-6">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Seu comentário (opcional)</label>
+                    <textarea
+                      className="w-full border border-gray-300 rounded-lg p-3 text-sm focus:ring-2 focus:ring-fatecride-blue focus:border-transparent outline-none transition-all"
+                      rows="4"
+                      placeholder="Conte-nos como foi a viagem..."
+                      value={comment}
+                      onChange={(e) => setComment(e.target.value)}
+                    />
+                  </div>
+
+                  <Button onClick={submitRating} fullWidth className="bg-yellow-500 hover:bg-yellow-600">
+                    Enviar Avaliação
+                  </Button>
+                </div>
+              </Card>
+            </div>
           )}
         </div>
       </div>
