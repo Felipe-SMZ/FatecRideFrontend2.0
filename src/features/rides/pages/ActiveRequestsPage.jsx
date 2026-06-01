@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
-import { FiMapPin, FiClock, FiUser, FiMessageCircle } from 'react-icons/fi';
+import { FiMapPin, FiClock, FiUser, FiMessageCircle, FiStar, FiTruck } from 'react-icons/fi';
 import { Card } from '@shared/components/ui/Card';
 import { PageContainer } from '@shared/components/layout/PageContainer';
 import { Button } from '@shared/components/ui/Button';
@@ -8,6 +8,7 @@ import { Badge } from '@shared/components/ui/Badge';
 import { EmptyState } from '@shared/components/ui/EmptyState';
 import { Spinner } from '@shared/components/ui/Spinner';
 import { useAuthStore } from '@features/auth/stores/authStore';
+import { ratingService } from '@features/rides/services/ratingService';
 import { SimpleChatModal } from '@features/chat/components/SimpleChatModal';
 import api from '@shared/lib/api';
 import { ridesService } from '@features/rides/services/ridesService';
@@ -34,6 +35,26 @@ export function ActiveRequestsPage() {
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
   const [openChat, setOpenChat] = useState(null);
+  const [driverRatings, setDriverRatings] = useState({});
+
+  // Auxiliar para inferir o ID do motorista em diferentes formatos de resposta do backend
+  const inferDriverId = (obj) => {
+    if (!obj) return null;
+    const raw = obj.__raw || obj;
+    return obj.id_motorista
+      ?? obj.idMotorista
+      ?? obj.id_motorista_fk
+      ?? obj.idCaronaMotorista
+      ?? obj.carona?.driver?.id
+      ?? obj.carona?.driverId
+      ?? obj.carona?.driver?.userId
+      ?? obj.carona?.driver?.id_usuario
+      ?? obj.carona?.id_motorista
+      ?? obj.carona?.idMotorista
+      ?? raw.id_motorista
+      ?? raw.carona?.driver?.id
+      ?? null;
+  };
 
   // ⭐ VALIDAÇÃO: Verificar se é passageiro (segunda linha de defesa)
   const isPassenger = user?.tipo === 'PASSAGEIRO';
@@ -54,7 +75,7 @@ export function ActiveRequestsPage() {
     fetchActiveRequests();
   }, [isAuthorized, user?.tipo]);
 
-  // ⭐ NOVO: Listeners para SSE events de atualização de solicitações
+  // Listeners para SSE events de atualização de solicitações
   useEffect(() => {
     if (!isAuthorized) return;
 
@@ -117,7 +138,7 @@ export function ActiveRequestsPage() {
     };
   }, [isAuthorized]);
 
-  // ⭐ NOVO: Polling automático para manter lista de solicitações ativas atualizada
+  // Polling automático para manter lista de solicitações ativas atualizada
   // Recarrega solicitações a cada 5 segundos enquanto página está aberta
   useEffect(() => {
     if (!isAuthorized) {
@@ -247,6 +268,31 @@ export function ActiveRequestsPage() {
         
         dbg('✅ Solicitações ativas (pendente/aceita) normalized:', normalized.length, normalized);
         setRequests(normalized);
+
+        // Buscar avaliações dos motoristas para as caronas listadas
+        const driverIds = new Set();
+        normalized.forEach(req => {
+          const mid = inferDriverId(req);
+          // Só adiciona ao Set se a nota ainda não existir no estado local
+          // Isso evita requisições redundantes durante o polling de 5s
+          // Só busca se ainda não houver valor (undefined)
+          // Se for null, significa que já tentamos e falhou (erro 500)
+          if (mid && driverRatings[mid] === undefined) driverIds.add(mid);
+        });
+
+        if (driverIds.size > 0) {
+          const ratings = {};
+          await Promise.all(Array.from(driverIds).map(async (id) => {
+            try {
+              const score = await ratingService.getDriverRating(id);
+              ratings[id] = score;
+            } catch (err) {
+              dbg(`⚠️ Erro ao buscar avaliação para motorista ${id}:`, err?.response?.status || err.message);
+              ratings[id] = null; // Marca como nulo para não tentar novamente neste ciclo de vida
+            }
+          }));
+          setDriverRatings(prev => ({ ...prev, ...ratings }));
+        }
       } catch (err) {
         console.error('❌ Erro inesperado ao agregar solicitações:', err);
         toast.error('Erro ao carregar solicitações ativas. Tente novamente.');
@@ -268,7 +314,6 @@ export function ActiveRequestsPage() {
 
     // Priorizar id_motorista vindo do backend: buscar /solicitacao/pending atual
     try {
-      const latestPending = await ridesService.getPending(0, 100);
       let pendingArray = [];
       if (Array.isArray(latestPending)) pendingArray = latestPending;
       else if (latestPending?.content && Array.isArray(latestPending.content)) pendingArray = latestPending.content;
@@ -288,23 +333,6 @@ export function ActiveRequestsPage() {
     } catch (err) {
       console.warn('⚠️ Não foi possível buscar /solicitacao/pending no momento:', err?.message || err);
     }
-
-    const inferDriverId = (obj) => {
-      if (!obj) return null;
-      return obj.id_motorista
-        ?? obj.idMotorista
-        ?? obj.id_motorista_fk
-        ?? obj.idCaronaMotorista
-        ?? obj.carona?.driver?.id
-        ?? obj.carona?.driverId
-        ?? obj.carona?.driver?.userId
-        ?? obj.carona?.driver?.id_usuario
-        ?? obj.carona?.id_motorista
-        ?? obj.carona?.idMotorista
-        ?? obj.__raw?.carona?.driver?.id
-        ?? obj.__raw?.id_motorista
-        ?? null;
-    };
 
     let motoristaId = inferDriverId(request) || inferDriverId(raw) || null;
 
@@ -395,81 +423,88 @@ export function ActiveRequestsPage() {
         ) : (
           <div className="space-y-4">
             {requests.map((request) => (
-              <Card key={request.id || request.id_solicitacao} className="p-6">
+              <Card key={request.id || request.id_solicitacao} className="p-0 overflow-hidden hover:shadow-xl transition-all duration-300 border-l-4 border-fatecride-blue">
                 {/* Header do Card */}
-                <div className="flex items-start justify-between mb-4">
-                  <div className="flex items-center gap-3">
-                    <div className="w-12 h-12 rounded-full bg-fatecride-blue text-white flex items-center justify-center font-bold">
+                <div className="p-6">
+                  <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+                    <div className="flex items-center gap-4">
+                      <div className="w-14 h-14 rounded-full bg-gradient-to-br from-fatecride-blue to-blue-700 text-white flex items-center justify-center font-bold text-xl shadow-md border-2 border-white">
                       {request.nome_motorista?.[0]?.toUpperCase() || 'M'}
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <h3 className="text-lg font-bold text-gray-900">
+                            {request.nome_motorista || 'Motorista'}
+                          </h3>
+                          {/* Exibição da Nota do Motorista */}
+                          {typeof driverRatings[inferDriverId(request)] === 'number' && (
+                            <div 
+                              className="flex items-center text-yellow-700 text-sm font-bold bg-yellow-50 px-2 py-0.5 rounded-full border border-yellow-200 shadow-sm"
+                              title="Média de avaliação do motorista"
+                            >
+                              <FiStar className="fill-current mr-1 text-yellow-500" size={14} />
+                              {Number(driverRatings[inferDriverId(request)]).toFixed(1)}
+                            </div>
+                          )}
+                        </div>
+                        {request.curso_motorista && (
+                          <p className="text-sm text-gray-500 font-medium">{request.curso_motorista}</p>
+                        )}
+                      </div>
                     </div>
-                    <div>
-                      <h3 className="font-semibold text-gray-900">
-                        {request.nome_motorista || 'Motorista'}
-                      </h3>
-                      {request.curso_motorista && (
-                        <p className="text-sm text-gray-600">{request.curso_motorista}</p>
+                    <div className="flex items-center gap-3">
+                      {getStatusBadge(request)}
+                    </div>
+                  </div>
+
+                  {/* Linha do Tempo da Rota */}
+                  <div className="flex items-start gap-4 mb-6 ml-2">
+                    <div className="flex flex-col items-center mt-1">
+                      <div className="w-3 h-3 bg-green-500 rounded-full shadow-[0_0_8px_rgba(34,197,94,0.5)]"></div>
+                      <div className="w-0.5 h-10 bg-gradient-to-b from-green-500 to-red-500"></div>
+                      <div className="w-3 h-3 bg-red-500 rounded-full shadow-[0_0_8px_rgba(239,68,68,0.5)]"></div>
+                    </div>
+                    <div className="flex-1 space-y-5">
+                      <div className="-mt-1">
+                        <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">Origem</p>
+                        <p className="text-sm text-gray-800 font-medium">
+                          {request.originDTO?.logradouro || 'Endereço não informado'}, {request.originDTO?.cidade}
+                        </p>
+                      </div>
+                      <div className="pt-1">
+                        <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">Destino</p>
+                        <p className="text-sm text-gray-800 font-medium">
+                          {request.destinationDTO?.logradouro || 'Endereço não informado'}, {request.destinationDTO?.cidade}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Footer com informações técnicas e botão */}
+                  <div className="flex flex-wrap items-center justify-between pt-5 border-t border-gray-100 gap-4">
+                    <div className="flex flex-wrap gap-4">
+                      {request.dataHora && (
+                        <div className="flex items-center gap-2 px-3 py-1.5 bg-gray-100 rounded-lg text-xs font-bold text-gray-600 shadow-sm">
+                          <FiClock className="text-fatecride-blue" />
+                          <span>{new Date(request.dataHora).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}</span>
+                        </div>
+                      )}
+                      {(request.veiculo_modelo || request.veiculo_marca) && (
+                        <div className="flex items-center gap-2 px-3 py-1.5 bg-gray-100 rounded-lg text-xs font-bold text-gray-600 shadow-sm">
+                          <FiTruck className="text-fatecride-blue" />
+                          <span>{request.veiculo_marca} {request.veiculo_modelo} {request.veiculo_placa && `• ${request.veiculo_placa}`}</span>
+                        </div>
                       )}
                     </div>
+
+                    <Button
+                      onClick={() => handleOpenChat(request)}
+                      className="bg-fatecride-blue hover:bg-fatecride-blue-dark shadow-md text-sm font-bold"
+                    >
+                      <FiMessageCircle className="mr-2" />
+                      Conversar com Motorista
+                    </Button>
                   </div>
-                  
-                  {getStatusBadge(request)}
-                </div>
-
-                {/* Origem e Destino */}
-                <div className="space-y-3 mb-4">
-                  {request.originDTO && (
-                    <div className="flex items-start gap-3">
-                      <FiMapPin className="text-green-600 mt-1 flex-shrink-0" />
-                      <div>
-                        <p className="text-sm font-medium text-gray-900">Origem</p>
-                        <p className="text-sm text-gray-600">
-                          {request.originDTO.logradouro}, {request.originDTO.cidade}
-                        </p>
-                      </div>
-                    </div>
-                  )}
-                  
-                  {request.destinationDTO && (
-                    <div className="flex items-start gap-3">
-                      <FiMapPin className="text-red-600 mt-1 flex-shrink-0" />
-                      <div>
-                        <p className="text-sm font-medium text-gray-900">Destino</p>
-                        <p className="text-sm text-gray-600">
-                          {request.destinationDTO.logradouro}, {request.destinationDTO.cidade}
-                        </p>
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                {/* Informações do Veículo */}
-                {(request.veiculo_modelo || request.veiculo_marca) && (
-                  <div className="bg-gray-50 rounded-lg p-3 mb-4">
-                    <p className="text-sm font-medium text-gray-900 mb-1">Veículo</p>
-                    <p className="text-sm text-gray-600">
-                      {request.veiculo_marca} {request.veiculo_modelo} - {request.veiculo_cor}
-                      {request.veiculo_placa && ` • ${request.veiculo_placa}`}
-                    </p>
-                  </div>
-                )}
-
-                {/* Data/Hora */}
-                {request.dataHora && (
-                  <div className="flex items-center gap-2 text-sm text-gray-600 mb-4">
-                    <FiClock />
-                    <span>{new Date(request.dataHora).toLocaleString('pt-BR')}</span>
-                  </div>
-                )}
-
-                {/* Botão de Chat */}
-                <div className="flex justify-end">
-                  <Button
-                    onClick={() => handleOpenChat(request)}
-                    variant="info"
-                  >
-                    <FiMessageCircle className="mr-2" />
-                    Chat com Motorista
-                  </Button>
                 </div>
               </Card>
             ))}
