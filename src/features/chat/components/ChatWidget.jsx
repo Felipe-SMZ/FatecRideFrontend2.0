@@ -132,45 +132,42 @@ export function ChatWidget() {
   const handleSend = async (e) => {
     e?.preventDefault?.();
     if (!text.trim()) return;
-    // tentar recuperar receiverId se estiver ausente antes de enviar
+
+    // Tentar resolver receiverId se não tiver, mas NÃO exigir
+    // (backend pode rotear pela id_solicitacao mesmo sem receiver explícito)
     let effectiveReceiver = receiverId ?? null;
     if (!effectiveReceiver && requestId) {
       try {
         const myUserId = user?.id_usuario ?? user?.id ?? user?.userId ?? null;
         const mapped = ridesService.getSolicitacaoMapping(requestId, myUserId);
         if (mapped) effectiveReceiver = Number(mapped);
-        else {
-          // tentar buscar pending
-          const pending = await ridesService.getPending(0, 100).catch(() => null);
-          let arr = Array.isArray(pending) ? pending : pending?.content || [];
-          if (!Array.isArray(arr)) arr = [arr];
-          const match = arr.find(p => Number(p?.id_solicitacao || p?.id) === Number(requestId));
-          const mid = match?.id_motorista ?? match?.idMotorista ?? match?.carona?.driver?.id ?? null;
-          if (mid) effectiveReceiver = Number(mid);
-        }
       } catch (err) {
-        // ignore
+        // silencioso — não crítico pois backend pode resolver via id_solicitacao
       }
-    }
-    if (!effectiveReceiver) {
-      // backend espera um destinatário válido — avisar o usuário
-      toast.error('Não foi possível identificar o destinatário da mensagem. Tente abrir o chat a partir da solicitação ou tente novamente mais tarde.');
-      return;
     }
 
     const payload = {
-      receiver: Number(effectiveReceiver),
+      receiver: effectiveReceiver ? Number(effectiveReceiver) : null,
       id_solicitacao: requestId ? Number(requestId) : null,
       message: text.trim(),
       data: new Date().toISOString()
     };
+
     try {
       await sendMessage(payload);
       setText('');
     } catch (err) {
-      // optimistic local add
+      console.error('Erro ao enviar mensagem:', err?.message || err);
+      // optimistic local add mesmo assim
       const senderId = user?.id_usuario ?? user?.id ?? user?.userId ?? null;
-      const localMsg = { id_sender: senderId, id_receiver: effectiveReceiver, id_solicitacao: payload.id_solicitacao, message: payload.message, data: payload.data, _id: `local-${Date.now()}` };
+      const localMsg = {
+        id_sender: senderId,
+        id_receiver: effectiveReceiver,
+        id_solicitacao: payload.id_solicitacao,
+        message: payload.message,
+        data: payload.data,
+        _id: `local-${Date.now()}`
+      };
       try { addMessage(localMsg); } catch (e) {}
       setText('');
     }
