@@ -10,7 +10,6 @@ import { useSolicitacoesSSE } from '@features/rides/hooks/useSolicitacoesSSE';
 import { AppProviders } from './providers';
 import { AppRoutes } from './routes';
 import { PendingSolicitacaoCard } from '@features/rides/components/PendingSolicitacaoCard';
-import ChatWidget from '@features/chat/components/ChatWidget';
 import notificationsService from '@shared/services/notificationsService';
 
 function AppContent() {
@@ -92,8 +91,6 @@ function AppContent() {
         />
         {/* ⭐ Card flutuante de solicitação pendente - aparece em QUALQUER página */}
         <PendingSolicitacaoCard />
-        {/* Chat flutuante persistente (abre ao aceitar solicitação) */}
-        <ChatWidget />
         <div className="min-h-screen bg-gray-50">
           <main>
             <AppRoutes />

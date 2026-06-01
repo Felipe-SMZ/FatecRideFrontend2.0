@@ -36,54 +36,16 @@ export function ChatWidget() {
     const handler = (e) => {
       try {
         const data = e?.detail || e;
-        console.log('🎯 ChatWidget: Evento sse-solicitacao-aceita recebido!', {
-          fullData: JSON.stringify(data),
-          keys: Object.keys(data || {}),
-          motorista: data?.motorista,
-          motorista_keys: data?.motorista ? Object.keys(data.motorista) : null
-        });
-
-        // Extrair ID da solicitação (vários nomes possíveis)
-        const id = data?.solicitacaoId 
-                || data?.id_solicitacao 
-                || data?.id 
-                || (data?.motorista?.solicitacaoId)
-                || null;
-        
-        // Extrair nome do motorista
-        const motoristaNome = data?.motorista?.nome 
-                            || data?.nome_motorista 
-                            || data?.nomeMotorista 
-                            || data?.motoristaNome 
-                            || 'Motorista';
-        
-        // Extrair ID do motorista
-        const mid = data?.motorista?.id 
-                  || data?.id_motorista 
-                  || data?.idMotorista 
-                  || null;
-
-        console.log('🎯 ChatWidget: Dados EXTRAÍDOS:', {
-          id,
-          motoristaNome,
-          mid,
-          willOpen: !!id,
-          reason: !id ? 'ID não encontrado em nenhuma chave esperada' : 'OK'
-        });
-
-        if (!id) {
-          console.warn('⚠️ ChatWidget: Nenhum ID de solicitação encontrado. Data completa:', data);
-          return;
-        }
-        
+        const id = data?.solicitacaoId || data?.id_solicitacao || data?.id || null;
+        const motoristaNome = data?.nome_motorista || data?.nomeMotorista || data?.motoristaNome || 'Motorista';
+        const mid = data?.id_motorista || data?.idMotorista || null;
+        if (!id) return;
         setRequestId(String(id));
         setOtherName(motoristaNome);
         if (mid) setReceiverId(Number(mid));
         setOpen(true);
-
-        console.log('✅ ChatWidget: Chat aberto com dados:', { id, motoristaNome, mid });
-      } catch (err) {
-        console.error('❌ ChatWidget: Erro ao processar sse-solicitacao-aceita:', err);
+      } catch (e) {
+        // silencioso
       }
     };
 
@@ -171,13 +133,6 @@ export function ChatWidget() {
     e?.preventDefault?.();
     if (!text.trim()) return;
 
-    console.log('📨 ChatWidget.handleSend iniciado:', {
-      text,
-      requestId,
-      receiverId,
-      userId: user?.id
-    });
-
     // Tentar resolver receiverId se não tiver, mas NÃO exigir
     // (backend pode rotear pela id_solicitacao mesmo sem receiver explícito)
     let effectiveReceiver = receiverId ?? null;
@@ -197,8 +152,6 @@ export function ChatWidget() {
       message: text.trim(),
       data: new Date().toISOString()
     };
-
-    console.log('📨 ChatWidget.handleSend - Payload final:', payload);
 
     try {
       await sendMessage(payload);
