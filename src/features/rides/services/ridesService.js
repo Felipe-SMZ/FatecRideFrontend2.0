@@ -76,27 +76,12 @@ const ridesService = {
 
   // Histórico de solicitações do passageiro
   getPassengerHistory: async (pagina = 0, itens = 50) => {
-    console.log('🔍 ridesService.getPassengerHistory: Chamando GET /solicitacao/concluidas');
-    
-    // ⭐ DEBUG: Logar token sendo enviado
-    const token = useAuthStore.getState().token;
-    console.log('🔑 Token disponível:', !!token);
-    if (token) {
-      console.log('   Token preview:', `${token.substring(0, 20)}...`);
-    }
-    
     try {
       const { data } = await api.get('/solicitacao/concluidas', { params: { pagina, itens } });
-      console.log('✅ ridesService.getPassengerHistory: Resposta recebida:', data);
       return data;
     } catch (err) {
       // ⭐ NOVO: Se for 401, apenas warn e retorna array vazio (não lança erro)
       if (err?.response?.status === 401) {
-        console.warn('⚠️ getPassengerHistory retornou 401 - retornando array vazio', {
-          message: err?.message || err?.response?.data?.message,
-          tokenExists: !!token,
-          endpoint: '/solicitacao/concluidas'
-        });
         return []; // Retorna array vazio em vez de lançar erro
       }
       

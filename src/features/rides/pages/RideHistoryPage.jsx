@@ -6,6 +6,7 @@ import { Button } from '@shared/components/ui/Button';
 import { EmptyState } from '@shared/components/ui/EmptyState';
 import { Spinner } from '@shared/components/ui/Spinner';
 import { ridesService } from '@features/rides/services/ridesService';
+import { ratingService } from '@features/rides/services/ratingService';
 import { useAuthStore } from '@features/auth/stores/authStore';
 import { toast } from 'react-hot-toast';
 import { FiClock } from 'react-icons/fi';
@@ -26,115 +27,43 @@ export function RideHistoryPage() {
   const [activeTab, setActiveTab] = useState('motorista'); // 'motorista' ou 'passageiro'
 
   useEffect(() => {
-    console.log('🔄 RideHistoryPage montado');
-    
-    // Forçar reload do authStore para garantir tipo correto
     const reloadAndFetch = async () => {
-      await loadAuthUserData();
-      
-      // Aguardar um pouco para garantir que o estado foi atualizado
-      setTimeout(() => {
+      try {
+        await loadAuthUserData();
         const updatedUser = useAuthStore.getState().user;
         setUser(updatedUser);
         
-        console.log('👤 User após reload:', updatedUser);
-        console.log('🎯 Tipo após reload:', updatedUser?.tipo);
-        
-        // Definir aba inicial baseada no tipo do usuário
         if (updatedUser?.tipo === 'PASSAGEIRO') {
           setActiveTab('passageiro');
-          console.log('📌 Aba inicial: passageiro');
         } else {
           setActiveTab('motorista');
-          console.log('📌 Aba inicial: motorista');
         }
         
         fetchHistory();
-      }, 100);
+      } catch (err) {
+        setLoading(false);
+      }
     };
     
     reloadAndFetch();
-  }, []);
+  }, [loadAuthUserData]);
 
   const fetchHistory = async () => {
     try {
       setLoading(true);
-      
-      // Pegar user atualizado do store
       const currentUser = useAuthStore.getState().user;
       
-      console.log('🔍 User no fetchHistory:', currentUser);
-      console.log('🔍 Tipo do usuário:', currentUser?.tipo);
-      
-      // Se for MOTORISTA ou AMBOS, buscar histórico de corridas
-      if (currentUser?.tipo === 'MOTORISTA' || currentUser?.tipo === 'AMBOS') {
-        console.log('🚗 Buscando histórico de corridas...');
-        try {
-          const driverData = await ridesService.getHistory(0, 50);
-          console.log('📜 Histórico de corridas (motorista):', driverData);
-          
-          if (driverData.content) {
-            setDriverRides(driverData.content);
-          } else if (Array.isArray(driverData)) {
-            setDriverRides(driverData);
-          } else {
-            setDriverRides([]);
-          }
-        } catch (error) {
-          console.error('❌ Erro ao buscar histórico de motorista:', error);
-          setDriverRides([]);
-        }
-      } else {
-        console.log('⚠️ Usuário não é MOTORISTA ou AMBOS, não busca corridas');
-      }
-      
-      // Se for PASSAGEIRO ou AMBOS, buscar histórico de solicitações concluídas
-      if (currentUser?.tipo === 'PASSAGEIRO' || currentUser?.tipo === 'AMBOS') {
-        console.log('🙋 Buscando histórico de solicitações...');
-        try {
-          // Buscar solicitações concluídas do passageiro
-          const response = await fetch('http://localhost:8080/solicitacao/concluidas?pagina=0&itens=50', {
-            headers: {
-              'Authorization': `Bearer ${localStorage.getItem('token')}`,
-              'Content-Type': 'application/json'
-            }
-          });
-          
-          console.log('📡 Response status:', response.status);
-          console.log('📡 Response ok:', response.ok);
-          
-          if (response.ok) {
-            // Verificar se há conteúdo antes de tentar parsear JSON
-            const text = await response.text();
-            console.log('📄 Response text:', text);
-            
-            const passengerData = text ? JSON.parse(text) : null;
-            
-            console.log('📜 Histórico de solicitações (passageiro):', passengerData);
-            
-            if (passengerData && passengerData.content) {
-              setPassengerRides(passengerData.content);
-            } else if (Array.isArray(passengerData)) {
-              setPassengerRides(passengerData);
-            } else {
-              console.log('⚠️ Dados de passageiro vazios ou inválidos');
-              setPassengerRides([]);
-            }
-          } else if (response.status === 204) {
-            // 204 No Content - sem histórico
-            console.log('📜 Nenhuma solicitação concluída encontrada (204)');
-            setPassengerRides([]);
-          } else {
-            console.warn('⚠️ Erro ao buscar histórico:', response.status);
-            setPassengerRides([]);
-          }
-        } catch (error) {
-          console.error('❌ Erro ao buscar histórico de passageiro:', error);
-          setPassengerRides([]);
-        }
-      } else {
-        console.log('⚠️ Usuário não é PASSAGEIRO ou AMBOS, não busca solicitações');
-      }
+      const isDriver = currentUser?.tipo === 'MOTORISTA' || currentUser?.tipo === 'AMBOS';
+      const isPassenger = currentUser?.tipo === 'PASSAGEIRO' || currentUser?.tipo === 'AMBOS';
+
+      const [driverData, passengerData] = await Promise.all([
+        isDriver ? ridesService.getHistory(0, 50).catch(() => ({ content: [] })) : Promise.resolve({ content: [] }),
+        isPassenger ? ridesService.getPassengerHistory(0, 50).catch(() => ({ content: [] })) : Promise.resolve({ content: [] })
+      ]);
+
+      setDriverRides(driverData?.content || (Array.isArray(driverData) ? driverData : []));
+      setPassengerRides(passengerData?.content || (Array.isArray(passengerData) ? passengerData : []));
+
     } catch (error) {
       console.error('❌ Erro geral ao buscar histórico:', error);
       toast.error('Erro ao carregar histórico');
@@ -156,6 +85,22 @@ export function RideHistoryPage() {
       });
     } catch {
       return 'Data inválida';
+    }
+  };
+
+  const handleRateDriver = async (solicitacaoId) => {
+    const nota = window.prompt('Avalie o motorista de 1 a 5:');
+    if (!nota || isNaN(nota) || nota < 1 || nota > 5) {
+      if (nota !== null) toast.error('Por favor, insira uma nota válida de 1 a 5.');
+      return;
+    }
+
+    const comentario = window.prompt('Deixe um comentário (opcional):');
+    try {
+      await ratingService.rateDriver(solicitacaoId, { avaliacao: Number(nota), comentario });
+      toast.success('Avaliação enviada com sucesso! ⭐');
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Erro ao enviar avaliação');
     }
   };
 
@@ -198,11 +143,7 @@ export function RideHistoryPage() {
 
           {/* Abas para AMBOS */}
           {user?.tipo === 'AMBOS' && (
-            <>
-              {console.log('✅ Renderizando abas para AMBOS')}
-              {console.log('📊 driverRides:', driverRides.length)}
-              {console.log('📊 passengerRides:', passengerRides.length)}
-              <div className="flex gap-2 mb-6 bg-white p-2 rounded-lg shadow">
+            <div className="flex gap-2 mb-6 bg-white p-2 rounded-lg shadow">
                 <Button
                   onClick={() => setActiveTab('passageiro')}
                   className={`flex-1 ${activeTab === 'passageiro' 
@@ -224,7 +165,6 @@ export function RideHistoryPage() {
                   Corridas Oferecidas ({driverRides.length})
                 </Button>
               </div>
-            </>
           )}
 
           {loading && (
@@ -341,6 +281,18 @@ export function RideHistoryPage() {
                                   {request.veiculo_marca} {request.veiculo_modelo} - {request.veiculo_placa}
                                   {request.veiculo_cor && ` (${request.veiculo_cor})`}
                                 </p>
+                              )}
+
+                              {/* Apenas solicitações concluídas podem ser avaliadas */}
+                              {request.status?.toUpperCase() === 'CONCLUIDA' && (
+                                <div className="mt-4 flex justify-end border-t pt-4">
+                                  <Button 
+                                    onClick={() => handleRateDriver(request.id)}
+                                    className="bg-yellow-500 hover:bg-yellow-600 text-white text-sm py-1 px-4 h-auto"
+                                  >
+                                    ⭐ Avaliar Motorista
+                                  </Button>
+                                </div>
                               )}
                             </div>
                           </div>
