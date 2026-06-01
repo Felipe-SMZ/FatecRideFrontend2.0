@@ -64,14 +64,36 @@ export function useSolicitacoesSSE() {
 
     const handleSolicitacaoAceita = (data) => {
       console.log('🌍 GLOBAL HANDLER: solicitacao_aceita recebido', {
+        rawData: JSON.stringify(data),
+        keys: Object.keys(data || {}),
         solicitacaoId: data?.solicitacaoId,
+        id_solicitacao: data?.id_solicitacao,
+        motorista: data?.motorista,
+        motorista_keys: data?.motorista ? Object.keys(data.motorista) : null,
+        id_motorista: data?.id_motorista,
+        hasAllFields: !!(data?.solicitacaoId || data?.id_solicitacao) && !!(data?.motorista?.id || data?.id_motorista),
         timestamp: new Date().toISOString()
       });
 
       useRidesStore.getState().clearPendingSolicitacao();
 
+      // Montar objeto com todos os dados normalizados para o window event
+      const eventPayload = {
+        ...data,
+        // garantir que tem id da solicitacao
+        solicitacaoId: data?.solicitacaoId || data?.id_solicitacao || null,
+        id_solicitacao: data?.id_solicitacao || data?.solicitacaoId || null,
+        // garantir que tem id do motorista
+        id_motorista: data?.motorista?.id || data?.id_motorista || null,
+        // guardar nome do motorista
+        nome_motorista: data?.motorista?.nome || data?.nome_motorista || null,
+        motoristaNome: data?.motorista?.nome || data?.motoristaNome || null
+      };
+
+      console.log('✅ Window event sse-solicitacao-aceita será disparado com payload:', eventPayload);
+
       window.dispatchEvent(
-        new CustomEvent('sse-solicitacao-aceita', { detail: data })
+        new CustomEvent('sse-solicitacao-aceita', { detail: eventPayload })
       );
     };
 
