@@ -58,14 +58,16 @@ export function AddressAutocomplete({
         }
 
         // Debounce: aguarda 800ms após parar de digitar
+        const controller = new AbortController();
         timeoutRef.current = setTimeout(async () => {
-            await searchAddress(value);
+            await searchAddress(value, controller.signal);
         }, 800);
 
         return () => {
             if (timeoutRef.current) {
                 clearTimeout(timeoutRef.current);
             }
+            controller.abort();
         };
     }, [value]);
 
@@ -73,7 +75,7 @@ export function AddressAutocomplete({
      * Busca endereços no OpenStreetMap via API Nominatim
      * Retorna múltiplas sugestões (até 5)
      */
-    const searchAddress = async (query) => {
+    const searchAddress = async (query, signal) => {
         try {
             setLoading(true);
 
@@ -86,6 +88,7 @@ export function AddressAutocomplete({
             const response = await fetch(
                 `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&limit=5&format=json&addressdetails=1&countrycodes=br`,
                 {
+                    signal,
                     headers: {
                         'Accept': 'application/json'
                     }
@@ -108,6 +111,7 @@ export function AddressAutocomplete({
                 setShowSuggestions(false);
             }
         } catch (error) {
+            if (error.name === 'AbortError') return;
             console.error('❌ Erro ao buscar sugestões:', error);
             setSuggestions([]);
             setShowSuggestions(false);

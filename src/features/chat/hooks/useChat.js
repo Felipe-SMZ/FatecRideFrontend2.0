@@ -12,6 +12,9 @@ import { ridesService } from '@features/rides/services/ridesService';
  */
 export function useChat() {
   const { token, messagesToken, isAuthenticated, user } = useAuthStore();
+  
+  const myId = user?.id || user?.id_usuario || user?.userId;
+
   const { 
     addMessage, 
     setConnected, 
@@ -51,29 +54,22 @@ export function useChat() {
         } else {
           // Normalizar campos do payload para garantir id_solicitacao e coerência de tipos
           const msg = {
-            id_sender: Number(incoming.id_sender ?? incoming.idSender ?? incoming.sender ?? incoming.id_remetente ?? null) || null,
-            id_receiver: Number(incoming.id_receiver ?? incoming.idReceiver ?? incoming.receiver ?? incoming.id_destinatario ?? null) || null,
-            id_solicitacao: Number(incoming.id_solicitacao ?? incoming.idSolicitacao ?? incoming.id ?? null) || null,
-            message: incoming.message ?? incoming.mensagem ?? incoming.text ?? incoming.msg ?? null,
+            id_sender: Number(incoming.id_sender),
+            id_receiver: Number(incoming.id_receiver),
+            id_solicitacao: Number(incoming.id_solicitacao),
+            message: incoming.message || incoming.mensagem || '',
             data: incoming.data ?? incoming.timestamp ?? new Date().toISOString(),
             _id: incoming._id ?? incoming.id ?? `srv-${Date.now()}`
           };
 
-          console.log('✉️ mensagem_recebida normalizada:', msg);
-
           const { addMessage, incrementUnread } = useChatStore.getState();
           addMessage(msg);
 
-          // Persistir mapeamento id_solicitacao -> participantes para fallback
-          try {
-            if (msg.id_solicitacao) {
-              const motorista = Number(msg.id_sender) || null;
-              const passageiro = Number(msg.id_receiver) || null;
-              ridesService.saveSolicitacaoMapping(msg.id_solicitacao, { motorista, passageiro });
-              console.log('💾 mapeamento salvo via useChat (mensagem_recebida):', { id_solicitacao: msg.id_solicitacao, motorista, passageiro });
-            }
-          } catch (e) {
-            console.warn('Falha ao salvar mapeamento via useChat:', e?.message || e);
+          if (msg.id_solicitacao) {
+            ridesService.saveSolicitacaoMapping(msg.id_solicitacao, { 
+              motorista: Number(msg.id_sender), 
+              passageiro: Number(msg.id_receiver) 
+            });
           }
 
           if (window.location.pathname !== `/chat/${msg.id_solicitacao}`) {
@@ -97,8 +93,7 @@ export function useChat() {
       
       // Verificar se realmente mudou
       setTimeout(() => {
-        const currentState = useChatStore.getState();
-        console.log('✅ Estado atual do chatStore.isConnected:', currentState.isConnected);
+        console.log('✅ WebSocket status sync:', useChatStore.getState().isConnected);
       }, 100);
     });
     
@@ -107,15 +102,16 @@ export function useChat() {
     // Conectar apenas na primeira vez
     if (!hasConnectedRef.current && !connectingRef.current) {
       console.log('🚀 Conectando WebSocket pela primeira vez...');
-      hasConnectedRef.current = true;
       connectingRef.current = true;
       
       // IMPORTANTE: Conectar DEPOIS de registrar handlers
       const tokenToUse = messagesToken || token;
       websocketService.connect(tokenToUse);
+      hasConnectedRef.current = true;
       
-      // CRÍTICO: Verificar estado após um pequeno delay
-      setTimeout(() => {
+      // Melhora: Em vez de setTimeout, usamos o próprio estado do serviço
+      // para sincronizar o store inicial
+      const checkSync = () => {
         const jaConectado = websocketService.isConnected();
         console.log('🔍 Verificando se já está conectado:', jaConectado);
         
@@ -125,7 +121,13 @@ export function useChat() {
           setConnected(true);
           connectingRef.current = false;
         }
-      }, 50);
+      };
+
+      // Executa imediatamente e agenda uma verificação curta caso o onConnectionChange
+      // tenha sido disparado antes da montagem completa do hook
+      checkSync();
+      const timer = setTimeout(checkSync, 100);
+      return () => clearTimeout(timer);
     } else {
       // Se já estava conectado, sincronizar estado imediatamente
       console.log('🔄 WebSocket já iniciado, apenas registrando handlers...');
@@ -171,9 +173,10 @@ export function useChat() {
     const tokenToUse = messagesToken || token;
 
     // Tentar enviar via WS quando conectado; caso contrário, usar REST. Aguadar resultados para consistência.
-    const senderId = user?.id_usuario ?? user?.id ?? user?.userId ?? null;
+    const senderId = myId != null ? Number(myId) : null;
+
     const localMsgTemplate = {
-      id_sender: senderId != null ? Number(senderId) : senderId,
+      id_sender: senderId,
       id_receiver: safePayload.receiver,
       id_solicitacao: safePayload.id_solicitacao,
       message: safePayload.message,

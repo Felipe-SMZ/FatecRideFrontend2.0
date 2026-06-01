@@ -1,11 +1,13 @@
 // features/chat/stores/chatStore.js
 import { create } from 'zustand';
+import { persist, createJSONStorage } from 'zustand/middleware';
 
 /**
  * Store Zustand para gerenciar estado do chat
- * Armazena mensagens, conversas e estado de conexão
  */
-export const useChatStore = create((set, get) => ({
+export const useChatStore = create(
+  persist(
+    (set, get) => ({
   // Estado
   messages: {}, // { [id_solicitacao]: [mensagens] }
   conversations: [], // Lista de conversas (solicitações com última mensagem)
@@ -172,56 +174,17 @@ export const useChatStore = create((set, get) => ({
     set({ isConnected });
     console.log('✅ chatStore.isConnected agora é:', isConnected);
   },
-
-  // Limpar tudo
-  clearAll: () => {
-    set({
-      messages: {},
-      conversations: [],
-      isConnected: false,
-      unreadCount: {}
-    });
-  }
-}));
+    }),
+    {
+      name: 'fatecride-chat-state-v2',
+      storage: createJSONStorage(() => localStorage),
+      partialize: (state) => ({ 
+        messages: state.messages, 
+        conversations: state.conversations, 
+        unreadCount: state.unreadCount 
+      }),
+    }
+  )
+);
 
 export default useChatStore;
-
-// --- Persistência e hidratação (localStorage) ---
-try {
-  const RAW = localStorage.getItem('chat_state');
-  if (RAW) {
-    try {
-      const parsed = JSON.parse(RAW);
-      // Aplicar somente chaves esperadas
-      const safe = {
-        messages: parsed.messages || {},
-        conversations: parsed.conversations || [],
-        unreadCount: parsed.unreadCount || {}
-      };
-      // Atualizar estado inicial do store com segurança
-      useChatStore.setState(safe, true);
-      console.debug('chatStore: estado hidratado a partir de localStorage', Object.keys(safe.messages).length, 'conversas');
-    } catch (e) {
-      console.warn('chatStore: falha ao parsear chat_state do localStorage, ignorando', e?.message || e);
-    }
-  }
-} catch (e) {
-  // Em ambientes sem localStorage isso pode falhar; não bloquear a app
-  console.warn('chatStore: não foi possível acessar localStorage para hidratação', e?.message || e);
-}
-
-// Inscrever para salvar no localStorage quando partes importantes mudarem
-try {
-  useChatStore.subscribe(
-    (state) => ({ messages: state.messages, conversations: state.conversations, unreadCount: state.unreadCount }),
-    (sel) => {
-      try {
-        localStorage.setItem('chat_state', JSON.stringify(sel));
-      } catch (e) {
-        console.warn('chatStore: falha ao salvar estado no localStorage', e?.message || e);
-      }
-    }
-  );
-} catch (e) {
-  console.warn('chatStore: subscribe não disponível ou falhou', e?.message || e);
-}

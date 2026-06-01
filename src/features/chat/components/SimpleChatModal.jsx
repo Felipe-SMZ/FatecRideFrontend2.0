@@ -1,8 +1,9 @@
 import { useState, useEffect, useRef } from 'react';
-import { FiX, FiSend } from 'react-icons/fi';
-import useChat from '../hooks/useChat';
+import { FiX, FiSend, FiCheck, FiClock } from 'react-icons/fi';
+import { useChat } from '../hooks/useChat';
 import { useChatStore } from '../stores/chatStore';
 import { useAuthStore } from '@features/auth/stores/authStore';
+import { Badge } from '@shared/components/ui/Badge';
 import toast from 'react-hot-toast';
 import { chatService } from '../services/chatService';
 import { ridesService } from '@features/rides/services/ridesService';
@@ -130,18 +131,28 @@ export function SimpleChatModal({ requestId, otherUserName, receiverId, onClose 
         }
 
         // Se não tivermos receiverId local, tentar refetch de /solicitacao/pending
-        if (!localReceiverId) {
-          console.info('ℹ️ receiverId ausente — tentando refetch de /solicitacao/pending para obter id_motorista');
+        if (!localReceiverId && requestId) {
+          console.info('ℹ️ receiverId ausente — tentando recuperar de múltiplas fontes (pendentes e aceitas)');
           try {
-            const pending = await (await import('@features/rides/services/ridesService')).ridesService.getPending(0, 100);
-            let pendingArray = [];
-            if (Array.isArray(pending)) pendingArray = pending;
-            else if (pending?.content && Array.isArray(pending.content)) pendingArray = pending.content;
-            else if (pending && typeof pending === 'object') pendingArray = [pending];
+            const rs = (await import('@features/rides/services/ridesService')).ridesService;
+            
+            // Tentar buscar em pendentes E aceitas simultaneamente
+            const [pending, accepted] = await Promise.all([
+              rs.getPending(0, 50).catch(() => []),
+              (rs.getAccepted ? rs.getAccepted() : rs.getPending(0, 100)).catch(() => [])
+            ]);
 
-            const match = pendingArray.find(p => Number(p?.id_solicitacao || p?.id) === Number(requestId));
-            const mid = match?.id_motorista ?? match?.idMotorista ?? match?.carona?.driver?.id ?? null;
+            const allRides = [
+              ...(Array.isArray(pending) ? pending : (pending?.content || [])),
+              ...(Array.isArray(accepted) ? accepted : (accepted?.content || []))
+            ];
+
+            const match = allRides.find(p => Number(p?.id_solicitacao || p?.id) === Number(requestId));
+            
+            // Tenta pegar o ID do motorista ou do passageiro dependendo de quem é o 'outro'
+            const mid = match?.id_motorista ?? match?.idMotorista ?? match?.motorista?.id ?? match?.carona?.driver?.id ?? null;
             const pid = match?.id_passageiro ?? match?.idPassageiro ?? match?.passageiro?.id ?? null;
+            
             if (mid || pid) {
               console.log('✅ Recovered participants via /solicitacao/pending:', { mid, pid });
               // salvar mapping completo
@@ -183,9 +194,10 @@ export function SimpleChatModal({ requestId, otherUserName, receiverId, onClose 
         const tokenToUse = messagesToken || token;
         console.log('  🔐 tokenToUse (masked):', tokenToUse ? `${String(tokenToUse).slice(0,6)}...` : null);
         // Usar o novo endpoint compatível: getHistoryWith / with/:userId
-        const historico = await chatService.getHistoryWith(Number(localReceiverId), tokenToUse, 1, 200);
+        const response = await chatService.getHistoryWith(Number(localReceiverId), tokenToUse, 1, 200);
+        const historico = Array.isArray(response?.data) ? response.data : (Array.isArray(response) ? response : []);
 
-        console.log('✅ Histórico recebido:', Array.isArray(historico) ? historico.length : 0, 'mensagens');
+        console.log('✅ Histórico recebido:', historico?.length || 0, 'mensagens');
 
         if (mounted && Array.isArray(historico) && historico.length > 0) {
           // Filtrar mensagens da solicitação específica
@@ -200,33 +212,22 @@ export function SimpleChatModal({ requestId, otherUserName, receiverId, onClose 
           // Após carregar histórico, marcar último recebimento como lido (se aplicável)
           try {
             const myUserId = user?.id_usuario ?? user?.id ?? user?.userId ?? null;
-            // Encontrar última mensagem que NÃO seja do usuário (ou a última mensagem geral)
             const lastIncoming = [...mensagensDaSolicitacao].reverse().find(m => Number(m.id_sender) !== Number(myUserId));
-            const tokenToUse = messagesToken || token;
-            if (lastIncoming && (lastIncoming._id || lastIncoming.id)) {
-              const lastId = lastIncoming._id || lastIncoming.id;
-              try {
-                console.log('🔁 Marcando última mensagem como lida via REST (se suportado) ->', lastId);
-                await chatService.markAsRead(lastId, tokenToUse);
-                // Atualizar store local para refletir leitura
-                try {
-                  const { updateConversationLastMessage, markAsRead } = useChatStore.getState();
-                  const updated = { ...lastIncoming, read: true };
-                  updateConversationLastMessage(Number(requestId), updated);
-                  markAsRead(Number(requestId));
-                } catch (e) {
-                  console.warn('Falha ao atualizar store local após markAsRead:', e?.message || e);
-                }
-              } catch (e) {
-                // backend pode não suportar esse endpoint; não bloquear
-                console.info('markAsRead não suportado ou falhou (não crítico):', e?.message || e);
-              }
+
+            if (lastIncoming && (lastIncoming._id || lastIncoming.id) && !lastIncoming.lida) {
+                const lastId = lastIncoming._id || lastIncoming.id;
+                console.log('🔁 Marcando última mensagem como lida via REST ->', lastId);
+                
+                await chatService.markAsRead(lastId, tokenToUse).catch(() => null);
+                
+                const { updateConversationLastMessage, markAsRead: markStoreRead } = useChatStore.getState();
+                updateConversationLastMessage(Number(requestId), { ...lastIncoming, lida: true });
+                markStoreRead(Number(requestId));
             }
           } catch (e) {
-            console.warn('Erro ao tentar marcar mensagens como lidas após loadHistory:', e?.message || e);
+            console.warn('Erro ao processar leitura automática:', e?.message || e);
           }
         }
-
       } catch (err) {
         console.error('❌ Erro ao carregar histórico:', err);
         if (mounted) {
@@ -412,13 +413,22 @@ export function SimpleChatModal({ requestId, otherUserName, receiverId, onClose 
       >
         {/* Header */}
         <div className="bg-fatecride-blue text-white px-4 py-3 flex items-center justify-between rounded-t-lg">
-          <div>
-            <h3 id={`chat-title-${requestId}`} className="font-semibold">
-              Chat com {otherUserName}
-            </h3>
-            <p className="text-xs text-white/80" role="status" aria-live="polite">
-              {isConnected ? '🟢 Conectado' : '🔴 Desconectado'}
-            </p>
+          <div className="flex flex-col">
+            <div className="flex items-center gap-2">
+              <h3 id={`chat-title-${requestId}`} className="font-semibold text-md">
+                {otherUserName}
+              </h3>
+              <Badge 
+                variant={isConnected ? "success" : "danger"} 
+                size="sm" 
+                className={`border-none text-[10px] uppercase tracking-wider ${
+                  isConnected ? "bg-green-400/30 text-green-100" : "bg-red-400/30 text-red-100"
+                }`}
+              >
+                {isConnected ? 'conectado' : 'reconectando...'}
+              </Badge>
+            </div>
+            {requestId && <span className="text-[10px] opacity-70">Solicitação #{requestId}</span>}
           </div>
           <button
             type="button"
@@ -449,10 +459,11 @@ export function SimpleChatModal({ requestId, otherUserName, receiverId, onClose 
                 const isMyMessage = Number(msg.id_sender) === Number(userId);
                 const prev = messages[index - 1];
                 const showAvatar = !prev || Number(prev.id_sender) !== Number(msg.id_sender);
-                const timeLabel = new Date(msg.data || msg.timestamp || msg.date).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+                const time = new Date(msg.data || msg.timestamp || msg.date);
+                const timeLabel = isNaN(time.getTime()) ? '--:--' : time.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
 
                 return (
-                  <div key={msg._id || index} className={`flex ${isMyMessage ? 'justify-end' : 'justify-start'} items-end`}> 
+                  <div key={msg._id || index} className={`flex items-end mb-1 ${isMyMessage ? 'justify-end' : 'justify-start'}`}> 
                     {!isMyMessage && showAvatar && (
                       <div className="mr-3">
                         <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center text-sm font-bold text-gray-700">{otherUserName?.[0]?.toUpperCase() || '?'}</div>

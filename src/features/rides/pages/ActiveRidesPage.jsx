@@ -8,12 +8,11 @@ import { Button } from '@shared/components/ui/Button';
 import { EmptyState } from '@shared/components/ui/EmptyState';
 import { Spinner } from '@shared/components/ui/Spinner';
 import { useAuthStore } from '@features/auth/stores/authStore';
-import { useRidesStore } from '@features/rides/stores/ridesStore';
 import { SimpleChatModal } from '@features/chat/components/SimpleChatModal';
+import { useRidesStore } from '@features/rides/stores/ridesStore';
 import { sendRideAcceptedMessage } from '@features/chat/services/autoMessageService';
 import notificationsService from '@shared/services/notificationsService';
 import { ridesService } from '@features/rides/services/ridesService';
-import { FloatingRequestButton } from '@features/rides/components/FloatingRequestButton';
 
 /**
  * ActiveRidesPage - Página de gerenciamento de caronas ativas
@@ -189,28 +188,44 @@ export function ActiveRidesPage() {
     console.log('🔍 Keys do payload:', Object.keys(payload || {}));
     console.log('🔍 Estrutura do payload:', JSON.stringify(payload, null, 2));
 
-    // Mostrar notificação ao motorista
+    // Notificação interativa única para nova solicitação (substitui o botão flutuante e toast info)
     try {
       const name = payload?.passageiroNome || payload?.passageiro_nome || payload?.passageiro || 'Passageiro';
       const dist = payload?.distanciaOrigemKm ?? payload?.distancia_origem_km ?? null;
-      const messageText = dist != null 
-        ? `Nova solicitação de ${name} — ${dist} km`
-        : `Nova solicitação de ${name}`;
-      
-      console.log('🎉 Disparando toast:', messageText);
-      toast.info(messageText);
+      const solicitacaoId = payload?.solicitacaoId || payload?.id_solicitacao;
+
+      toast((t) => (
+        <div className="flex flex-col gap-2 min-w-[200px]">
+          <div className="font-bold text-fatecride-blue">Nova carona: {name}</div>
+          {dist != null && <div className="text-[10px] text-gray-500 uppercase tracking-tighter">📍 {dist} km de distância</div>}
+          <div className="flex gap-2 mt-1">
+            <button 
+              onClick={() => {
+                const firstRide = rides[0];
+                if (firstRide) handleAcceptRequest(firstRide.id, solicitacaoId, name, payload.passageiroId);
+                toast.dismiss(t.id);
+              }}
+              className="flex-1 bg-green-600 text-white py-1.5 rounded-md text-xs font-bold shadow-sm"
+            >
+              Aceitar
+            </button>
+            <button 
+              onClick={() => {
+                const firstRide = rides[0];
+                if (firstRide) handleRejectRequest(firstRide.id, solicitacaoId);
+                toast.dismiss(t.id);
+              }}
+              className="flex-1 bg-gray-200 text-gray-700 py-1.5 rounded-md text-xs font-bold"
+            >
+              Recusar
+            </button>
+          </div>
+        </div>
+      ), { duration: 15000, position: 'top-center', id: `request-${solicitacaoId}` });
     } catch (e) { console.warn('Erro ao mostrar toast nova_solicitacao', e); }
 
-    // Mostrar card visual PERMANENTEMENTE (até aceitar/recusar ou receber resposta)
-    console.log('🎨 Renderizando alerta visual de nova solicitação - PERMANENTE');
     setNewRequestAlert(payload);
-
-    console.log('✨ Alerta visual definido com payload:', {
-      solicitacaoId: payload?.solicitacaoId,
-      passageiroNome: payload?.passageiroNome,
-      distancia: payload?.distanciaOrigemKm
-    });
-  }, []); // ⭐ IMPORTANTE: Sem dependências! Usar apenas state da closure
+  }, [rides]); // Adicionada dependência rides para o callback de aceite
 
   // Subscribes eventos SSE GLOBAIS (registrados em App.jsx)
   useEffect(() => {
@@ -313,13 +328,11 @@ export function ActiveRidesPage() {
         try {
           console.log('✅ Usando fluxo automático (body):', { solicitacaoId, filaId });
           await ridesService.acceptAutomatic(solicitacaoId, filaId);
-          toast.success('Solicitação aceita com sucesso!');
           setNewRequestAlert(null); // ✅ Limpar alerta após sucesso
           useRidesStore.getState().clearPendingSolicitacao(); // ⭐ NOVO: Limpar do store
           await fetchActiveRides();
-
-          setOpenChat({ requestId: requestId, otherUserName: passageiroNome, receiverId: passageiroId });
-          sendRideAcceptedMessage(requestId, user?.name, passageiroNome, 'Origem', 'Destino');
+          sendRideAcceptedMessage(requestId, user?.nome || user?.name || 'Motorista', passageiroNome, 'Origem', 'Destino');
+          toast.success('Solicitação aceita com sucesso!');
           return;
         } catch (errAuto) {
           console.error('❌ Erro ao aceitar via fluxo automático:', errAuto);
@@ -342,13 +355,11 @@ export function ActiveRidesPage() {
       });
 
       if (response.ok) {
-        toast.success('Solicitação aceita!');
         setNewRequestAlert(null); // ✅ Limpar alerta
         useRidesStore.getState().clearPendingSolicitacao(); // ⭐ NOVO: Limpar do store
         await fetchActiveRides();
-
-        setOpenChat({ requestId: requestId, otherUserName: passageiroNome, receiverId: passageiroId });
-        sendRideAcceptedMessage(requestId, user?.name, passageiroNome, 'Origem', 'Destino');
+        sendRideAcceptedMessage(requestId, user?.nome || user?.name, passageiroNome, 'Origem', 'Destino');
+        toast.success('Solicitação aceita!');
       } else {
         toast.error('Erro ao aceitar solicitação');
       }
@@ -749,16 +760,11 @@ export function ActiveRidesPage() {
                                       };
 
                                       const inferredId = inferPassengerId(request) || inferPassengerId(raw) || null;
-
-                                      if (!inferredId) {
-                                        console.warn('⚠️ receiverId não encontrado no payload da solicitação (tentadas várias chaves). Atualize o backend para retornar id_passageiro.');
-                                      } else {
-                                        console.log('  🎯 receiverId inferido:', inferredId);
-                                      }
+                                      const passengerName = request.nome_passageiro || request.passageiro?.nome || 'Passageiro';
 
                                       setOpenChat({
-                                        requestId: request.id_solicitacao,
-                                        otherUserName: request.nome_passageiro || request.passageiro?.nome || 'Passageiro',
+                                        requestId: request.id_solicitacao || request.id,
+                                        otherUserName: passengerName,
                                         receiverId: inferredId || null
                                       });
                                     }}
@@ -809,8 +815,8 @@ export function ActiveRidesPage() {
           )}
         </div>
       </div>
-      
-      {/* Chat Flutuante */}
+
+      {/* Chat Modal Local */}
       {openChat && (
         <SimpleChatModal
           requestId={openChat.requestId}
@@ -819,31 +825,7 @@ export function ActiveRidesPage() {
           onClose={() => setOpenChat(null)}
         />
       )}
-
-      {/* Floating Button para nova solicitação */}
-      <FloatingRequestButton
-        newRequest={newRequestAlert}
-        onAccept={() => {
-          if (newRequestAlert?.solicitacaoId && rides.length > 0) {
-            // Usar a primeira carona do motorista
-            const firstRide = rides[0];
-            handleAcceptRequest(
-              firstRide.id,
-              newRequestAlert.solicitacaoId,
-              newRequestAlert.passageiroNome || 'Passageiro',
-              newRequestAlert.passageiroId
-            );
-          }
-        }}
-        onReject={() => {
-          if (newRequestAlert?.solicitacaoId && rides.length > 0) {
-            const firstRide = rides[0];
-            handleRejectRequest(firstRide.id, newRequestAlert.solicitacaoId);
-          }
-        }}
-        onClose={() => setNewRequestAlert(null)}
-        loading={processingId !== null}
-      />
+      
     </>
   );
 }
