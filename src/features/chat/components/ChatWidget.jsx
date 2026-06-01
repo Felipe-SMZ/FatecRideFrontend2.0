@@ -15,7 +15,9 @@ import { ridesService } from '@features/rides/services/ridesService';
 export function ChatWidget() {
   const { user, token, messagesToken } = useAuthStore();
   const { sendMessage, isConnected } = useChat();
-  const { getMessages, addMessage } = useChatStore();
+  const getMessages = useChatStore(state => state.getMessages);
+  const addMessage = useChatStore(state => state.addMessage);
+  const unreadCountObj = useChatStore(state => state.unreadCount);
 
   const [open, setOpen] = useState(false);
   const [requestId, setRequestId] = useState(null);
@@ -26,6 +28,7 @@ export function ChatWidget() {
 
   const messages = getMessages(requestId ? Number(requestId) : -1) || [];
   const endRef = useRef(null);
+  const inputRef = useRef(null);
 
   useEffect(() => {
     // abrir automaticamente quando uma solicitação é aceita (global event)
@@ -55,6 +58,13 @@ export function ChatWidget() {
   }, [messages, open]);
 
   useEffect(() => {
+    // foco automático no input quando expandir
+    if (open) {
+      setTimeout(() => { try { inputRef.current?.focus(); } catch(e) {} }, 120);
+    }
+  }, [open]);
+
+  useEffect(() => {
     // quando trocar requestId, tentar recuperar receiverId via mapping se ausente
     let mounted = true;
     (async () => {
@@ -81,6 +91,20 @@ export function ChatWidget() {
     })();
     return () => { mounted = false; };
   }, [requestId]);
+
+  // total de não-lidas
+  const totalUnread = Object.values(unreadCountObj || {}).reduce((s, v) => s + (v || 0), 0);
+
+  useEffect(() => {
+    // Abrir automaticamente se chegarem mensagens não-lidas (comportamento tipo Facebook)
+    if (totalUnread > 0 && !open) {
+      // evitar abrir quando no chat full-page
+      if (window.location.pathname && window.location.pathname.startsWith('/chat')) return;
+      // abrir com pequeno delay para suavizar
+      const t = setTimeout(() => setOpen(true), 350);
+      return () => clearTimeout(t);
+    }
+  }, [totalUnread]);
 
   const handleSend = async (e) => {
     e?.preventDefault?.();
@@ -110,16 +134,21 @@ export function ChatWidget() {
       {!open && (
         <button
           onClick={() => setOpen(true)}
-          className="bg-fatecride-blue text-white w-14 h-14 rounded-full shadow-lg flex items-center justify-center hover:scale-105 transition-transform"
+          className="relative bg-fatecride-blue text-white w-14 h-14 rounded-full shadow-lg flex items-center justify-center hover:scale-105 transition-transform transform-gpu"
           aria-label="Abrir chat"
         >
           <FiMessageCircle size={22} />
+          {totalUnread > 0 && (
+            <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs font-semibold px-2 py-0.5 rounded-full animate-pulse">
+              {totalUnread}
+            </span>
+          )}
         </button>
       )}
 
       {/* Expanded panel */}
       {open && (
-        <div className="w-[360px] md:w-[420px] h-[520px] bg-white rounded-lg shadow-2xl overflow-hidden flex flex-col">
+        <div className="w-[360px] md:w-[420px] h-[520px] bg-white rounded-lg shadow-2xl overflow-hidden flex flex-col transform transition-all duration-300 ease-out origin-bottom-right translate-y-2 opacity-100">
           <div className="bg-fatecride-blue text-white px-4 py-3 flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="w-9 h-9 rounded-full bg-white/20 flex items-center justify-center font-bold">{otherName?.[0]?.toUpperCase() || 'M'}</div>
@@ -134,7 +163,7 @@ export function ChatWidget() {
             </div>
           </div>
 
-          <div className="flex-1 overflow-y-auto p-3 bg-gray-50 space-y-3">
+          <div className="flex-1 overflow-y-auto p-3 bg-gray-50 space-y-3 scrollbar-thin scrollbar-thumb-gray-300">
             {messages.length === 0 ? (
               <div className="text-center text-gray-500 mt-6">
                 <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-fatecride-blue/10 text-fatecride-blue text-2xl font-bold mx-auto mb-3">💬</div>
