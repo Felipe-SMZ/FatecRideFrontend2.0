@@ -5,6 +5,7 @@ import { useChat } from '../hooks/useChat';
 import { useChatStore } from '../stores/chatStore';
 import { chatService } from '../services/chatService';
 import { ridesService } from '@features/rides/services/ridesService';
+import toast from 'react-hot-toast';
 
 /**
  * ChatWidget - painel flutuante minimizável que aparece em qualquer página
@@ -75,14 +76,36 @@ export function ChatWidget() {
           const mapped = ridesService.getSolicitacaoMapping(requestId, myUserId);
           if (mapped) {
             setReceiverId(Number(mapped));
-          } else {
-            // try to fetch pending
+            return;
+          }
+
+          // tentar buscar na lista de pending (padrão do backend)
+          try {
             const pending = await ridesService.getPending(0, 100);
             let arr = Array.isArray(pending) ? pending : pending?.content || [];
             if (!Array.isArray(arr)) arr = [arr];
             const match = arr.find(p => Number(p?.id_solicitacao || p?.id) === Number(requestId));
-            const mid = match?.id_motorista ?? match?.idMotorista ?? null;
-            if (mid && mounted) setReceiverId(Number(mid));
+            const mid = match?.id_motorista ?? match?.idMotorista ?? match?.carona?.driver?.id ?? null;
+            if (mid && mounted) {
+              setReceiverId(Number(mid));
+              return;
+            }
+          } catch (e) {
+            // não crítico
+          }
+
+          // tentar buscar via carona/rides por id_carona
+          try {
+            // alguns payloads têm id_carona em vez de id_solicitacao
+            const maybeCaronaId = requestId; // tentamos usar como id_solicitacao primeiro
+            const ride = await ridesService.getRideById(maybeCaronaId).catch(() => null);
+            const driverId = ride?.driver?.id || ride?.motorista?.id || ride?.id_motorista || null;
+            if (driverId && mounted) {
+              setReceiverId(Number(driverId));
+              return;
+            }
+          } catch (e) {
+            // ignore
           }
         } catch (e) {
           // ignore
@@ -109,9 +132,34 @@ export function ChatWidget() {
   const handleSend = async (e) => {
     e?.preventDefault?.();
     if (!text.trim()) return;
-    const effectiveReceiver = receiverId ?? null;
+    // tentar recuperar receiverId se estiver ausente antes de enviar
+    let effectiveReceiver = receiverId ?? null;
+    if (!effectiveReceiver && requestId) {
+      try {
+        const myUserId = user?.id_usuario ?? user?.id ?? user?.userId ?? null;
+        const mapped = ridesService.getSolicitacaoMapping(requestId, myUserId);
+        if (mapped) effectiveReceiver = Number(mapped);
+        else {
+          // tentar buscar pending
+          const pending = await ridesService.getPending(0, 100).catch(() => null);
+          let arr = Array.isArray(pending) ? pending : pending?.content || [];
+          if (!Array.isArray(arr)) arr = [arr];
+          const match = arr.find(p => Number(p?.id_solicitacao || p?.id) === Number(requestId));
+          const mid = match?.id_motorista ?? match?.idMotorista ?? match?.carona?.driver?.id ?? null;
+          if (mid) effectiveReceiver = Number(mid);
+        }
+      } catch (err) {
+        // ignore
+      }
+    }
+    if (!effectiveReceiver) {
+      // backend espera um destinatário válido — avisar o usuário
+      toast.error('Não foi possível identificar o destinatário da mensagem. Tente abrir o chat a partir da solicitação ou tente novamente mais tarde.');
+      return;
+    }
+
     const payload = {
-      ...(effectiveReceiver != null && { receiver: Number(effectiveReceiver) }),
+      receiver: Number(effectiveReceiver),
       id_solicitacao: requestId ? Number(requestId) : null,
       message: text.trim(),
       data: new Date().toISOString()
