@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
 import { FiMessageCircle } from 'react-icons/fi';
-import { FaCar } from 'react-icons/fa';
+import { FaCar, FaCalendarAlt } from 'react-icons/fa';
 import { Card } from '@shared/components/ui/Card';
 import { Button } from '@shared/components/ui/Button';
 import { EmptyState } from '@shared/components/ui/EmptyState';
@@ -13,6 +13,7 @@ import { useRidesStore } from '@features/rides/stores/ridesStore';
 import { sendRideAcceptedMessage } from '@features/chat/services/autoMessageService';
 import notificationsService from '@shared/services/notificationsService';
 import { ridesService } from '@features/rides/services/ridesService';
+import api from '@shared/lib/api';
 
 /**
  * ActiveRidesPage - Página de gerenciamento de caronas ativas
@@ -310,24 +311,15 @@ export function ActiveRidesPage() {
 
       // FALLBACK: Endpoint legacy (se filaId não disponível)
       console.log('⚠️ Fallback para endpoint legacy');
-      const response = await fetch(`http://localhost:8080/rides/${requestId}/acept`, {
-        method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ idCarona: rideId })
-      });
+      await api.put(`/rides/${requestId}/acept`, { idCarona: rideId });
 
-      if (response.ok) {
-        setNewRequestAlert(null); // ✅ Limpar alerta
-        useRidesStore.getState().clearPendingSolicitacao(); // ⭐ NOVO: Limpar do store
-        await fetchActiveRides();
-        sendRideAcceptedMessage(requestId, user?.nome || user?.name, passageiroNome, 'Origem', 'Destino');
-        toast.success('Solicitação aceita!');
-      } else {
-        toast.error('Erro ao aceitar solicitação');
-      }
+      setNewRequestAlert(null);
+      useRidesStore.getState().clearPendingSolicitacao();
+      await fetchActiveRides();
+      
+      const senderName = user?.nome || user?.name || 'Motorista';
+      sendRideAcceptedMessage(requestId, senderName, passageiroNome, 'Origem', 'Destino');
+      toast.success('Solicitação aceita!');
     } catch (error) {
       console.error('❌ Erro ao aceitar solicitação:', error);
       toast.error('Erro ao aceitar solicitação');
@@ -364,23 +356,12 @@ export function ActiveRidesPage() {
 
       // FALLBACK: Endpoint legacy
       console.log('⚠️ Fallback para endpoint legacy');
-      const response = await fetch(`http://localhost:8080/solicitacao/cancelar/${requestId}`, {
-        method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
+      await ridesService.cancelRequest(requestId);
 
-      if (response.ok) {
-        toast.success('Solicitação recusada');
-        setNewRequestAlert(null); // ✅ Limpar alerta
-        useRidesStore.getState().clearPendingSolicitacao(); // ⭐ NOVO: Limpar do store
-        await fetchActiveRides(); // Recarregar lista
-      } else {
-        const error = await response.json();
-        toast.error(error.message || 'Erro ao recusar solicitação');
-      }
+      toast.success('Solicitação recusada');
+      setNewRequestAlert(null);
+      useRidesStore.getState().clearPendingSolicitacao();
+      await fetchActiveRides();
     } catch (error) {
       console.error('❌ Erro ao recusar solicitação:', error);
       toast.error('Erro ao recusar solicitação');
@@ -397,29 +378,9 @@ export function ActiveRidesPage() {
       
       console.log('📤 Concluindo carona:', rideId);
       
-      // Tentar endpoint finalizar (mais comum no backend)
-      const response = await fetch(`http://localhost:8080/rides/finalizar/${rideId}`, {
-        method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
-
-      console.log('📥 Resposta finalizar carona:', response.status);
-
-      if (response.ok) {
-        toast.success('Carona concluída com sucesso! 🎉');
-        await fetchActiveRides(); // Recarregar lista
-      } else if (response.status === 404) {
-        // Endpoint não existe - avisar que backend precisa implementar
-        console.warn('⚠️ Endpoint /rides/finalizar/{id} não existe no backend');
-        toast.error('Funcionalidade não disponível. Entre em contato com o suporte.');
-      } else {
-        const error = await response.json();
-        console.error('❌ Erro ao concluir carona:', error);
-        toast.error(error.message || 'Erro ao concluir carona');
-      }
+      await ridesService.finishRide(rideId);
+      toast.success('Carona concluída com sucesso! 🎉');
+      await fetchActiveRides();
     } catch (error) {
       console.error('❌ Exceção ao concluir carona:', error);
       toast.error('Erro ao concluir carona. Verifique sua conexão.');
@@ -434,21 +395,9 @@ export function ActiveRidesPage() {
     try {
       setProcessingId(`cancel-${rideId}`);
       
-      const response = await fetch(`http://localhost:8080/rides/cancelar/${rideId}`, {
-        method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
-
-      if (response.ok) {
-        toast.success('Carona cancelada com sucesso!');
-        await fetchActiveRides(); // Recarregar lista
-      } else {
-        const error = await response.json();
-        toast.error(error.message || 'Erro ao cancelar carona');
-      }
+      await ridesService.cancel(rideId);
+      toast.success('Carona cancelada com sucesso!');
+      await fetchActiveRides();
     } catch (error) {
       console.error('Erro ao cancelar carona:', error);
       toast.error('Erro ao cancelar carona');
@@ -488,12 +437,20 @@ export function ActiveRidesPage() {
                 {isBoth ? 'Gerencie suas caronas oferecidas' : 'Gerencie suas caronas em andamento'}
               </p>
             </div>
-            <Button
-              onClick={() => navigate('/inicio')}
-              className="bg-gray-500 hover:bg-gray-600"
-            >
-              Voltar
-            </Button>
+            <div className="flex gap-2">
+              <Button
+                onClick={() => navigate('/agendamentos')}
+                className="bg-fatecride-blue hover:bg-fatecride-blue-dark"
+              >
+                <FaCalendarAlt className="mr-2" /> Gerenciar Agendamentos
+              </Button>
+              <Button
+                onClick={() => navigate('/inicio')}
+                className="bg-gray-500 hover:bg-gray-600"
+              >
+                Voltar
+              </Button>
+            </div>
           </div>
 
           {/* ⭐ Card antigo removido - agora renderizado globalmente via PendingSolicitacaoCard */}
@@ -614,6 +571,14 @@ export function ActiveRidesPage() {
 
                     {/* Ações */}
                     <div className="flex flex-col gap-2">
+                      <Button
+                        onClick={() => navigate('/agendamentos')}
+                        variant="outline"
+                        size="sm"
+                        className="border-fatecride-blue text-fatecride-blue hover:bg-blue-50"
+                      >
+                        <FaCalendarAlt className="mr-2" /> Agendar Recorrência
+                      </Button>
                       <Button
                         onClick={() => handleCompleteRide(ride.id)}
                         disabled={processingId === `complete-${ride.id}`}

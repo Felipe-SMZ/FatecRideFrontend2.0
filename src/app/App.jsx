@@ -10,6 +10,7 @@ import { useSolicitacoesSSE } from '@features/rides/hooks/useSolicitacoesSSE';
 import { AppProviders } from './providers';
 import { AppRoutes } from './routes';
 import { PendingSolicitacaoCard } from '@features/rides/components/PendingSolicitacaoCard';
+import { RideSchedulingPage } from '@features/rides/pages/RideSchedulingPage';
 import notificationsService from '@shared/services/notificationsService';
 
 function AppContent() {

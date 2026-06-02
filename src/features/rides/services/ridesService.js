@@ -5,6 +5,7 @@ import { useAuthStore } from '@features/auth/stores/authStore';
 const ridesService = {
   // Criar carona (motorista)
   createRide: async (payload) => {
+    console.log('📡 [ridesService] POST /rides - Payload:', payload);
     const { data } = await api.post('/rides', payload);
     return data;
   },
@@ -86,7 +87,7 @@ const ridesService = {
   getPassengerHistory: async (pagina = 0, itens = 50) => {
     try {
       const response = await api.get('/solicitacao/concluidas', { params: { pagina, itens } });
-      
+
       // Tratar 204 No Content como array vazio
       if (response.status === 204) {
         return [];
@@ -234,16 +235,16 @@ const ridesService = {
         let pendingArray = [];
         if (Array.isArray(pending)) pendingArray = pending;
         else if (pending?.content && Array.isArray(pending.content)) pendingArray = pending.content;
-        
+
         const found = pendingArray.find(p => {
           const id = p?.id_solicitacao ?? p?.id;
           return Number(id) === Number(solicitacaoId);
         });
-        
+
         if (found) {
           return found;
         }
-        
+
         return null;
       } catch (err) {
         // Se getPending falhar, apenas retornar null (não propagar erro)
@@ -280,43 +281,55 @@ const ridesService = {
 
   // ============ AGENDAMENTO DE CARONAS ============
 
-  // Agendar carona por dias da semana (seg=1, ter=2, ..., dom=7)
-  scheduleRideWeekly: async (rideId, diasSemana) => {
+  scheduleRideWeekly: async (payload) => {
+    // DTO: AgendarRideDiaSemanaDTO { ride: Long, dia_semana_agendamento: List<Long> }
     const { data } = await api.post('/agendar-ride-dia-semana', {
-      ride: rideId,
-      dia_semana_agendamento: diasSemana
+      ride: Number(payload.ride),
+      dia_semana_agendamento: payload.dia_semana_agendamento.map(Number)
     });
     return data;
   },
 
   // Obter agendamentos semanais do motorista
   getScheduledWeekly: async () => {
-    const { data } = await api.get('/agendar-ride-dia-semana');
-    return data;
+    try {
+      const { data, status } = await api.get('/agendar-ride-dia-semana');
+      return status === 204 ? [] : data;
+    } catch (err) {
+      console.warn('⚠️ Erro ao buscar agendamentos semanais:', err.message);
+      return [];
+    }
   },
 
   // Desativar dias específicos de um agendamento semanal
-  desactivateScheduleWeekly: async (scheduleId, diasSemana) => {
-    const { data } = await api.put(`/agendar-ride-dia-semana/desativar/${scheduleId}`, {
-      diasSemana
+  desactivateScheduleWeekly: async (rideId, diasSemana) => {
+    const { data } = await api.put(`/agendar-ride-dia-semana/desativar`, {
+      rideId: Number(rideId),                                              // ✅
+      diasSemana: Array.isArray(diasSemana) ? diasSemana.map(Number) : [] // ✅
     });
     return data;
   },
-
+  
   // Agendar carona por intervalo de dias
-  scheduleRideInterval: async (rideId, dataInicio, intervaloDias) => {
+  scheduleRideInterval: async (payload) => {
+    // O campo dataInicio deve estar no formato YYYY-MM-DD
     const { data } = await api.post('/agendar-compromisso-intervalo-dias', {
-      ride: rideId,
-      dataInicio,
-      intervalo_dias: intervaloDias
+      ride: Number(payload.ride),
+      dataInicio: payload.dataInicio, // Espera string YYYY-MM-DD
+      intervalo_dias: Number(payload.intervalo_dias)
     });
     return data;
   },
 
   // Obter agendamentos por intervalo do motorista
   getScheduledInterval: async () => {
-    const { data } = await api.get('/agendar-compromisso-intervalo-dias');
-    return data;
+    try {
+      const { data, status } = await api.get('/agendar-compromisso-intervalo-dias');
+      return status === 204 ? [] : data;
+    } catch (err) {
+      console.warn('⚠️ Erro ao buscar agendamentos por intervalo:', err.message);
+      return [];
+    }
   },
 
   // Desativar agendamento por intervalo
@@ -329,19 +342,19 @@ const ridesService = {
   // Faz polling a cada 2s por até 30s
   pollForLostEvent: async (solicitacaoId, maxAttempts = 10, intervalMs = 3000) => {
     console.log('🔄 Iniciando polling para recuperar evento perdido:', { solicitacaoId, maxAttempts, intervalMs });
-    
+
     for (let attempt = 0; attempt < maxAttempts; attempt++) {
       try {
         // Aguardar antes de fazer requisição (exceto primeira vez)
         if (attempt > 0) {
           await new Promise(resolve => setTimeout(resolve, intervalMs));
         }
-        
+
         const solicitacao = await ridesService.getSolicitacaoById(solicitacaoId);
-        
+
         if (solicitacao) {
           console.log(`✅ Polling tentativa ${attempt + 1}: Solicitação encontrada`, solicitacao);
-          
+
           // Verificar se está no status que esperamos (enviada/com fila)
           const status = solicitacao?.status || solicitacao?.solicitacao_status;
           if (status === 'ENVIADA' || status === 'enviada' || solicitacao?.fila?.length > 0) {
@@ -353,7 +366,7 @@ const ridesService = {
         console.warn(`⚠️ Polling tentativa ${attempt + 1} falhou:`, err?.message);
       }
     }
-    
+
     console.warn('⚠️ Polling completou', maxAttempts, 'tentativas sem recuperar evento');
     return null;
   },
@@ -364,11 +377,11 @@ const ridesService = {
     // 1. Verificar se está em localStorage
     try {
       const stored = JSON.parse(localStorage.getItem('sse-pending-events') || '[]');
-      const found = stored.find(ev => 
-        ev.data?.solicitacaoId === solicitacaoId || 
+      const found = stored.find(ev =>
+        ev.data?.solicitacaoId === solicitacaoId ||
         ev.data?.id_solicitacao === solicitacaoId
       );
-      
+
       if (found) {
         // Disparar manualmente via notificationsService
         notificationsService.retryLostEvent('nova_solicitacao', found.data);
@@ -380,10 +393,10 @@ const ridesService = {
       }
     } catch (err) {
     }
-    
+
     // 2. Fazer polling como fallback
     const recovered = await ridesService.pollForLostEvent(solicitacaoId);
-    
+
     if (recovered) {
       // Disparar manualmente via notificationsService
       notificationsService.retryLostEvent('nova_solicitacao', recovered);
@@ -393,7 +406,7 @@ const ridesService = {
       }));
       return recovered;
     }
-    
+
     return null;
   }
 };

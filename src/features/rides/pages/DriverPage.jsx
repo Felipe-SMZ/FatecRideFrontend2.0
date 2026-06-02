@@ -12,6 +12,7 @@ import { AddressAutocomplete } from '@shared/components/ui/AddressAutocomplete';
 import { MapView } from '@shared/components/map/MapView';
 import { AddressCard } from '@shared/components/cards/AddressCard';
 import { FiMapPin } from 'react-icons/fi';
+import { ridesService } from '@features/rides/services/ridesService';
 import { vehiclesService } from '@features/vehicles/services/vehiclesService';
 import { AnuncioViewerCompact } from '@features/anuncios/components/AnuncioViewer';
 
@@ -25,6 +26,24 @@ import { AnuncioViewerCompact } from '@features/anuncios/components/AnuncioViewe
  * 4. Cria a carona
  */
 
+const DIAS = [
+    { id: 1, label: 'Seg' },
+    { id: 2, label: 'Ter' },
+    { id: 3, label: 'Qua' },
+    { id: 4, label: 'Qui' },
+    { id: 5, label: 'Sex' },
+    { id: 6, label: 'Sáb' },
+    { id: 7, label: 'Dom' },
+];
+
+const INTERVALOS = [
+    { id: 1, label: 'Diário (1 dia)' },
+    { id: 2, label: 'A cada 5 dias' },
+    { id: 3, label: 'Semanal (7 dias)' },
+    { id: 4, label: 'Quinzenal (15 dias)' },
+    { id: 5, label: 'Mensal (30 dias)' },
+];
+
 export function DriverPage() {
     const navigate = useNavigate();
     
@@ -35,6 +54,11 @@ export function DriverPage() {
     const [availableSeats, setAvailableSeats] = useState(1);
     const [rideDateTime, setRideDateTime] = useState(''); // Novo campo: data/hora da viagem
     const [vehicles, setVehicles] = useState([]);
+
+    // Estados de Recorrência (Correção do ReferenceError)
+    const [schedulingType, setSchedulingType] = useState('NONE'); // 'NONE', 'WEEKLY', 'INTERVAL'
+    const [selectedDays, setSelectedDays] = useState([]);
+    const [intervalId, setIntervalId] = useState(3); // Default: Semanal
     
     // Estados de coordenadas e endereços
     const [originCoords, setOriginCoords] = useState(null);
@@ -111,6 +135,12 @@ export function DriverPage() {
         return selected > now;
     };
 
+    const handleToggleDay = (id) => {
+        setSelectedDays(prev => 
+            prev.includes(id) ? prev.filter(d => d !== id) : [...prev, id]
+        );
+    };
+
     /**
      * Cria a carona
      */
@@ -137,22 +167,65 @@ export function DriverPage() {
 
         try {
             setCreatingRide(true);
-            const payload = {
+
+            // Formata data para incluir segundos (YYYY-MM-DDTHH:mm:00)
+            const formattedDateTime = rideDateTime.length === 16 ? `${rideDateTime}:00` : rideDateTime;
+
+            // 1. Criar a Carona Base (Template) - Obrigatório para ambos os fluxos
+            const basePayload = {
                 originDTO: originAddress,
                 destinationDTO: destinationAddress,
                 vagas_disponiveis: Number(availableSeats),
-                id_veiculo: vehicleId,
-                data_hora_viagem: rideDateTime // ← NOVO: data/hora ISO-8601
+                id_veiculo: Number(vehicleId),
+                data_hora_viagem: formattedDateTime
             };
 
-            // Usar service para garantir Authorization via interceptor
-            await (await import('@features/rides/services/ridesService')).ridesService.createRide(payload);
+            // Log detalhado da requisição para depuração
+            console.log('🚀 [DriverPage] Iniciando criação de carona:', {
+                etapa: '1. Carona Base (POST /rides)',
+                payload: basePayload,
+                fluxoRecorrencia: schedulingType !== 'NONE' ? {
+                    tipo: schedulingType,
+                    detalhes: schedulingType === 'WEEKLY' ? { dias: selectedDays } : { intervaloId, dataInicio: rideDateTime.split('T')[0] }
+                } : 'Nenhuma'
+            });
 
-            toast.success('Carona criada com sucesso!');
+            const createdRide = await ridesService.createRide(basePayload);
+            // Captura ID: Tenta objeto DTO ou o próprio retorno caso venha apenas o ID
+            const rideId = createdRide?.id || createdRide?.id_carona || createdRide?.idCarona || (typeof createdRide === 'number' ? createdRide : null);
+
+            if (!rideId) throw new Error('Falha ao obter ID da carona base.');
+
+            // 2. Se houver recorrência, disparar a segunda etapa
+            if (schedulingType === 'WEEKLY') {
+                const weeklyPayload = {
+                    ride: Number(rideId),
+                    dia_semana_agendamento: selectedDays
+                };
+                console.log('📅 [DriverPage] Enviando agendamento semanal (POST /agendar-ride-dia-semana):', weeklyPayload);
+                await ridesService.scheduleRideWeekly(weeklyPayload);
+                toast.success('Carona e agendamento semanal criados!');
+            } 
+            else if (schedulingType === 'INTERVAL') {
+                const dataInicio = rideDateTime.split('T')[0]; // Extrai apenas YYYY-MM-DD
+                const intervalPayload = {
+                    ride: Number(rideId),
+                    dataInicio: dataInicio,
+                    intervalo_dias: Number(intervalId)
+                };
+                console.log('🔄 [DriverPage] Enviando agendamento por intervalo (POST /agendar-compromisso-intervalo-dias):', intervalPayload);
+                await ridesService.scheduleRideInterval(intervalPayload);
+                toast.success('Carona e agendamento por intervalo criados!');
+            } 
+            else {
+                toast.success('Carona única criada com sucesso!');
+            }
+
             navigate('/inicio');
         } catch (error) {
             console.error('Erro ao criar carona:', error);
-            toast.error(error.message || 'Erro ao criar carona');
+            const detail = error.response?.data?.details || error.response?.data?.error || error.message;
+            toast.error(`Falha: ${detail}`);
         } finally {
             setCreatingRide(false);
         }
@@ -268,6 +341,59 @@ export function DriverPage() {
                                                 ⚠️ A data/hora deve ser no futuro
                                             </p>
                                         )}
+
+                                        {/* Seção de Recorrência */}
+                                        <div className="pt-4 border-t border-gray-100 mt-2">
+                                            <label className="block text-sm font-semibold text-fatecride-blue mb-2">
+                                                🔄 Agendar Recorrência?
+                                            </label>
+                                            <div className="flex gap-2 mb-4 p-1 bg-gray-100 rounded-lg">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setSchedulingType('NONE')}
+                                                    className={`flex-1 py-1.5 text-[10px] font-bold rounded-md transition-all ${schedulingType === 'NONE' ? 'bg-white shadow text-fatecride-blue' : 'text-gray-500'}`}
+                                                >Única</button>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setSchedulingType('WEEKLY')}
+                                                    className={`flex-1 py-1.5 text-[10px] font-bold rounded-md transition-all ${schedulingType === 'WEEKLY' ? 'bg-white shadow text-fatecride-blue' : 'text-gray-500'}`}
+                                                >Semanal</button>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setSchedulingType('INTERVAL')}
+                                                    className={`flex-1 py-1.5 text-[10px] font-bold rounded-md transition-all ${schedulingType === 'INTERVAL' ? 'bg-white shadow text-fatecride-blue' : 'text-gray-500'}`}
+                                                >Intervalo</button>
+                                            </div>
+
+                                            {schedulingType === 'WEEKLY' && (
+                                                <div className="space-y-2 mb-4 animate-in fade-in slide-in-from-top-1">
+                                                    <p className="text-[10px] text-gray-500 uppercase font-bold">Dias da semana:</p>
+                                                    <div className="flex flex-wrap gap-1">
+                                                        {DIAS.map(dia => (
+                                                            <button
+                                                                key={dia.id}
+                                                                type="button"
+                                                                onClick={() => handleToggleDay(dia.id)}
+                                                                className={`px-2 py-1 text-[10px] font-bold rounded border transition-colors ${selectedDays.includes(dia.id) ? 'bg-fatecride-blue text-white border-fatecride-blue' : 'bg-white text-gray-400 border-gray-200'}`}
+                                                            >
+                                                                {dia.label}
+                                                            </button>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            )}
+
+                                            {schedulingType === 'INTERVAL' && (
+                                                <div className="mb-4 animate-in fade-in slide-in-from-top-1">
+                                                    <Select
+                                                        label="Frequência"
+                                                        value={intervalId}
+                                                        onChange={(e) => setIntervalId(e.target.value)}
+                                                        options={INTERVALOS.map(opt => ({ value: opt.id, label: opt.label }))}
+                                                    />
+                                                </div>
+                                            )}
+                                        </div>
 
                                         {/* Botão Criar Carona */}
                                         <Button

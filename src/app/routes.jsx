@@ -22,6 +22,7 @@ const HomePage = lazy(() => import('../pages/HomePage').then(m => ({ default: m.
 const DriverPage = lazy(() => import('@features/rides/pages/DriverPage').then(m => ({ default: m.DriverPage })));
 const PassengerPage = lazy(() => import('@features/rides/pages/PassengerPage').then(m => ({ default: m.PassengerPage })));
 const PassengerFollowPage = lazy(() => import('@features/rides/pages/PassengerFollowPage').then(m => ({ default: m.PassengerFollowPage })));
+const RideSchedulingPage = lazy(() => import('@features/rides/pages/RideSchedulingPage').then(m => ({ default: m.RideSchedulingPage })));
 const ActiveRidesPage = lazy(() => import('@features/rides/pages/ActiveRidesPage').then(m => ({ default: m.ActiveRidesPage })));
 const ActiveRequestsPage = lazy(() => import('@features/rides/pages/ActiveRequestsPage').then(m => ({ default: m.ActiveRequestsPage })));
 const PassengerRidesPage = lazy(() => import('@features/rides/pages/PassengerRidesPage').then(m => ({ default: m.PassengerRidesPage })));
@@ -77,6 +78,11 @@ export function AppRoutes() {
                 <Route path="/acompanhar-solicitacao" element={
                     <ProtectedRoute>
                         <PassengerFollowPage />
+                    </ProtectedRoute>
+                } />
+                <Route path="/agendamentos" element={
+                    <ProtectedRoute>
+                        <RideSchedulingPage />
                     </ProtectedRoute>
                 } />
                 <Route path="/caronas-ativas" element={
